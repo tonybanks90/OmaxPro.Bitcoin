@@ -1,10 +1,10 @@
 import React from 'react';
 import { useParams } from 'wouter';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { PriceChart } from '@/components/trading/PriceChart';
-import { TradingInterface } from '@/components/trading/TradingInterface';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useLanguage } from '../contexts/LanguageContext';
+import { PriceChart } from '../components/trading/PriceChart';
+import { TradingInterface } from '../components/trading/TradingInterface';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { ExternalLink, Heart, Share2, TrendingUp } from 'lucide-react';
 
 export default function TokenPage() {

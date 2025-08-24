@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useOdinAPI } from '@/hooks/useOdinAPI';
-import { useAstroApeAPI } from '@/hooks/useAstroApeAPI';
-import { useTycheAPI } from '@/hooks/useTycheAPI';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { TokenCard } from '@/components/trading/TokenCard';
-import { Button } from '@/components/ui/button';
+import { useOdinAPI } from '../hooks/useOdinAPI';
+import { useAstroApeAPI } from '../hooks/useAstroApeAPI';
+import { useTycheAPI } from '../hooks/useTycheAPI';
+import { useLanguage } from '../contexts/LanguageContext';
+import { TokenCard } from '../components/trading/TokenCard';
+import { Button } from '../components/ui/button';
 import { Clock, Star, Search, Filter, MoreVertical, Heart, DollarSign } from 'lucide-react';
 
 export default function TrenchesPage() {

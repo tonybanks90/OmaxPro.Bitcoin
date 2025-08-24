@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link } from 'wouter';
-import { TokenData } from '@/types';
+import type { TokenData } from '../../types';
 import { Heart, MessageCircle, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { Button } from '../ui/button';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface TokenCardProps {
   token: TokenData;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '../ui/button';
 import { TrendingUp, Download, Maximize2 } from 'lucide-react';
 
 interface PriceChartProps {

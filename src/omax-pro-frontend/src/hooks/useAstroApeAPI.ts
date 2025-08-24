@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { TokenData, APIResponse } from '@/types';
+import type { TokenData, APIResponse } from '../types';
 
 async function fetchAstroApeTokens(): Promise<TokenData[]> {
   const response = await fetch('/api/astroape/tokens');

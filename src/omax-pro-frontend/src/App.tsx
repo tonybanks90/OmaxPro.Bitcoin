@@ -1,18 +1,20 @@
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "@/contexts/ThemeContext";
-import { LanguageProvider } from "@/contexts/LanguageContext";
-import { Header } from "@/components/common/Header";
-import { Footer } from "@/components/common/Footer";
-import { MobileNavigation } from "@/components/common/MobileNavigation";
-import TrendingPage from "@/pages/TrendingPage";
-import TrenchesPage from "@/pages/TrenchesPage";
-import TokenPage from "@/pages/TokenPage";
-import WalletPage from "@/pages/WalletPage";
-import NotFound from "@/pages/not-found";
+import { Toaster } from "./components/ui/toaster";
+import { TooltipProvider } from "./components/ui/tooltip";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
+import { Header } from "./components/common/Header";
+import { Footer } from "./components/common/Footer";
+import { MobileNavigation } from "./components/common/MobileNavigation";
+import TrendingPage from "./pages/TrendingPage";
+import TrenchesPage from "./pages/TrenchesPage";
+import TokenPage from "./pages/TokenPage";
+import WalletPage from "./pages/WalletPage";
+import NotFound from "./pages/not-found";
+import "./index.css";
+
 
 function Router() {
   return (

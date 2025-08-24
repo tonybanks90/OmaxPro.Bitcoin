@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'wouter';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { WalletConnectionModal } from '@/components/modals/WalletConnectionModal';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { WalletConnectionModal } from '../modals/WalletConnectionModal';
 import { Diamond, Globe, Palette, Search, Bell, UserCircle } from 'lucide-react';
 
 export function Header() {
@@ -28,20 +28,14 @@ export function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/trending">
-                <a className="text-foreground hover:text-accent transition-colors font-medium" data-testid="link-trending">
-                  {t('nav.trending')}
-                </a>
+               <Link href="/trending" className="text-foreground hover:text-accent transition-colors font-medium" data-testid="link-trending">
+                {t('nav.trending')}
               </Link>
-              <Link href="/wallet">
-                <a className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-wallet-tracker">
-                  {t('nav.walletTracker')}
-                </a>
+              <Link href="/wallet" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-wallet-tracker">
+                {t('nav.walletTracker')}
               </Link>
-              <Link href="/trenches">
-                <a className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-monitor">
-                  {t('nav.monitor')}
-                </a>
+              <Link href="/trenches" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-monitor">
+                {t('nav.monitor')}
               </Link>
               <a href="#" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-holdings">
                 {t('nav.holdings')}
