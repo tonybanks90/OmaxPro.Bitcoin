@@ -20,12 +20,12 @@
       "type": "motoko",
       "args": "--enhanced-orthogonal-persistence"
     },
-    "multi-trader-frontend": {
+    "omax-pro-frontend": {
       "dependencies": [
         "multi-trader-backend"
       ],
       "source": [
-        "src/multi-trader-frontend/dist"
+        "src/omax-pro-frontend/dist"
       ],
       "type": "assets",
       "workspace": "multi-trader-frontend"

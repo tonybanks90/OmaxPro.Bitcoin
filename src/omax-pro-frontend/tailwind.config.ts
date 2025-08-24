@@ -1,7 +1,8 @@
-// tailwind.config.js
-const plugin = require("tailwindcss/plugin");
+import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
+import typography from "@tailwindcss/typography";
 
-module.exports = {
+export default {
   darkMode: ["class"],
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
@@ -45,6 +46,10 @@ module.exports = {
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
+        surface: "var(--surface)",
+        "surface-light": "var(--surface-light)",
+        success: "var(--success)",
+        warning: "var(--warning)",
         chart: {
           "1": "var(--chart-1)",
           "2": "var(--chart-2)",
@@ -63,24 +68,49 @@ module.exports = {
           ring: "var(--sidebar-ring)",
         },
       },
+      fontFamily: {
+        sans: ["var(--font-sans)"],
+        serif: ["var(--font-serif)"],
+        mono: ["var(--font-mono)"],
+      },
       keyframes: {
         "accordion-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-accordion-content-height)" },
+          from: {
+            height: "0",
+          },
+          to: {
+            height: "var(--radix-accordion-content-height)",
+          },
         },
         "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
+          from: {
+            height: "var(--radix-accordion-content-height)",
+          },
+          to: {
+            height: "0",
+          },
+        },
+        fadeIn: {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        slideUp: {
+          from: { transform: "translateY(20px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
+        },
+        glow: {
+          from: { boxShadow: "0 0 20px rgba(139, 92, 246, 0.3)" },
+          to: { boxShadow: "0 0 30px rgba(139, 92, 246, 0.6)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in": "fadeIn 0.3s ease-in-out",
+        "slide-up": "slideUp 0.3s ease-out",
+        glow: "glow 2s ease-in-out infinite alternate",
       },
     },
   },
-  plugins: [
-    require("tailwindcss-animate"),
-    require("@tailwindcss/typography"),
-  ],
-};
+  plugins: [tailwindcssAnimate, typography],
+} satisfies Config;
