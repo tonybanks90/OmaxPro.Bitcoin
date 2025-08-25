@@ -70,17 +70,23 @@ export default function TrendingPage() {
 
           {/* Additional Filters */}
           <Button
-            variant="outline"
-            onClick={() => setShowFilterModal(true)}
-            className="flex items-center space-x-2"
-            data-testid="button-open-filters"
-          >
-            <Filter className="w-4 h-4" />
-            <span>Filters</span>
-            <span className="bg-success text-white text-xs px-2 py-1 rounded-full" data-testid="text-active-filters">
-              0
-            </span>
-          </Button>
+  variant="outline"
+  onClick={() => setShowFilterModal(true)}
+  className="flex items-center space-x-2"
+  data-testid="button-open-filters"
+>
+  <Filter className="w-4 h-4" />
+  
+  {/* Hide text & badge on small screens */}
+  <span className="hidden sm:inline">Filters</span>
+  <span
+    className="hidden sm:inline bg-success text-white text-xs px-2 py-1 rounded-full"
+    data-testid="text-active-filters"
+  >
+    0
+  </span>
+</Button>
+
         </div>
 
         {/* Search and Options */}

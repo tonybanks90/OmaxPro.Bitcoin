@@ -31,21 +31,19 @@ export function Header() {
                <Link href="/trending" className="text-foreground hover:text-accent transition-colors font-medium" data-testid="link-trending">
                 {t('nav.trending')}
               </Link>
+              <Link href="/trenches" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-trenches">
+                {t('nav.trenches')}
+              </Link>
               <Link href="/wallet" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-wallet-tracker">
                 {t('nav.walletTracker')}
               </Link>
-              <Link href="/trenches" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-monitor">
-                {t('nav.monitor')}
-              </Link>
-              <a href="#" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-holdings">
+              <Link href="/holdings" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-holdings">
                 {t('nav.holdings')}
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-earn">
+              </Link>
+              <Link href="/earn" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-earn">
                 {t('nav.earn')}
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-points">
-                {t('nav.points')}
-              </a>
+              </Link>
+              
             </nav>
 
             {/* Header Controls */}

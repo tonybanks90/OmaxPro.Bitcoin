@@ -12,6 +12,10 @@ import TrendingPage from "./pages/TrendingPage";
 import TrenchesPage from "./pages/TrenchesPage";
 import TokenPage from "./pages/TokenPage";
 import WalletPage from "./pages/WalletPage";
+import EarnPage from "./pages/EarnPage";
+import HoldingsPage from "./pages/HoldingsPage";
+import WalletManagerPage from "./pages/WalletManagerPage";
+import SniperPage from "./pages/SniperPage";
 import NotFound from "./pages/not-found";
 import "./index.css";
 import { AuthProvider } from "./auth/AuthProvider";
@@ -27,6 +31,10 @@ function Router() {
         <Route path="/trenches" component={TrenchesPage} />
         <Route path="/token/:id" component={TokenPage} />
         <Route path="/wallet" component={WalletPage} />
+        <Route path="/earn" component={EarnPage} />
+        <Route path="/holdings" component={HoldingsPage} />
+        <Route path="/wallet-manager" component={WalletManagerPage} />
+        <Route path="/sniper" component={SniperPage} />
         <Route component={NotFound} />
       </Switch>
       <Footer />

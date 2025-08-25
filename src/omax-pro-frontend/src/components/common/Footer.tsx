@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'wouter';
 import { Crosshair, Wallet, Activity, Bell, TrendingUp, Settings } from 'lucide-react';
 
 export function Footer() {
@@ -7,14 +8,14 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-12">
           <div className="flex items-center space-x-6">
-            <button className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-sniper">
+            <Link href="/sniper" className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-sniper">
               <Crosshair className="w-4 h-4" />
               <span className="text-sm">Sniper</span>
-            </button>
-            <button className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-wallet-tracker">
+            </Link>
+            <Link href="/wallet-manager" className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-wallet-tracker">
               <Wallet className="w-4 h-4" />
-              <span className="text-sm">Wallet Tracker</span>
-            </button>
+              <span className="text-sm">Wallet Manager</span>
+            </Link>
             <button className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-monitor">
               <Activity className="w-4 h-4" />
               <span className="text-sm">Monitor</span>
@@ -30,7 +31,7 @@ export function Footer() {
           </div>
 
           <div className="flex items-center space-x-4">
-            <span className="text-xs text-muted-foreground">© 2024 Omax</span>
+            <span className="text-xs text-muted-foreground">© 2025 Omax</span>
             <button className="text-muted-foreground hover:text-foreground transition-colors" data-testid="button-settings">
               <Settings className="w-4 h-4" />
             </button>
