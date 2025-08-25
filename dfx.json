@@ -8,22 +8,18 @@
       "main": "src/multi-trader-backend/main.mo",
       "type": "motoko"
     },
+    "OmaxRouter": {
+      "main": "src/multi-trader-backend/OmaxRouter/omaxkongroute",
+      "type": "motoko"
+    },
     "wallet": {
       "dependencies": ["evm_rpc"],
       "main": "src/multi-trader-backend/Wallet/wallet.mo",
       "type": "motoko",
       "args": "--enhanced-orthogonal-persistence"
     },
-    "uniswap": {
-      "dependencies": ["evm_rpc"],
-      "main": "src/multi-trader-backend/Uniswap/uniswap.mo",
-      "type": "motoko",
-      "args": "--enhanced-orthogonal-persistence"
-    },
     "omax-pro-frontend": {
-      "dependencies": [
-        "multi-trader-backend"
-      ],
+      "dependencies": [],
       "source": [
         "src/omax-pro-frontend/dist"
       ],

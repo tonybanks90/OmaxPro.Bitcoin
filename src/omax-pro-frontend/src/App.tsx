@@ -14,6 +14,7 @@ import TokenPage from "./pages/TokenPage";
 import WalletPage from "./pages/WalletPage";
 import NotFound from "./pages/not-found";
 import "./index.css";
+import { AuthProvider } from "./auth/AuthProvider";
 
 
 function Router() {
@@ -40,10 +41,12 @@ function App() {
       <ThemeProvider>
         <LanguageProvider>
           <TooltipProvider>
+             <AuthProvider> 
             <div className="min-h-screen bg-background text-foreground transition-colors">
               <Toaster />
               <Router />
             </div>
+            </AuthProvider>
           </TooltipProvider>
         </LanguageProvider>
       </ThemeProvider>

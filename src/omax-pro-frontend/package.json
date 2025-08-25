@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dfinity/agent": "^3.2.2",
+    "@dfinity/auth-client": "^3.2.2",
+    "@dfinity/principal": "^3.2.2",
     "@hookform/resolvers": "^5.2.1",
     "@jridgewell/trace-mapping": "^0.3.30",
     "@neondatabase/serverless": "^1.0.1",
@@ -68,6 +71,7 @@
     "zod-validation-error": "^4.0.1"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.3",
     "@eslint/js": "^9.33.0",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^24.3.0",
