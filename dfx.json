@@ -24,7 +24,7 @@
         "src/omax-pro-frontend/dist"
       ],
       "type": "assets",
-      "workspace": "multi-trader-frontend"
+      "workspace": "omax-pro-frontend"
     },
     "internet_identity": {
       "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",

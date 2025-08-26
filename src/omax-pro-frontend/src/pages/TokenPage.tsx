@@ -1,5 +1,6 @@
 import React from 'react';
 import { useParams } from 'wouter';
+import { useTokenAPI } from '../hooks/useTokenAPI';
 import { useLanguage } from '../contexts/LanguageContext';
 import { PriceChart } from '../components/trading/PriceChart';
 import { TradingInterface } from '../components/trading/TradingInterface';
@@ -10,9 +11,10 @@ import { ExternalLink, Heart, Share2, TrendingUp } from 'lucide-react';
 export default function TokenPage() {
   const { id } = useParams<{ id: string }>();
   const { t } = useLanguage();
+  const { token, isLoading, error } = useTokenAPI(id || '');
 
-  // In a real app, fetch token data based on ID
-  const tokenData = {
+  // Fallback data if token not found or API fails
+  const fallbackData = {
     id: id || 'demo',
     name: 'STYLE',
     symbol: 'STYLE',
@@ -26,6 +28,23 @@ export default function TokenPage() {
     pair: 'Pair ⚡',
     avatar: "https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=64&h=64&fit=crop",
   };
+
+  // Use real token data if available, otherwise fallback
+  const tokenData = token ? {
+    ...token,
+    pair: 'Pair ⚡', // Add missing fields for display
+    contractAddress: token.contractAddress.slice(0, 4) + '...' + token.contractAddress.slice(-3)
+  } : fallbackData;
+
+  if (isLoading) {
+    return (
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-token">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-token">
@@ -48,7 +67,7 @@ export default function TokenPage() {
                       {tokenData.name}/USD
                     </h1>
                     <p className="text-muted-foreground" data-testid="text-token-description">
-                      on Pump.Fun Nova - 1s
+                      on Odin.Fun Omax - 1s
                     </p>
                   </div>
                 </div>
@@ -73,7 +92,9 @@ export default function TokenPage() {
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">24h Change</div>
-                  <div className="text-lg font-bold text-success" data-testid="text-token-change-24h">
+                  <div className={`text-lg font-bold ${
+                    tokenData.change24h?.startsWith('+') ? 'text-success' : 'text-destructive'
+                  }`} data-testid="text-token-change-24h">
                     {tokenData.change24h}
                   </div>
                 </div>

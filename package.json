@@ -13,7 +13,7 @@
   },
   "type": "module",
   "workspaces": [
-    "src/multi-trader-frontend"
+    "src/omax-pro-frontend"
   ],
   "dependencies": {
     "@dfinity/agent": "^3.2.2",
