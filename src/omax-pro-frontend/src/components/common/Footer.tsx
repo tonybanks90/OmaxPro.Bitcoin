@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'wouter';
 import { Crosshair, Wallet, Activity, Bell, TrendingUp, Settings } from 'lucide-react';
 

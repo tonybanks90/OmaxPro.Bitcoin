@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Search, Filter, TrendingUp, DollarSign, Wallet, BarChart3, Settings } from 'lucide-react';
 
 export default function HoldingsPage() {
-  const { t } = useLanguage();
+  useLanguage();
   const [selectedWallet, setSelectedWallet] = useState('W1');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);

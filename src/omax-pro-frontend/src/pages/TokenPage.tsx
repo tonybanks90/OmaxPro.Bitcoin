@@ -1,4 +1,3 @@
-import React from 'react';
 import { useParams } from 'wouter';
 import { useTokenAPI } from '../hooks/useTokenAPI';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -6,27 +5,27 @@ import { PriceChart } from '../components/trading/PriceChart';
 import { TradingInterface } from '../components/trading/TradingInterface';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
-import { ExternalLink, Heart, Share2, TrendingUp } from 'lucide-react';
+import { ExternalLink, Heart, Share2 } from 'lucide-react';
 
 export default function TokenPage() {
   const { id } = useParams<{ id: string }>();
   const { t } = useLanguage();
-  const { token, isLoading, error } = useTokenAPI(id || '');
+  const { token, isLoading } = useTokenAPI(id || '');
 
   // Fallback data if token not found or API fails
   const fallbackData = {
-    id: id || 'demo',
-    name: 'STYLE',
-    symbol: 'STYLE',
-    price: '$0.571K',
-    marketCap: '$6.13K',
+    id: id || '2jjj',
+    name: 'ODINDOG',
+    symbol: 'ODINDOG•ID•YTTL•ODIN',
+    price: '$0.73120',
+    marketCap: '$15.36M',
     change24h: '+15.7%',
     volume24h: '$1.53K',
-    liquidity: '$1.53K',
+    liquidity: '$811.53K',
     age: '4 days ago',
-    contractAddress: '84A4...ump',
+    contractAddress: '2jjj',
     pair: 'Pair ⚡',
-    avatar: "https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=64&h=64&fit=crop",
+    avatar: "https://images.odin.fun/token/2jjj",
   };
 
   // Use real token data if available, otherwise fallback
@@ -64,7 +63,7 @@ export default function TokenPage() {
                   />
                   <div>
                     <h1 className="text-2xl font-bold text-foreground" data-testid="text-token-name">
-                      {tokenData.name}/USD
+                      {tokenData.name}/BTC
                     </h1>
                     <p className="text-muted-foreground" data-testid="text-token-description">
                       on Odin.Fun Omax - 1s
@@ -194,11 +193,7 @@ export default function TokenPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Supply</span>
-                  <span className="text-sm font-medium text-foreground" data-testid="text-token-supply">1B</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Dex Paid</span>
-                  <span className="text-sm font-medium text-destructive" data-testid="text-dex-paid">Unpaid</span>
+                  <span className="text-sm font-medium text-foreground" data-testid="text-token-supply">21M</span>
                 </div>
               </div>
             </CardContent>

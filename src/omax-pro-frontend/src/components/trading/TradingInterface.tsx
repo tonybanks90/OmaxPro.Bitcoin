@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
@@ -116,7 +116,7 @@ export function TradingInterface({ tokenSymbol }: TradingInterfaceProps) {
         data-testid="button-execute-trade"
       >
         <Zap className="w-5 h-5 mr-2" />
-        Quick {tradeType === 'buy' ? 'Buy' : 'Sell'} {amount || '0'} SOL
+        Quick {tradeType === 'buy' ? 'Buy' : 'Sell'} {amount || '0'} BTC
       </Button>
 
       <p className="text-xs text-center text-muted-foreground">
@@ -130,16 +130,6 @@ export function TradingInterface({ tokenSymbol }: TradingInterfaceProps) {
           <div className="flex items-center space-x-1">
             <div className="w-2 h-2 bg-destructive rounded-full"></div>
             <span className="text-sm text-destructive">0 Issues</span>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <span className="text-sm text-muted-foreground">Mint Authority</span>
-            <span className="text-sm text-destructive font-medium">Disabled</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-sm text-muted-foreground">Freeze Authority</span>
-            <span className="text-sm text-destructive font-medium">Disabled</span>
           </div>
         </div>
       </div>

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link, useLocation } from 'wouter';
 import { Diamond, Search, Compass, Wallet, Settings } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';

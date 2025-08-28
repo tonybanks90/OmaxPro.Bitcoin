@@ -1,22 +1,12 @@
 {
   "canisters": {
-    "evm_rpc": {
-      "type": "pull",
-      "id": "7hfb6-caaaa-aaaar-qadga-cai"
-    },
-    "multi-trader-backend": {
-      "main": "src/multi-trader-backend/main.mo",
+    "WalletTracker": {
+      "main": "src/multi-trader-backend/WalletTracker/main.mo",
       "type": "motoko"
     },
     "OmaxRouter": {
-      "main": "src/multi-trader-backend/OmaxRouter/omaxkongroute",
+      "main": "src/multi-trader-backend/OmaxRouter/omaxkongroute.mo",
       "type": "motoko"
-    },
-    "wallet": {
-      "dependencies": ["evm_rpc"],
-      "main": "src/multi-trader-backend/Wallet/wallet.mo",
-      "type": "motoko",
-      "args": "--enhanced-orthogonal-persistence"
     },
     "omax-pro-frontend": {
       "dependencies": [],

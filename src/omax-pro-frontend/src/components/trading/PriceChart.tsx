@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '../ui/button';
 import { TrendingUp, Download, Maximize2 } from 'lucide-react';
 

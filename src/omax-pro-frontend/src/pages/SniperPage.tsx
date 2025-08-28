@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -29,7 +29,7 @@ interface SniperTask {
 }
 
 export default function SniperPage() {
-  const { t } = useLanguage();
+  useLanguage();
   const [activeTab, setActiveTab] = useState('migrating');
   const [showMigrationModal, setShowMigrationModal] = useState(false);
   const [migrationForm, setMigrationForm] = useState({
@@ -387,7 +387,7 @@ export default function SniperPage() {
                 data-testid="button-submit-migration"
               >
                 <Target className="w-4 h-4 mr-2" />
-                Snipe 0 SOL
+                Snipe 0 BTC
               </Button>
               
               <p className="text-xs text-center text-muted-foreground">

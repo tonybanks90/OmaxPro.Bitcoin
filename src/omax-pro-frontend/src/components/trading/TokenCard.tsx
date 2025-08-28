@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'wouter';
 import type { TokenData } from '../../types';
 import { Heart, MessageCircle, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';

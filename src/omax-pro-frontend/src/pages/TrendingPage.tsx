@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useOdinAPI } from '../hooks/useOdinAPI';
 import { useAstroApeAPI } from '../hooks/useAstroApeAPI';
 import { useTycheAPI } from '../hooks/useTycheAPI';
@@ -6,7 +6,6 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { FilterModal } from '../components/modals/FilterModal';
-import { TokenCard } from '../components/trading/TokenCard';
 import { Search, Filter, Settings, TrendingUp } from 'lucide-react';
 
 export default function TrendingPage() {

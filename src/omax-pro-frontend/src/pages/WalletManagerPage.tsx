@@ -1,19 +1,16 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useWalletBalances, useTransactionFees, useDepositAddress, useWithdrawFunds } from '../hooks/useWalletAPI';
+import { useWalletBalances, useTransactionFees, useWithdrawFunds } from '../hooks/useWalletAPI';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { 
   Wallet, 
   Download, 
-  Upload, 
   Plus, 
   Copy, 
-  QrCode, 
-  Settings,
   ArrowUpCircle,
   ArrowDownCircle,
   Bitcoin,
@@ -21,16 +18,15 @@ import {
 } from 'lucide-react';
 
 export default function WalletManagerPage() {
-  const { t } = useLanguage();
+  useLanguage();
   const [activeTab, setActiveTab] = useState('deposits');
   const [selectedNetwork, setSelectedNetwork] = useState('bitcoin');
   const [selectedToken, setSelectedToken] = useState('BTC');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [destinationAddress, setDestinationAddress] = useState('');
   
-  const { data: balances = [], isLoading: balancesLoading } = useWalletBalances();
-  const { data: fees = [], isLoading: feesLoading } = useTransactionFees();
-  const depositMutation = useDepositAddress();
+  const { data: balances = [] } = useWalletBalances();
+  const { data: fees = [] } = useTransactionFees();
   const withdrawMutation = useWithdrawFunds();
 
   const networks = [

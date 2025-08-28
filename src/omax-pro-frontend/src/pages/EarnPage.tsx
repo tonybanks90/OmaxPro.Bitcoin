@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Copy, Share2, Users, DollarSign, Clock, Gift, Star, Globe, Wallet, History } from 'lucide-react';
+import { Copy, Users, DollarSign, Clock, Gift, Star, History } from 'lucide-react';
 
 export default function EarnPage() {
   const { t } = useLanguage();
