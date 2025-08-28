@@ -1,54 +1,76 @@
-# 🧠 OMAXPro – Onchain Multichain Trading Platform
-![OMAXPro Preview](./src//multi-trader-frontend//assets/Pro.png)
+# 🧠 OMAX – Bitcoin DeFi Trading Hub
+![OMAX Preview](./src/assets/OMAX.png)
 
-Welcome to **OMAXPro**, a fully decentralized multichain trading platform built on the **Internet Computer Protocol (ICP)** using its revolutionary **Chain Fusion** technology.
+Welcome to **OMAX**, the first advanced **Bitcoin-native DeFi trading platform**.  
+OMAX unlocks the full potential of Bitcoin DeFi, including memecoins, Runes, and experimental tokens.  
 
-OMAXPro allows users to trade assets natively across **Bitcoin (odin.fun)**, **Solana (Raydium, pump.fun)**, and **Ethereum (Uniswap)**—all from a single interface. Users sign in with **Bitcoin**, **Solana**, or **Ethereum** addresses and manage their assets using one unified wallet, generated and secured onchain via **chain-key cryptography**.
+**Watch the demo:**  
+[![OMAX Demo](https://img.youtube.com/vi/NsO1JcFgMpg/0.jpg)](https://youtu.be/NsO1JcFgMpg?si=iObXyJ-LiKPQ2aqu)
+
+OMAX enables users to trade assets from **Odin.fun, Tyche.run, AstroApe.fun** seamlessly, all from a **single interface**.  
+Users sign in with **Bitcoin, Ethereum, Solana, or Google**, and manage their assets using a **secure onchain wallet** powered by **chain-key cryptography**.
 
 ---
 
 ## 🚀 Key Features
 
-- 🔄 Native multichain trading: Bitcoin, Ethereum, and Solana
-- 🔐 Unified onchain wallet via chain-key cryptography
-- 🖥 Fully decentralized frontend hosted on ICP
-- 🛠 Canister-based orchestration with real-time RPC to external chains
-- 🤖 Future support for programmable onchain trading agents
+- 🔄 **Runes Aggregator**: Aggregate liquidity from all Bitcoin DeFi DEXs for best prices.
+- 🔐 **Secure Onchain Wallets**: Generated and secured with chain-key cryptography & Internet Identity.
+- 👀 **Wallet Tracking & Copy Trading**: Follow top wallets and mirror trades with one click.
+- 🤖 **Automation & Sniper Tools**: Quick buy on token launches, auto-triggers, trailing strategies.
+- 📊 **Real-Time P&L & Analytics**: Track per-trade and per-wallet profit/loss.
+- 🌱 **Curated Discovery Pipeline**: Newly Created → About to Graduate → Graduated tokens with Quick Buy CTA.
+- 🌍 **Translator & Localization**: Built-in language switcher for global accessibility.
+- 🖥 **Polished UI/UX**: Clean, fast, and intuitive trading interface.
+- 🔮 **Future Onchain Agents**: Programmable bots for autonomous strategies like arbitrage, DCA, and wallet mirroring.
 
 ---
 
 ## 🧱 Architecture Overview
 
-OMAXPro is composed of several smart canisters that coordinate wallet generation, trade execution, external chain access, and later AI agent logic:
+OMAX is fully **decentralized on ICP** using **Chain Fusion** technology, focused entirely on **Bitcoin DeFi**.
 
 ### 🔧 Wallet Manager Canister
-- Creates and manages BTC, ETH, and SOL addresses
-- Single sign-in experience using any supported chain
-- Onchain identity and unified balance tracking
+- Generates and manages Bitcoin addresses securely.
+- Supports multiple sign-in options: Bitcoin, Ethereum, Solana, Google.
+- Unified balance tracking across all connected addresses.
 
 ### 🔄 Trading Engine Canister
-- Executes and orchestrates trades across chains
-- Reads onchain market data via RPC
-- Sends signed transactions to Bitcoin, Ethereum, and Solana networks
+- Executes trades across Odin.fun, Tyche.run, AstroApe.fun.
+- Reads onchain market data via RPC.
+- Supports assisted quick buys, automation triggers, and copy-trading.
 
-### 🔐 Chain Fusion Capabilities
-| Chain     | Mechanism                  | Features                              |
-|-----------|----------------------------|----------------------------------------|
-| Bitcoin   | Bitcoin adapter (native)   | UTXO, address generation, send tx      |
-| Ethereum  | EVM RPC canister           | Call contracts, parse logs, sign txs   |
-| Solana    | Solana RPC + EdDSA signing | Read accounts, interact with programs  |
+### 🌱 Discovery & Analytics Canister
+- Curated pipeline: Newly Created → About to Graduate → Graduated.
+- Token metrics, liquidity alerts, whale activity, and performance analytics.
+- Quick Buy CTA for every stage to capture fast-moving opportunities.
 
 ### 🖥 Frontend Canister
-- React-based interface, served onchain
-- Proxy-based development flow (Vite → DFX)
-- Uses `@dfinity/agent` for backend interaction
+- React-based interface served onchain.
+- Proxy-based development flow (Vite → DFX).
+- Uses `@dfinity/agent` for secure backend interaction.
+- Built-in Translator for multi-language support.
 
-### 🤖 Onchain Agents (later)
-- Programmable logic bots stored and run inside canisters
-- Monitor real-time onchain events
-- Execute decentralized strategies like arbitrage or DCA
+### 🤖 Onchain Agents (Future)
+- Programmable bots that monitor onchain events.
+- Execute decentralized trading strategies autonomously.
+- Safety controls and permissioned execution.
 
 ---
+
+## 📈 Roadmap Highlights
+- **July**: Team formation, ideation, core technologies.  
+- **August**: Prototype, UI/UX, feedback, partner integrations, data API.  
+- **September**: Wallet Tracker, wallet generation, swap component, Closed Alpha.  
+- **October**: Advanced charts, sniper component, Public Alpha, CI/CD deployment.
+
+---
+
+## 🔗 Get Started
+1. Clone the repository  
+   ```bash
+   git clone https://github.com/tonybanks90/multi-pro-trader.git
+
 
 ## 🧪 Local Development Guide
 
@@ -65,7 +87,7 @@ OMAXPro is initialized using the Internet Computer SDK (`dfx`) with full support
 multi-trader/ (OMAXPro root)
 ├── src/
 │   ├── multi-trader-backend/       # Canister logic (Motoko or Rust)
-│   ├── multi-trader-frontend/      # Web frontend (React + Vite)
+│   ├── omax-pro-frontend/      # Web frontend (React + Vite)
 │  
 ├── dfx.json                   # DFX config
 ├── package.json               # NPM metadata
@@ -105,6 +127,7 @@ at any time. This is recommended before starting the frontend development server
 If you are making frontend changes, you can start a development server with
 
 ```bash
+cd/src
 npm start
 ```
 
