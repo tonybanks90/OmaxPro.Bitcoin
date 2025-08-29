@@ -4,6 +4,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { WalletConnectionModal } from '../modals/WalletConnectionModal';
 import { Diamond, Globe, Palette, Search, Bell, UserCircle } from 'lucide-react';
+import { NotificationsPopup } from '../modals/NotificationsPopup';
+import { ProfileMenu } from '../modals/ProfileMenu';
 
 export function Header() {
   const { toggleTheme } = useTheme();
@@ -90,9 +92,11 @@ export function Header() {
               </button>
 
               {/* Account Menu */}
-              <button className="text-muted-foreground hover:text-foreground transition-colors" data-testid="button-account">
-                <UserCircle className="w-6 h-6" />
-              </button>
+              <ProfileMenu>
+                <button className="text-muted-foreground hover:text-foreground transition-colors" data-testid="button-account">
+                  <UserCircle className="w-6 h-6" />
+                </button>
+              </ProfileMenu>
             </div>
           </div>
         </div>

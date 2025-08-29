@@ -14,7 +14,7 @@ Users sign in with **Bitcoin, Ethereum, Solana, or Google**, and manage their as
 
 ## 🚀 Key Features
 
-- 🔄 **Runes Aggregator**: Aggregate liquidity from all Bitcoin DeFi DEXs for best prices.
+- 🔄 **Runes Aggregator**: Aggregate liquidity from Bitcoin DeFi DEXs like Odin.fun , Tyche.run, KongSwap, AstroApe .
 - 🔐 **Secure Onchain Wallets**: Generated and secured with chain-key cryptography & Internet Identity.
 - 👀 **Wallet Tracking & Copy Trading**: Follow top wallets and mirror trades with one click.
 - 🤖 **Automation & Sniper Tools**: Quick buy on token launches, auto-triggers, trailing strategies.
