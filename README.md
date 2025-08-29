@@ -32,12 +32,12 @@ OMAX is fully **decentralized on ICP** using **Chain Fusion** technology, focuse
 
 ### 🔧 Wallet Manager Canister
 - Generates and manages Bitcoin addresses securely.
-- Supports multiple sign-in options: Bitcoin, Ethereum, Solana, Google.
+- Supports multiple sign-in options: Internet Identity Bitcoin, Ethereum, Solana, Google.
 - Unified balance tracking across all connected addresses.
 
 ### 🔄 Trading Engine Canister
 - Executes trades across Odin.fun, Tyche.run, AstroApe.fun.
-- Reads onchain market data via RPC.
+- Reads onchain market data via their API.
 - Supports assisted quick buys, automation triggers, and copy-trading.
 
 ### 🌱 Discovery & Analytics Canister

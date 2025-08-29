@@ -26,9 +26,9 @@ function Router() {
     <div className="min-h-screen pb-20 md:pb-12">
       <Header />
       <Switch>
-        <Route path="/" component={TrenchesPage} />
+        <Route path="/" component={TrendingPage} />
+        <Route path="/trending" component={TrendingPage} />
         <Route path="/trenches" component={TrenchesPage} />
-        {/*<Route path="/trenches" component={TrenchesPage} */}
         <Route path="/token/:id" component={TokenPage} />
         <Route path="/wallet" component={WalletPage} />
         <Route path="/earn" component={EarnPage} />
