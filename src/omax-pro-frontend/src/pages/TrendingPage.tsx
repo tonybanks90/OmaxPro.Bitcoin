@@ -1,25 +1,41 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { Link } from 'wouter';
 import { useOdinAPI } from '../hooks/useOdinAPI';
 import { useAstroApeAPI } from '../hooks/useAstroApeAPI';
 import { useTycheAPI } from '../hooks/useTycheAPI';
+import { useKongSwapAPI } from '../hooks/useKongSwapAPI';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { FilterModal } from '../components/modals/FilterModal';
 import { Search, Filter, Settings, TrendingUp } from 'lucide-react';
+import type { TokenData } from '../types';
 
 export default function TrendingPage() {
   const { t } = useLanguage();
   const [activeTimeframe, setActiveTimeframe] = useState('1M');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeDexes, setActiveDexes] = useState(['Odin', 'Tyche', 'KongSwap', 'AstroApe']);
   
   const { tokens: odinTokens, isLoading: odinLoading } = useOdinAPI();
   const { tokens: astroapeTokens, isLoading: astroapeLoading } = useAstroApeAPI();
   const { tokens: tycheTokens, isLoading: tycheLoading } = useTycheAPI();
+  const { tokens: kongswapTokens, isLoading: kongswapLoading } = useKongSwapAPI();
   
-  const isLoading = odinLoading || astroapeLoading || tycheLoading;
-  const allTokens = [...odinTokens, ...astroapeTokens, ...tycheTokens];
+  const isLoading = odinLoading || astroapeLoading || tycheLoading || kongswapLoading;
+  
+  // Filter tokens based on active DEXes
+  const getTokensByDex = (): TokenData[] => {
+    let tokens: TokenData[] = [];
+    if (activeDexes.includes('Odin')) tokens = [...tokens, ...odinTokens];
+    if (activeDexes.includes('AstroApe')) tokens = [...tokens, ...astroapeTokens];
+    if (activeDexes.includes('Tyche')) tokens = [...tokens, ...tycheTokens];
+    if (activeDexes.includes('KongSwap')) tokens = [...tokens, ...kongswapTokens];
+    return tokens;
+  };
+  
+  const allTokens = getTokensByDex();
   
   const filteredTokens = allTokens.filter(token =>
     token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -27,6 +43,15 @@ export default function TrendingPage() {
   );
 
   const timeframes = ['1M', '5M', '30M', '1H'];
+  const dexes = ['Odin', 'Tyche', 'KongSwap', 'AstroApe'];
+  
+  const toggleDex = (dex: string) => {
+    setActiveDexes(prev => 
+      prev.includes(dex) 
+        ? prev.filter(d => d !== dex)
+        : [...prev, dex]
+    );
+  };
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-trending">
@@ -41,8 +66,10 @@ export default function TrendingPage() {
       </div>
 
       {/* Filters and Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-6">
+        
+        {/* Left Section: Filters */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           {/* Time Filter */}
           <div className="flex bg-surface rounded-lg p-1">
             {timeframes.map((timeframe) => (
@@ -58,56 +85,66 @@ export default function TrendingPage() {
             ))}
           </div>
 
-          {/* Exchange Filter */}
-          <div className="flex items-center space-x-2 bg-surface rounded-lg px-3 py-2">
-            <TrendingUp className="text-accent text-sm" />
-            <span className="text-sm font-medium text-foreground">Dexes</span>
-            <span className="bg-accent text-accent-foreground text-xs px-2 py-1 rounded-full" data-testid="text-active-exchanges">
-              3
-            </span>
+          {/* DEX Filter Toggles */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex items-center space-x-2 bg-surface rounded-lg px-3 py-2">
+              <TrendingUp className="text-accent text-sm" />
+              <span className="text-sm font-medium text-foreground">Dexes</span>
+              <span className="bg-accent text-accent-foreground text-xs px-2 py-1 rounded-full" data-testid="text-active-exchanges">
+                {activeDexes.length}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {dexes.map((dex) => (
+                <Button
+                  key={dex}
+                  size="sm"
+                  variant={activeDexes.includes(dex) ? "default" : "outline"}
+                  onClick={() => toggleDex(dex)}
+                  className="text-xs"
+                  data-testid={`button-dex-${dex.toLowerCase()}`}
+                >
+                  {dex}
+                </Button>
+              ))}
+            </div>
           </div>
 
           {/* Additional Filters */}
           <Button
-  variant="outline"
-  onClick={() => setShowFilterModal(true)}
-  className="flex items-center space-x-2"
-  data-testid="button-open-filters"
->
-  <Filter className="w-4 h-4" />
-  
-  {/* Hide text & badge on small screens */}
-  <span className="hidden sm:inline">Filters</span>
-  <span
-    className="hidden sm:inline bg-success text-white text-xs px-2 py-1 rounded-full"
-    data-testid="text-active-filters"
-  >
-    0
-  </span>
-</Button>
-
+            variant="outline"
+            onClick={() => setShowFilterModal(true)}
+            className="flex items-center space-x-2"
+            data-testid="button-open-filters"
+          >
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
+            <span className="bg-success text-white text-xs px-2 py-1 rounded-full" data-testid="text-active-filters">
+              0
+            </span>
+          </Button>
         </div>
 
-        {/* Search and Options */}
-        <div className="flex items-center space-x-3">
-          <div className="relative">
+        {/* Right Section: Search + Settings */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:space-x-3 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-3 text-muted-foreground w-4 h-4" />
             <Input
               type="text"
               placeholder="Search tokens..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
+              className="pl-10 w-full"
               data-testid="input-search-tokens"
             />
           </div>
-          <Button variant="outline" size="icon" data-testid="button-settings">
+          <Button variant="outline" size="icon" className="self-start sm:self-auto" data-testid="button-settings">
             <Settings className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      {/* Trending Table */}
+       {/* Trending Table */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="p-12 text-center">
@@ -127,36 +164,16 @@ export default function TrendingPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Token
-                  </th>
-                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Age
-                  </th>
-                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Mkt Cap
-                  </th>
-                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Holders
-                  </th>
-                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    5M
-                  </th>
-                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    1H
-                  </th>
-                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    6H
-                  </th>
-                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    24H
-                  </th>
-                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Volume
-                  </th>
-                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="text-left py-4 px-6 text-sm font-medium text-muted-foreground uppercase tracking-wider">Token</th>
+                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Age</th>
+                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Mkt Cap</th>
+                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Holders</th>
+                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">5M</th>
+                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">1H</th>
+                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">6H</th>
+                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">24H</th>
+                  <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">Volume</th>
+                  <th className="text-right py-4 px-6 text-sm font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -166,10 +183,11 @@ export default function TrendingPage() {
                     className="border-b border-border hover:bg-muted/50 transition-colors cursor-pointer"
                     data-testid={`row-token-${token.id}`}
                   >
+                    {/* Avatar + Name */}
                     <td className="py-4 px-6">
-                      <div className="flex items-center space-x-3">
+                      <Link to={`/token/${token.id}`} className="flex items-center space-x-3">
                         <img
-                          src={token.avatar || "https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=40&h=40&fit=crop"}
+                          src={token.avatar || "https://placehold.co/40x40"}
                           alt={token.name}
                           className="w-10 h-10 rounded-full"
                           data-testid={`img-token-avatar-${token.id}`}
@@ -182,72 +200,34 @@ export default function TrendingPage() {
                             {token.symbol}
                           </div>
                         </div>
-                      </div>
+                      </Link>
+                    </td>
+
+                    {/* Stats */}
+                    <td className="py-4 px-4 text-right"><span className="text-sm text-muted-foreground">{token.age}</span></td>
+                    <td className="py-4 px-4 text-right"><span className="text-sm font-medium">{token.marketCap}</span></td>
+                    <td className="py-4 px-4 text-right"><span className="text-sm">{token.holders.toLocaleString()}</span></td>
+
+                    {/* Changes */}
+                    <td className="py-4 px-4 text-right">
+                      <span className={`text-sm font-medium ${token.change5m.startsWith('+') ? 'text-success' : 'text-destructive'}`}>{token.change5m}</span>
                     </td>
                     <td className="py-4 px-4 text-right">
-                      <span className="text-sm text-muted-foreground" data-testid={`text-token-age-${token.id}`}>
-                        {token.age}
-                      </span>
+                      <span className={`text-sm font-medium ${token.change1h.startsWith('+') ? 'text-success' : 'text-destructive'}`}>{token.change1h}</span>
                     </td>
                     <td className="py-4 px-4 text-right">
-                      <span className="text-sm font-medium text-foreground" data-testid={`text-token-market-cap-${token.id}`}>
-                        {token.marketCap}
-                      </span>
+                      <span className={`text-sm font-medium ${token.change6h.startsWith('+') ? 'text-success' : 'text-destructive'}`}>{token.change6h}</span>
                     </td>
                     <td className="py-4 px-4 text-right">
-                      <span className="text-sm text-foreground" data-testid={`text-token-holders-${token.id}`}>
-                        {token.holders.toLocaleString()}
-                      </span>
+                      <span className={`text-sm font-medium ${token.change24h.startsWith('+') ? 'text-success' : 'text-destructive'}`}>{token.change24h}</span>
                     </td>
-                    <td className="py-4 px-4 text-right">
-                      <span
-                        className={`text-sm font-medium ${
-                          token.change5m.startsWith('+') ? 'text-success' : 'text-destructive'
-                        }`}
-                        data-testid={`text-token-change-5m-${token.id}`}
-                      >
-                        {token.change5m}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span
-                        className={`text-sm font-medium ${
-                          token.change1h.startsWith('+') ? 'text-success' : 'text-destructive'
-                        }`}
-                        data-testid={`text-token-change-1h-${token.id}`}
-                      >
-                        {token.change1h}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span
-                        className={`text-sm font-medium ${
-                          token.change6h.startsWith('+') ? 'text-success' : 'text-destructive'
-                        }`}
-                        data-testid={`text-token-change-6h-${token.id}`}
-                      >
-                        {token.change6h}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span
-                        className={`text-sm font-medium ${
-                          token.change24h.startsWith('+') ? 'text-success' : 'text-destructive'
-                        }`}
-                        data-testid={`text-token-change-24h-${token.id}`}
-                      >
-                        {token.change24h}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span className="text-sm font-medium text-foreground" data-testid={`text-token-volume-${token.id}`}>
-                        {token.volume24h}
-                      </span>
-                    </td>
+
+                    {/* Volume */}
+                    <td className="py-4 px-4 text-right"><span className="text-sm font-medium">{token.volume24h}</span></td>
+
+                    {/* Actions */}
                     <td className="py-4 px-6 text-right">
-                      <Button size="sm" data-testid={`button-trade-${token.id}`}>
-                        {t('common.trade')}
-                      </Button>
+                      <Button size="sm">{t('common.trade')}</Button>
                     </td>
                   </tr>
                 ))}
@@ -256,7 +236,7 @@ export default function TrendingPage() {
           </div>
         )}
       </div>
-
+      
       <FilterModal
         isOpen={showFilterModal}
         onClose={() => setShowFilterModal(false)}

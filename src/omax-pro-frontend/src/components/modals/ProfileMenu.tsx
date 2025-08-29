@@ -27,7 +27,7 @@ export function ProfileMenu({ children }: ProfileMenuProps) {
 
   const handleDocumentation = () => {
     // Handle documentation action
-    window.open('/docs', '_blank');
+    window.open('/coming-soon', '_blank');
   };
 
   const handle2FA = () => {

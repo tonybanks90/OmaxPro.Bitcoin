@@ -19,6 +19,7 @@ import SniperPage from "./pages/SniperPage";
 import NotFound from "./pages/not-found";
 import "./index.css";
 import { AuthProvider } from "./auth/AuthProvider";
+import ComingSoonPage from "./pages/ComingSoonPage";
 
 
 function Router() {
@@ -35,6 +36,7 @@ function Router() {
         <Route path="/holdings" component={HoldingsPage} />
         <Route path="/wallet-manager" component={WalletManagerPage} />
         <Route path="/sniper" component={SniperPage} />
+        <Route path="/coming-soon" component={ComingSoonPage} />
         <Route component={NotFound} />
       </Switch>
       <Footer />

@@ -21,20 +21,18 @@ export function Footer() {
                 <Wallet className="w-4 h-4" />
                 <span className="text-sm">Wallet Manager</span>
               </Link>
-              <button className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-monitor">
-                <Activity className="w-4 h-4" />
+              <Link href="/coming-soon" className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-wallet-tracker">
+                <Wallet className="w-4 h-4" />
                 <span className="text-sm">Monitor</span>
-              </button>
-              <button className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-alerts">
-                <Bell className="w-4 h-4" />
+              </Link>
+              <Link href="/coming-soon" className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-wallet-tracker">
+                <Wallet className="w-4 h-4" />
                 <span className="text-sm">Alerts</span>
-              </button>
-              <PnLPopup>
-                <button className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-pnl">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="text-sm">P&L Tracker</span>
-                </button>
-              </PnLPopup>
+              </Link>
+              <Link href="/holdings" className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-wallet-tracker">
+                <Wallet className="w-4 h-4" />
+                <span className="text-sm">P&L Tracker</span>
+              </Link>
             </div>
 
             <div className="flex items-center space-x-4">
