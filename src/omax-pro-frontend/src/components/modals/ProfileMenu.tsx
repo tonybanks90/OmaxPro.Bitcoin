@@ -12,39 +12,36 @@ import {
   FileText, 
   Shield, 
   LogOut,
-  Settings
+  User
 } from 'lucide-react';
+import { Link } from 'wouter';
 
 interface ProfileMenuProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export function ProfileMenu({ children }: ProfileMenuProps) {
-  const handleWalletManager = () => {
-    // Handle wallet manager action
-    console.log('Opening wallet manager...');
-  };
-
-  const handleDocumentation = () => {
-    // Handle documentation action
-    window.open('/coming-soon', '_blank');
-  };
-
   const handle2FA = () => {
-    // Handle 2FA settings
-    console.log('Opening 2FA settings...');
+    console.log('Opening soon...');
   };
 
   const handleLogout = () => {
-    // Handle logout action
-    window.location.href = '/api/logout';
+    console.log('Logging out...');
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        {children}
+        {children ?? (
+          <button
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-muted hover:bg-muted/80 transition"
+            data-testid="profile-trigger"
+          >
+            <User className="h-5 w-5 text-foreground" />
+          </button>
+        )}
       </DropdownMenuTrigger>
+
       <DropdownMenuContent 
         className="w-56 bg-background border-border" 
         align="end"
@@ -55,22 +52,22 @@ export function ProfileMenu({ children }: ProfileMenuProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        <DropdownMenuItem 
-          onClick={handleWalletManager}
-          className="cursor-pointer"
-          data-testid="menu-wallet-manager"
-        >
-          <Wallet className="mr-2 h-4 w-4" />
-          <span>Wallet Manager</span>
+        <DropdownMenuItem asChild>
+          <Link href="/wallet-manager" data-testid="menu-wallet-manager">
+            <div className="flex items-center cursor-pointer w-full">
+              <Wallet className="mr-2 h-4 w-4" />
+              <span>Wallet Manager</span>
+            </div>
+          </Link>
         </DropdownMenuItem>
         
-        <DropdownMenuItem 
-          onClick={handleDocumentation}
-          className="cursor-pointer"
-          data-testid="menu-documentation"
-        >
-          <FileText className="mr-2 h-4 w-4" />
-          <span>Documentation</span>
+        <DropdownMenuItem asChild>
+          <Link href="/coming-soon" data-testid="menu-documentation">
+            <div className="flex items-center cursor-pointer w-full">
+              <FileText className="mr-2 h-4 w-4" />
+              <span>Documentation</span>
+            </div>
+          </Link>
         </DropdownMenuItem>
         
         <DropdownMenuSeparator />

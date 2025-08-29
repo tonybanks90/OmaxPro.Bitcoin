@@ -5,7 +5,7 @@ import {
   PopoverTrigger,
 } from '../ui/popover';
 import { Button } from '../ui/button';
-import { Bell, FileText, AlertCircle } from 'lucide-react';
+import { FileText, AlertCircle } from 'lucide-react';
 
 interface Notification {
   id: string;
@@ -32,15 +32,17 @@ export function NotificationsPopup({ children }: NotificationsPopupProps) {
       <PopoverTrigger asChild>
         {children}
       </PopoverTrigger>
-      <PopoverContent 
-        className="w-[800px] p-0 bg-background border-border" 
+      <PopoverContent
+        className="w-full max-w-xs sm:max-w-lg md:max-w-2xl lg:max-w-4xl p-0 bg-background border-border"
         align="end"
         data-testid="notifications-popup"
       >
+        {/* Header */}
         <div className="p-4 border-b border-border">
           <h3 className="text-lg font-semibold text-foreground">Alerts</h3>
         </div>
 
+        {/* Empty State */}
         {notifications.length === 0 ? (
           <div className="p-8 text-center">
             <div className="flex justify-center mb-4">
@@ -58,44 +60,47 @@ export function NotificationsPopup({ children }: NotificationsPopupProps) {
           </div>
         ) : (
           <div className="max-h-96 overflow-y-auto">
-            {/* Table Header */}
-            <div className="grid grid-cols-8 gap-4 p-4 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b border-border bg-muted/20">
-              <div>Time</div>
-              <div>Type</div>
-              <div>Token</div>
-              <div>Amount</div>
-              <div>Market Cap</div>
-              <div>Wallet Name</div>
-              <div>Mode</div>
-              <div>Action</div>
-            </div>
+            <div className="overflow-x-auto">
+              {/* Table Header */}
+              <div className="grid grid-cols-8 min-w-[600px] gap-4 p-4 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b border-border bg-muted/20">
+                <div>Time</div>
+                <div>Type</div>
+                <div>Token</div>
+                <div>Amount</div>
+                <div>Market Cap</div>
+                <div>Wallet Name</div>
+                <div>Mode</div>
+                <div>Action</div>
+              </div>
 
-            {/* Table Body */}
-            <div className="divide-y divide-border">
-              {notifications.map((notification) => (
-                <div 
-                  key={notification.id} 
-                  className="grid grid-cols-8 gap-4 p-4 text-sm hover:bg-muted/50 transition-colors"
-                  data-testid={`notification-${notification.id}`}
-                >
-                  <div className="text-muted-foreground">{notification.time}</div>
-                  <div className="text-foreground">{notification.type}</div>
-                  <div className="text-foreground">{notification.token}</div>
-                  <div className="text-foreground">{notification.amount}</div>
-                  <div className="text-foreground">{notification.marketCap}</div>
-                  <div className="text-foreground">{notification.walletName}</div>
-                  <div className="text-foreground">{notification.mode}</div>
-                  <div>
-                    <Button size="sm" variant="outline" data-testid={`action-${notification.id}`}>
-                      {notification.action}
-                    </Button>
+              {/* Table Body */}
+              <div className="divide-y divide-border">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className="grid grid-cols-8 min-w-[600px] gap-4 p-4 text-sm hover:bg-muted/50 transition-colors"
+                    data-testid={`notification-${notification.id}`}
+                  >
+                    <div className="text-muted-foreground">{notification.time}</div>
+                    <div className="text-foreground">{notification.type}</div>
+                    <div className="text-foreground">{notification.token}</div>
+                    <div className="text-foreground">{notification.amount}</div>
+                    <div className="text-foreground">{notification.marketCap}</div>
+                    <div className="text-foreground">{notification.walletName}</div>
+                    <div className="text-foreground">{notification.mode}</div>
+                    <div>
+                      <Button size="sm" variant="outline" data-testid={`action-${notification.id}`}>
+                        {notification.action}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}
 
+        {/* Footer */}
         <div className="p-4 border-t border-border">
           <div className="flex justify-between items-center">
             <Button variant="ghost" size="sm" data-testid="button-mark-all-read">

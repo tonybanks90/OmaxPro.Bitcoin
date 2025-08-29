@@ -3,7 +3,7 @@ import { Link } from 'wouter';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { WalletConnectionModal } from '../modals/WalletConnectionModal';
-import { Diamond, Globe, Palette, Search, Bell, UserCircle } from 'lucide-react';
+import { Diamond, Globe, Palette, Search, Bell, UserCircle, Wallet } from 'lucide-react';
 import { NotificationsPopup } from '../modals/NotificationsPopup';
 import { ProfileMenu } from '../modals/ProfileMenu';
 
@@ -30,7 +30,7 @@ export function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-               <Link href="/trending" className="text-foreground hover:text-accent transition-colors font-medium" data-testid="link-trending">
+              <Link href="/trending" className="text-foreground hover:text-accent transition-colors font-medium" data-testid="link-trending">
                 {t('nav.trending')}
               </Link>
               <Link href="/trenches" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-trenches">
@@ -45,7 +45,6 @@ export function Header() {
               <Link href="/earn" className="text-muted-foreground hover:text-accent transition-colors" data-testid="link-earn">
                 {t('nav.earn')}
               </Link>
-              
             </nav>
 
             {/* Header Controls */}
@@ -75,25 +74,36 @@ export function Header() {
               </button>
 
               {/* Notifications */}
-              <button className="relative text-muted-foreground hover:text-foreground transition-colors" data-testid="button-notifications">
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                  3
-                </span>
-              </button>
+              <NotificationsPopup>
+                <button
+                  className="relative text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="button-notifications"
+                >
+                  <Bell className="w-5 h-5" />
+                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                    3
+                  </span>
+                </button>
+              </NotificationsPopup>
 
-              {/* Connect Wallet */}
+              {/* Connect Wallet (icon only) */}
               <button 
                 onClick={() => setShowWalletModal(true)}
-                className="bg-accent hover:bg-accent/90 text-accent-foreground px-4 py-2 rounded-lg font-medium transition-colors"
+                className="relative text-muted-foreground hover:text-foreground transition-colors"
                 data-testid="button-connect-wallet"
               >
-                {isWalletConnected ? t('wallet.connected') : t('wallet.connect')}
+                <Wallet className="w-6 h-6" />
+                {/* Connection status dot */}
+                <span
+                  className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border border-background ${
+                    isWalletConnected ? 'bg-green-500' : 'bg-gray-400'
+                  }`}
+                />
               </button>
 
               {/* Account Menu */}
               <ProfileMenu>
-                <button className="text-muted-foreground hover:text-foreground transition-colors" data-testid="button-account">
+                <button className="text-accent hover:text-foreground transition-colors" data-testid="button-account">
                   <UserCircle className="w-6 h-6" />
                 </button>
               </ProfileMenu>
@@ -102,6 +112,7 @@ export function Header() {
         </div>
       </header>
 
+      {/* Wallet Modal */}
       <WalletConnectionModal 
         isOpen={showWalletModal}
         onClose={() => setShowWalletModal(false)}

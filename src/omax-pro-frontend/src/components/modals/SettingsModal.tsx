@@ -7,7 +7,6 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Switch } from '../ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { 
   Zap, 
@@ -34,10 +33,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-y-auto bg-background border-border">
+      <DialogContent className="w-full sm:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto bg-background border-border">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold text-foreground">
+            <DialogTitle className="text-xl sm:text-2xl font-bold text-foreground">
               Settings
             </DialogTitle>
             <Button
@@ -52,54 +51,34 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </DialogHeader>
 
-        <div className="flex gap-6">
-          {/* Left Sidebar */}
-          <div className="w-64 space-y-2">
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Sidebar */}
+          <div className="w-full md:w-64 space-y-2">
             <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-4">
               PRESETS
             </div>
             
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start text-left h-auto p-3 bg-muted/50"
-              data-testid="button-quick-buy"
-            >
+            <Button variant="ghost" className="w-full justify-start h-auto p-3 bg-muted/50">
               <Zap className="w-4 h-4 mr-3 text-accent" />
               <span>Quick Buy</span>
             </Button>
-            
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start text-left h-auto p-3"
-              data-testid="button-quick-sell"
-            >
+
+            <Button variant="ghost" className="w-full justify-start h-auto p-3">
               <Target className="w-4 h-4 mr-3 text-muted-foreground" />
               <span>Quick Sell</span>
             </Button>
-            
-            <Button 
-              variant="default" 
-              className="w-full justify-start text-left h-auto p-3 bg-accent/20 border-l-2 border-accent"
-              data-testid="button-buy-sniper"
-            >
+
+            <Button variant="default" className="w-full justify-start h-auto p-3 bg-accent/20 border-l-2 border-accent">
               <Diamond className="w-4 h-4 mr-3 text-accent" />
               <span>Buy Sniper</span>
             </Button>
-            
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start text-left h-auto p-3"
-              data-testid="button-sell-sniper"
-            >
+
+            <Button variant="ghost" className="w-full justify-start h-auto p-3">
               <Target className="w-4 h-4 mr-3 text-muted-foreground" />
               <span>Sell Sniper</span>
             </Button>
-            
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start text-left h-auto p-3"
-              data-testid="button-customize"
-            >
+
+            <Button variant="ghost" className="w-full justify-start h-auto p-3">
               <SettingsIcon className="w-4 h-4 mr-3 text-muted-foreground" />
               <span>Customize</span>
               <ChevronRight className="w-4 h-4 ml-auto" />
@@ -109,50 +88,40 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           {/* Main Content */}
           <div className="flex-1">
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-foreground mb-2">Buy Sniper</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-2">Buy Sniper</h2>
               <p className="text-sm text-muted-foreground">
                 Customize trading presets up to 5 different settings.
               </p>
             </div>
 
-            {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-3 max-w-md mb-6">
-                <TabsTrigger value="N1" data-testid="tab-n1">N1</TabsTrigger>
-                <TabsTrigger value="N2" data-testid="tab-n2">N2</TabsTrigger>
-                <TabsTrigger value="N3" data-testid="tab-n3">N3</TabsTrigger>
+                <TabsTrigger value="N1">N1</TabsTrigger>
+                <TabsTrigger value="N2">N2</TabsTrigger>
+                <TabsTrigger value="N3">N3</TabsTrigger>
               </TabsList>
 
               <TabsContent value="N1" className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Buy Slippage */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Buy Slippage
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      The amount of tokens you may lose due to price volatility.
-                    </p>
+                    <label className="text-sm font-medium">Buy Slippage</label>
+                    <p className="text-xs text-muted-foreground">Loss due to volatility.</p>
                     <div className="flex items-center space-x-2">
                       <Input
                         type="number"
                         value={buySlippage}
                         onChange={(e) => setBuySlippage(e.target.value)}
                         className="flex-1"
-                        data-testid="input-buy-slippage"
                       />
-                      <span className="text-sm text-muted-foreground">%</span>
+                      <span className="text-sm">%</span>
                     </div>
                   </div>
 
                   {/* Buy Amount */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Buy Amount
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      The amount of SOL you wish to snipe token with.
-                    </p>
+                    <label className="text-sm font-medium">Buy Amount</label>
+                    <p className="text-xs text-muted-foreground">Amount of SOL to snipe with.</p>
                     <div className="flex items-center space-x-2">
                       <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                         <span className="text-xs text-white">≡</span>
@@ -163,121 +132,82 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         onChange={(e) => setBuyAmount(e.target.value)}
                         className="flex-1"
                         step="0.001"
-                        data-testid="input-buy-amount"
                       />
                     </div>
                   </div>
 
-                  {/* Minimum Buy Tip */}
+                  {/* Min Buy Tip */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Minimum Buy Tip
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      The minimum amount your Buy Tip will be set to.
-                    </p>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white">≡</span>
-                      </div>
-                      <Input
-                        type="number"
-                        value={minBuyTip}
-                        onChange={(e) => setMinBuyTip(e.target.value)}
-                        className="flex-1"
-                        step="0.001"
-                        data-testid="input-min-buy-tip"
-                      />
-                    </div>
+                    <label className="text-sm font-medium">Minimum Buy Tip</label>
+                    <p className="text-xs text-muted-foreground">Minimum tip value.</p>
+                    <Input
+                      type="number"
+                      value={minBuyTip}
+                      onChange={(e) => setMinBuyTip(e.target.value)}
+                      step="0.001"
+                      className="w-full"
+                    />
                   </div>
 
-                  {/* Maximum Buy Tip */}
+                  {/* Max Buy Tip */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Maximum Buy Tip
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      The maximum amount your Buy Tip will be set to.
-                    </p>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white">≡</span>
-                      </div>
-                      <Input
-                        type="number"
-                        value={maxBuyTip}
-                        onChange={(e) => setMaxBuyTip(e.target.value)}
-                        className="flex-1"
-                        step="0.001"
-                        data-testid="input-max-buy-tip"
-                      />
-                    </div>
+                    <label className="text-sm font-medium">Maximum Buy Tip</label>
+                    <p className="text-xs text-muted-foreground">Maximum tip value.</p>
+                    <Input
+                      type="number"
+                      value={maxBuyTip}
+                      onChange={(e) => setMaxBuyTip(e.target.value)}
+                      step="0.001"
+                      className="w-full"
+                    />
                   </div>
 
                   {/* Buy Fee */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Buy Fee
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      The amount of extra SOL paid for validators to pick up your transaction.
-                    </p>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white">≡</span>
-                      </div>
-                      <Input
-                        type="number"
-                        value={buyFee}
-                        onChange={(e) => setBuyFee(e.target.value)}
-                        className="flex-1"
-                        step="0.001"
-                        data-testid="input-buy-fee"
-                      />
-                    </div>
+                    <label className="text-sm font-medium">Buy Fee</label>
+                    <p className="text-xs text-muted-foreground">Extra SOL for validators.</p>
+                    <Input
+                      type="number"
+                      value={buyFee}
+                      onChange={(e) => setBuyFee(e.target.value)}
+                      step="0.001"
+                      className="w-full"
+                    />
                   </div>
 
                   {/* Smart-MEV Protection */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Smart-MEV Protection
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      Protect your transaction from MEV Attacks.
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <Button
-                          variant={!smartMevProtection ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setSmartMevProtection(false)}
-                          data-testid="button-mev-off"
-                        >
-                          OFF
-                        </Button>
-                        <Button
-                          variant={smartMevProtection ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setSmartMevProtection(true)}
-                          data-testid="button-mev-on"
-                        >
-                          ON
-                        </Button>
-                      </div>
+                    <label className="text-sm font-medium">Smart-MEV Protection</label>
+                    <p className="text-xs text-muted-foreground">Protect from MEV attacks.</p>
+                    <div className="flex items-center space-x-4">
+                      <Button
+                        variant={!smartMevProtection ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSmartMevProtection(false)}
+                      >
+                        OFF
+                      </Button>
+                      <Button
+                        variant={smartMevProtection ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSmartMevProtection(true)}
+                      >
+                        ON
+                      </Button>
                     </div>
                   </div>
                 </div>
               </TabsContent>
 
-              <TabsContent value="N2" className="space-y-6">
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">N2 preset configuration coming soon...</p>
+              <TabsContent value="N2">
+                <div className="text-center py-8 text-muted-foreground">
+                  N2 preset configuration coming soon...
                 </div>
               </TabsContent>
 
-              <TabsContent value="N3" className="space-y-6">
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">N3 preset configuration coming soon...</p>
+              <TabsContent value="N3">
+                <div className="text-center py-8 text-muted-foreground">
+                  N3 preset configuration coming soon...
                 </div>
               </TabsContent>
             </Tabs>
