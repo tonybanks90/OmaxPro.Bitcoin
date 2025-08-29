@@ -69,7 +69,7 @@ export default function WalletManagerPage() {
 
       {/* Wallet Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div className="flex items-center space-x-2">
+        {/*<div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" data-testid="button-deposit">
             <ArrowDownCircle className="w-4 h-4 mr-2" />
             Deposit
@@ -82,7 +82,7 @@ export default function WalletManagerPage() {
             <Download className="w-4 h-4 mr-2" />
             Import wallet
           </Button>
-        </div>
+        </div>*/}
         
         <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" data-testid="button-generate-wallet">
           <Plus className="w-4 h-4 mr-2" />

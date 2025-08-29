@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Crosshair, Wallet, Activity, Bell, TrendingUp, Settings } from 'lucide-react';
+import { Crosshair, Wallet, Settings } from 'lucide-react';
 import { SettingsModal } from '../modals/SettingsModal';
-import { PnLPopup } from '../modals/PnLPopup';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 
 export function Footer() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [location] = useLocation();
+
+  const isActive = (path: string) => location.startsWith(path);
 
   return (
     <>
@@ -13,33 +15,77 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-12">
             <div className="flex items-center space-x-6">
-              <Link href="/sniper" className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-sniper">
+              <Link
+                href="/sniper"
+                className={`flex items-center space-x-2 transition-colors ${
+                  isActive('/sniper')
+                    ? 'text-accent'
+                    : 'text-muted-foreground hover:text-accent'
+                }`}
+                data-testid="button-sniper"
+              >
                 <Crosshair className="w-4 h-4" />
                 <span className="text-sm">Sniper</span>
               </Link>
-              <Link href="/wallet-manager" className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-wallet-tracker">
+
+              <Link
+                href="/wallet-manager"
+                className={`flex items-center space-x-2 transition-colors ${
+                  isActive('/wallet-manager')
+                    ? 'text-accent'
+                    : 'text-muted-foreground hover:text-accent'
+                }`}
+                data-testid="button-wallet-tracker"
+              >
                 <Wallet className="w-4 h-4" />
                 <span className="text-sm">Wallet Manager</span>
               </Link>
-              <Link href="/coming-soon" className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-wallet-tracker">
+
+              <Link
+                href="/coming-soon"
+                className={`flex items-center space-x-2 transition-colors ${
+                  isActive('/coming-soon')
+                    ? 'text-accent'
+                    : 'text-muted-foreground hover:text-accent'
+                }`}
+                data-testid="button-monitor"
+              >
                 <Wallet className="w-4 h-4" />
                 <span className="text-sm">Monitor</span>
               </Link>
-              <Link href="/coming-soon" className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-wallet-tracker">
+
+              <Link
+                href="/coming-soon"
+                className={`flex items-center space-x-2 transition-colors ${
+                  isActive('/coming-soon')
+                    ? 'text-accent'
+                    : 'text-muted-foreground hover:text-accent'
+                }`}
+                data-testid="button-alerts"
+              >
                 <Wallet className="w-4 h-4" />
                 <span className="text-sm">Alerts</span>
               </Link>
-              <Link href="/holdings" className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-wallet-tracker">
+
+              <Link
+                href="/holdings"
+                className={`flex items-center space-x-2 transition-colors ${
+                  isActive('/holdings')
+                    ? 'text-accent'
+                    : 'text-muted-foreground hover:text-accent'
+                }`}
+                data-testid="button-pnl"
+              >
                 <Wallet className="w-4 h-4" />
-                <span className="text-sm">P&L Tracker</span>
+                <span className="text-sm">P&amp;L Tracker</span>
               </Link>
             </div>
 
             <div className="flex items-center space-x-4">
               <span className="text-xs text-muted-foreground">© 2025 OMAX</span>
-              <button 
+              <button
                 onClick={() => setShowSettingsModal(true)}
-                className="text-muted-foreground hover:text-foreground transition-colors" 
+                className="text-muted-foreground hover:text-foreground transition-colors"
                 data-testid="button-settings"
               >
                 <Settings className="w-4 h-4" />
@@ -49,7 +95,7 @@ export function Footer() {
         </div>
       </footer>
 
-      <SettingsModal 
+      <SettingsModal
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
       />

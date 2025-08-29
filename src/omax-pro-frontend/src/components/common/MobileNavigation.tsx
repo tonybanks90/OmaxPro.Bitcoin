@@ -15,14 +15,18 @@ import {
   Target,
   Bell,
   TrendingDown,
-  X
+  X,
+  Globe,
+  Palette
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { ProfileMenu } from '../../components/modals/ProfileMenu';
 
 export function MobileNavigation() {
   const [location] = useLocation();
-  const { t } = useLanguage();
+  const { t, language, toggleLanguage } = useLanguage();
+  const { toggleTheme } = useTheme();
   const [isExploreOpen, setIsExploreOpen] = useState(false);
 
   const isActive = (path: string) => location === path;
@@ -39,7 +43,7 @@ export function MobileNavigation() {
     { path: '/trending', label: 'Trending', icon: TrendingUp },
     { path: '/holdings', label: 'Holdings', icon: BarChart3 },
     { path: '/wallet', label: 'Wallet Tracker', icon: Eye },
-    { path: '/referral', label: 'Referral', icon: Gift },
+    { path: '/earn', label: 'Referral', icon: Gift },
     { path: '/trenches', label: 'Trenches', icon: Monitor },
     { path: '/earn', label: 'Earn', icon: DollarSign },
     { path: '/coming-soon', label: 'Points', icon: Target },
@@ -101,7 +105,7 @@ export function MobileNavigation() {
           </div>
 
           {/* Other Menu */}
-          <div>
+          <div className="mb-6">
             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
               OTHER
             </h4>
@@ -120,10 +124,35 @@ export function MobileNavigation() {
               ))}
             </div>
           </div>
+
+          {/* Preferences (Language + Theme) */}
+          <div>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+              Preferences
+            </h4>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={toggleLanguage}
+                className="flex-1 flex items-center justify-center space-x-2 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+                data-testid="button-language-toggle"
+              >
+                <Globe className="w-5 h-5 text-accent" />
+                <span className="text-sm">{language.toUpperCase()}</span>
+              </button>
+              <button
+                onClick={toggleTheme}
+                className="flex-1 flex items-center justify-center space-x-2 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+                data-testid="button-theme-toggle"
+              >
+                <Palette className="w-5 h-5 text-accent" />
+                <span className="text-sm">Theme</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-            {/* Bottom Navigation */}
+      {/* Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-50">
         <div className="flex items-center justify-around h-16">
           <Link href="/">
@@ -160,7 +189,7 @@ export function MobileNavigation() {
           <Link href="/wallet-manager">
             <a
               className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-                isActive('/wallet') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+                isActive('/wallet-manager') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
               }`}
               data-testid="nav-wallet"
             >
@@ -180,7 +209,6 @@ export function MobileNavigation() {
           </ProfileMenu>
         </div>
       </nav>
-
     </>
   );
 }

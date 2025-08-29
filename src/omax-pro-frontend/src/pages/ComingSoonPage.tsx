@@ -27,7 +27,7 @@ export default function ComingSoonPage() {
             </div>
             
             <p className="text-xl text-muted-foreground max-w-lg mx-auto">
-              We're building something extraordinary. Get ready for the next generation of DeFi trading tools.
+              We're building something extraordinary. Get ready for the next generation of Bitcoin DeFi trading tools.
             </p>
           </div>
 

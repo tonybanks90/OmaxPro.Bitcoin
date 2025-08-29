@@ -93,32 +93,38 @@ export default function TrendingPage() {
           </div>
 
           {/* DEX Toggles */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="flex items-center space-x-2 bg-surface rounded-lg px-3 py-2">
-              <TrendingUp className="text-accent text-sm" />
-              <span className="text-sm font-medium text-foreground">Dexes</span>
-              <span
-                className="bg-accent text-accent-foreground text-xs px-2 py-1 rounded-full"
-                data-testid="text-active-exchanges"
-              >
-                {activeDexes.length}
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {dexes.map((dex) => (
-                <Button
-                  key={dex}
-                  size="sm"
-                  variant={activeDexes.includes(dex) ? 'default' : 'outline'}
-                  onClick={() => toggleDex(dex)}
-                  className="text-xs"
-                  data-testid={`button-dex-${dex.toLowerCase()}`}
-                >
-                  {dex}
-                </Button>
-              ))}
-            </div>
-          </div>
+<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+  <div className="flex items-center space-x-2 bg-surface rounded-lg px-3 py-2">
+    <TrendingUp className="text-accent text-sm" />
+    <span className="text-sm font-medium text-foreground">Dexes</span>
+    <span
+      className="bg-accent text-accent-foreground text-xs px-2 py-1 rounded-full"
+      data-testid="text-active-exchanges"
+    >
+      {activeDexes.length}
+    </span>
+  </div>
+  <div className="flex flex-wrap gap-1">
+    {dexes.map((dex) => {
+      const isActive = activeDexes.includes(dex);
+      return (
+        <Button
+          key={dex}
+          size="sm"
+          onClick={() => toggleDex(dex)}
+          className={`text-xs ${
+            isActive
+              ? 'bg-accent text-accent-foreground hover:bg-accent/90'
+              : 'border border-border text-foreground hover:bg-muted/20'
+          }`}
+          data-testid={`button-dex-${dex.toLowerCase()}`}
+        >
+          {dex}
+        </Button>
+      );
+    })}
+  </div>
+</div>
 
           {/* Extra Filters */}
           <Button
