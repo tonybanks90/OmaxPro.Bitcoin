@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { SettingsModal } from '../components/modals/SettingsModal';
+import { FilterModal } from '../components/modals/FilterModal';
 import { Card, CardContent } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Search, Filter, TrendingUp, DollarSign, Wallet, BarChart3, Settings } from 'lucide-react';
@@ -10,6 +12,8 @@ export default function HoldingsPage() {
   useLanguage();
   const [selectedWallet, setSelectedWallet] = useState('W1');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   const portfolioStats = {
@@ -114,9 +118,15 @@ export default function HoldingsPage() {
             <Button variant="ghost" size="icon" className="w-8 h-8" data-testid="button-star">
               <TrendingUp className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="w-8 h-8" data-testid="button-settings">
-              <Settings className="w-4 h-4" />
-            </Button>
+            <Button
+                                onClick={() => setShowSettingsModal(true)}
+                                variant="outline"
+                                size="icon"
+                                className="self-start sm:self-auto"
+                                data-testid="button-settings"
+                              >
+                                <Settings className="w-4 h-4" />
+                              </Button>
           </div>
         </div>
 
@@ -135,14 +145,22 @@ export default function HoldingsPage() {
           </div>
 
           {/* Filters */}
-          <Button 
-            variant="outline" 
-            onClick={() => setShowFilters(!showFilters)}
-            data-testid="button-filters"
-          >
-            <Filter className="w-4 h-4 mr-2" />
-            Filters
-          </Button>
+          
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowFilterModal(true)}
+                              className="flex items-center space-x-2"
+                              data-testid="button-open-filters"
+                            >
+                              <Filter className="w-4 h-4" />
+                              <span>Filters</span>
+                              <span
+                                className="bg-success text-white text-xs px-2 py-1 rounded-full"
+                                data-testid="text-active-filters"
+                              >
+                                0
+                              </span>
+                            </Button>
         </div>
       </div>
 
@@ -198,6 +216,18 @@ export default function HoldingsPage() {
           </div>
         </CardContent>
       </Card>
+      {/* Modals */}
+                  <FilterModal
+                    isOpen={showFilterModal}
+                    onClose={() => setShowFilterModal(false)}
+                    onApply={(filters) => {
+                      console.log('Applied filters:', filters);
+                    }}
+                  />
+            <SettingsModal
+                    isOpen={showSettingsModal}
+                    onClose={() => setShowSettingsModal(false)}
+                  />
     </main>
   );
 }

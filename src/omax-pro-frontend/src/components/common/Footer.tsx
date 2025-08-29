@@ -36,7 +36,7 @@ export function Footer() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <span className="text-xs text-muted-foreground">© 2024 Omax</span>
+              <span className="text-xs text-muted-foreground">© 2025 OMAX</span>
               <button 
                 onClick={() => setShowSettingsModal(true)}
                 className="text-muted-foreground hover:text-foreground transition-colors" 

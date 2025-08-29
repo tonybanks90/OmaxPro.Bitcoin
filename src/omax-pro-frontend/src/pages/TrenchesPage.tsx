@@ -4,14 +4,19 @@ import { useTycheAPI } from '../hooks/useTycheAPI';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TokenCard } from '../components/trading/TokenCard';
 import { Button } from '../components/ui/button';
-import { Clock, Star, Search, Filter, MoreVertical, Heart, DollarSign } from 'lucide-react';
+import { SettingsModal } from '../components/modals/SettingsModal';
+import { Clock, Star, Search, Filter, MoreVertical, Heart, DollarSign, Settings } from 'lucide-react';
+import { useState } from 'react';
 
 export default function TrenchesPage() {
   const { t } = useLanguage();
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const { tokens: odinTokens, isLoading: odinLoading } = useOdinAPI();
   const { tokens: astroapeTokens, isLoading: astroapeLoading } = useAstroApeAPI();
   const { tokens: tycheTokens, isLoading: tycheLoading } = useTycheAPI();
-  
+
+  const [activePreset, setActivePreset] = useState('N1'); // N1 selected by default
+
   const isLoading = odinLoading || astroapeLoading || tycheLoading;
   const allTokens = [...odinTokens, ...astroapeTokens, ...tycheTokens];
 
@@ -119,9 +124,40 @@ export default function TrenchesPage() {
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2">
             <span className="text-sm text-muted-foreground">Presets:</span>
-            <Button variant="outline" size="sm" data-testid="button-preset-n1">N1</Button>
-            <Button variant="outline" size="sm" data-testid="button-preset-n2">N2</Button>
-            <Button variant="outline" size="sm" data-testid="button-preset-n3">N3</Button>
+            <Button
+              variant={activePreset === 'N1' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActivePreset('N1')}
+              data-testid="button-preset-n1"
+            >
+              N1
+            </Button>
+            <Button
+              variant={activePreset === 'N2' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActivePreset('N2')}
+              data-testid="button-preset-n2"
+            >
+              N2
+            </Button>
+            <Button
+              variant={activePreset === 'N3' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActivePreset('N3')}
+              data-testid="button-preset-n3"
+            >
+              N3
+            </Button>
+            {/* New Settings button */}
+            <Button
+                        onClick={() => setShowSettingsModal(true)}
+                        variant="outline"
+                        size="icon"
+                        className="self-start sm:self-auto"
+                        data-testid="button-settings"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </Button>
             <Button variant="ghost" size="icon" className="w-8 h-8" data-testid="button-star-preset">
               <Star className="w-4 h-4" />
             </Button>
@@ -146,23 +182,15 @@ export default function TrenchesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <TokenColumn
-            tokens={newlyCreated}
-            title={t('columns.newlyCreated')}
-            price="0.001"
-          />
-          <TokenColumn
-            tokens={aboutToGraduate}
-            title={t('columns.aboutToGraduate')}
-            price="0.0001"
-          />
-          <TokenColumn
-            tokens={graduated}
-            title={t('columns.graduated')}
-            price="0.0001"
-          />
+          <TokenColumn tokens={newlyCreated} title={t('columns.newlyCreated')} price="0.001" />
+          <TokenColumn tokens={aboutToGraduate} title={t('columns.aboutToGraduate')} price="0.0001" />
+          <TokenColumn tokens={graduated} title={t('columns.graduated')} price="0.0001" />
         </div>
       )}
+      <SettingsModal
+              isOpen={showSettingsModal}
+              onClose={() => setShowSettingsModal(false)}
+            />
     </main>
   );
 }

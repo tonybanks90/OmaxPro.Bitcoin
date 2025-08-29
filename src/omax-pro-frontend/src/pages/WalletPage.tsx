@@ -3,11 +3,15 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
+import { SettingsModal } from '../components/modals/SettingsModal';
+import { FilterModal } from '../components/modals/FilterModal';
 import { Plus, Download, Upload, Search, Wallet, Settings, Filter, Star, Inbox } from 'lucide-react';
 
 export default function WalletPage() {
   const { t } = useLanguage();
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [searchWallet, setSearchWallet] = useState('');
+   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showAddWalletModal, setShowAddWalletModal] = useState(false);
 
   return (
@@ -98,14 +102,32 @@ export default function WalletPage() {
                     <Button variant="ghost" size="icon" className="w-8 h-8" data-testid="button-star-wallet">
                       <Star className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="w-8 h-8" data-testid="button-wallet-settings">
-                      <Settings className="w-4 h-4" />
-                    </Button>
+                    <Button
+                                onClick={() => setShowSettingsModal(true)}
+                                variant="outline"
+                                size="icon"
+                                className="self-start sm:self-auto"
+                                data-testid="button-settings"
+                              >
+                                <Settings className="w-4 h-4" />
+                              </Button>
                   </div>
-                  <Button variant="outline" data-testid="button-wallet-filters">
-                    <Filter className="w-4 h-4 mr-2" />
-                    Filters
-                  </Button>
+                  {/* Extra Filters */}
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowFilterModal(true)}
+                              className="flex items-center space-x-2"
+                              data-testid="button-open-filters"
+                            >
+                              <Filter className="w-4 h-4" />
+                              <span>Filters</span>
+                              <span
+                                className="bg-success text-white text-xs px-2 py-1 rounded-full"
+                                data-testid="text-active-filters"
+                              >
+                                0
+                              </span>
+                            </Button>
                 </div>
               </div>
 
@@ -211,6 +233,18 @@ export default function WalletPage() {
           </Card>
         </div>
       )}
+      {/* Modals */}
+            <FilterModal
+              isOpen={showFilterModal}
+              onClose={() => setShowFilterModal(false)}
+              onApply={(filters) => {
+                console.log('Applied filters:', filters);
+              }}
+            />
+      <SettingsModal
+              isOpen={showSettingsModal}
+              onClose={() => setShowSettingsModal(false)}
+            />
     </main>
   );
 }

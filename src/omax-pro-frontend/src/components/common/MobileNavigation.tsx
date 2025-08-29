@@ -125,7 +125,7 @@ export function MobileNavigation() {
 
             {/* Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-50">
-        <div className="grid grid-cols-5 h-16">
+        <div className="flex items-center justify-around h-16">
           <Link href="/">
             <a
               className={`flex flex-col items-center justify-center gap-1 transition-colors ${
