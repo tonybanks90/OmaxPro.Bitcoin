@@ -44,7 +44,7 @@ export function MobileNavigation() {
     { path: '/holdings', label: 'Holdings', icon: BarChart3 },
     { path: '/wallet', label: 'Wallet Tracker', icon: Eye },
     { path: '/earn', label: 'Referral', icon: Gift },
-    { path: '/trenches', label: 'Trenches', icon: Monitor },
+    { path: '/comin-soon', label: 'Trenches', icon: Monitor },
     { path: '/earn', label: 'Earn', icon: DollarSign },
     { path: '/coming-soon', label: 'Points', icon: Target },
   ];

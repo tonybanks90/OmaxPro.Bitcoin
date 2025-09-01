@@ -20,6 +20,7 @@ import NotFound from "./pages/not-found";
 import "./index.css";
 import { AuthProvider } from "./auth/AuthProvider";
 import ComingSoonPage from "./pages/ComingSoonPage";
+import TestOdin from "./pages/testodin";
 
 
 function Router() {
@@ -29,6 +30,7 @@ function Router() {
       <Switch>
         <Route path="/" component={TrendingPage} />
         <Route path="/trending" component={TrendingPage} />
+        <Route path="/testodin" component={TestOdin} />
         <Route path="/trenches" component={TrenchesPage} />
         <Route path="/token/:id" component={TokenPage} />
         <Route path="/wallet" component={WalletPage} />

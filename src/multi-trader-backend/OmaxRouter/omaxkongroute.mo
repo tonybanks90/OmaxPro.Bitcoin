@@ -8,7 +8,7 @@ import Time "mo:base/Time";
 import Result "mo:base/Result";
 import Int "mo:base/Int";
 
-actor OMAXRouter {
+persistent actor OMAXRouter {
 
   // ----------- TYPE DEFINITIONS -----------
   
