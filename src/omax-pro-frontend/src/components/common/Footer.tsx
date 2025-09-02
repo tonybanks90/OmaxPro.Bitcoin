@@ -79,6 +79,21 @@ export function Footer() {
                 <Wallet className="w-4 h-4" />
                 <span className="text-sm">P&amp;L Tracker</span>
               </Link>
+
+              <Link
+  href="/boost"
+  className={`flex items-center space-x-2 rounded-lg px-2 py-1 transition-all duration-300
+    ${
+      isActive('/coming-soon')
+        ? 'text-accent animate-[glow_1.5s_ease-in-out_infinite_alternate]'
+        : 'text-muted-foreground hover:text-accent hover:animate-[glow_1.5s_ease-in-out_infinite_alternate]'
+    }`}
+  data-testid="button-alerts"
+>
+  <Wallet className="w-4 h-4" />
+  <span className="text-sm">TEST-CKBTC-DEP</span>
+</Link>
+
             </div>
 
             <div className="flex items-center space-x-4">

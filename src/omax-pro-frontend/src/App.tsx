@@ -21,6 +21,7 @@ import "./index.css";
 import { AuthProvider } from "./auth/AuthProvider";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import TestOdin from "./pages/testodin";
+import CKBoostWallet from "./components/modals/CKBoostWallet";
 
 
 function Router() {
@@ -30,7 +31,7 @@ function Router() {
       <Switch>
         <Route path="/" component={TrendingPage} />
         <Route path="/trending" component={TrendingPage} />
-        <Route path="/testodin" component={TestOdin} />
+        <Route path="/boost" component={CKBoostWallet} />
         <Route path="/trenches" component={TrenchesPage} />
         <Route path="/token/:id" component={TokenPage} />
         <Route path="/wallet" component={WalletPage} />

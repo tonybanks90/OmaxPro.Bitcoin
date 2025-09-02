@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../auth/AuthProvider';
 import { useWalletBalances, useTransactionFees, useWithdrawFunds } from '../hooks/useWalletAPI';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Alert, AlertDescription } from '../components/ui/alert';
 import { 
   Wallet, 
   Download, 
@@ -14,18 +16,44 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   Bitcoin,
-  Globe
+  Globe,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  QrCode
 } from 'lucide-react';
 
+// ckBTC Integration Types
+interface CkBTCMinterService {
+  get_btc_address: (args: { owner?: string; subaccount?: number[] }) => Promise<string>;
+  update_balance: (args: { owner?: string; subaccount?: number[] }) => Promise<{ Ok: bigint } | { Err: any }>;
+  retrieve_btc: (args: { address: string; amount: bigint }) => Promise<{ Ok: bigint } | { Err: any }>;
+}
+
+interface DepositState {
+  address: string;
+  isGenerating: boolean;
+  error: string | null;
+  qrCode: string | null;
+}
+
 export default function WalletManagerPage() {
-  useLanguage();
+  const { t } = useLanguage();
+  const { identity, isAuthenticated, principalId } = useAuth();
   const [activeTab, setActiveTab] = useState('deposits');
   const [selectedNetwork, setSelectedNetwork] = useState('bitcoin');
   const [selectedToken, setSelectedToken] = useState('BTC');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [destinationAddress, setDestinationAddress] = useState('');
+  const [depositState, setDepositState] = useState<DepositState>({
+    address: '',
+    isGenerating: false,
+    error: null,
+    qrCode: null
+  });
+  const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
   
-  const { data: balances = [] } = useWalletBalances();
+  const { data: balances = [], refetch: refetchBalances } = useWalletBalances();
   const { data: fees = [] } = useTransactionFees();
   const withdrawMutation = useWithdrawFunds();
 
@@ -36,6 +64,84 @@ export default function WalletManagerPage() {
 
   const currentBalance = balances.find(b => b.network === selectedNetwork && b.token === selectedToken);
   const networkFee = fees.find(f => f.network === selectedNetwork);
+
+  // Generate ckBTC deposit address using Internet Identity
+  const generateDepositAddress = async () => {
+    if (!isAuthenticated || !identity || !principalId) {
+      setDepositState(prev => ({ 
+        ...prev, 
+        error: 'Please authenticate with Internet Identity first' 
+      }));
+      return;
+    }
+
+    setDepositState(prev => ({ 
+      ...prev, 
+      isGenerating: true, 
+      error: null 
+    }));
+
+    try {
+      // This would be the actual ckBTC minter canister integration
+      // Replace with your actual canister ID
+      const ckBTCMinterCanisterId = 'mqygn-kiaaa-aaaar-qaadq-cai'; // ckBTC minter canister
+      
+      // Mock implementation - replace with actual canister call
+      // In a real implementation, you'd use @dfinity/agent to call the canister
+      const mockAddress = await generateMockBTCAddress(principalId);
+      
+      setDepositState(prev => ({
+        ...prev,
+        address: mockAddress,
+        isGenerating: false,
+        qrCode: `bitcoin:${mockAddress}` // For QR code generation
+      }));
+
+    } catch (error) {
+      console.error('Error generating deposit address:', error);
+      setDepositState(prev => ({
+        ...prev,
+        isGenerating: false,
+        error: 'Failed to generate deposit address. Please try again.'
+      }));
+    }
+  };
+
+  // Mock function - replace with actual ckBTC minter integration
+  const generateMockBTCAddress = async (principalId: string): Promise<string> => {
+    // This simulates the ckBTC minter service
+    // In reality, you'd call the ckBTC minter canister's get_btc_address method
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // Generate a mock Bitcoin address based on principal ID
+        const mockAddress = `bc1q${principalId.slice(0, 8)}example${Math.random().toString(36).slice(2, 8)}`;
+        resolve(mockAddress);
+      }, 2000);
+    });
+  };
+
+  // Update balance using ckBTC minter
+  const handleUpdateBalance = async () => {
+    if (!isAuthenticated || !identity) {
+      alert('Please authenticate first');
+      return;
+    }
+
+    setIsUpdatingBalance(true);
+    try {
+      // Mock balance update - replace with actual ckBTC minter call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      await refetchBalances();
+      
+      // In a real implementation, you'd call:
+      // const result = await ckBTCMinter.update_balance({ owner: principalId });
+      
+    } catch (error) {
+      console.error('Error updating balance:', error);
+    } finally {
+      setIsUpdatingBalance(false);
+    }
+  };
 
   const handleCopyAddress = (address: string) => {
     navigator.clipboard.writeText(address);
@@ -52,10 +158,42 @@ export default function WalletManagerPage() {
     });
   };
 
-  const handleUpdateBalance = () => {
-    // Trigger balance refresh
-    window.location.reload();
+  const generateQRCode = () => {
+    if (depositState.address) {
+      // In a real implementation, you'd generate an actual QR code
+      alert(`QR Code for: ${depositState.address}`);
+    }
   };
+
+  // Generate deposit address when component mounts and user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'deposits' && !depositState.address && !depositState.isGenerating) {
+      generateDepositAddress();
+    }
+  }, [isAuthenticated, activeTab]);
+
+  // Show authentication required state
+  if (!isAuthenticated) {
+    return (
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-wallet-manager">
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Wallet className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-foreground mb-2">Authentication Required</h2>
+            <p className="text-muted-foreground mb-6">
+              Please authenticate with Internet Identity to access your wallet manager.
+            </p>
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                You need to be authenticated to manage deposits and withdrawals using ckBTC.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   return (
     <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-wallet-manager">
@@ -64,29 +202,33 @@ export default function WalletManagerPage() {
         <h1 className="text-2xl font-bold text-foreground mb-2" data-testid="text-page-title">
           Wallet Manager
         </h1>
-        <p className="text-muted-foreground">Manage all your wallets here.</p>
+        <p className="text-muted-foreground">
+          Manage your Bitcoin and ckBTC deposits and withdrawals using Internet Identity.
+        </p>
+        <div className="mt-2 text-xs text-muted-foreground">
+          Principal ID: {principalId}
+        </div>
       </div>
 
       {/* Wallet Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        {/*<div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" data-testid="button-deposit">
-            <ArrowDownCircle className="w-4 h-4 mr-2" />
-            Deposit
-          </Button>
-          <Button variant="outline" size="sm" data-testid="button-withdraw">
-            <ArrowUpCircle className="w-4 h-4 mr-2" />
-            Withdraw
-          </Button>
-          <Button variant="outline" size="sm" data-testid="button-import-wallet">
-            <Download className="w-4 h-4 mr-2" />
-            Import wallet
-          </Button>
-        </div>*/}
-        
-        <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" data-testid="button-generate-wallet">
-          <Plus className="w-4 h-4 mr-2" />
-          Generate New Wallet
+        <Button 
+          className="bg-accent hover:bg-accent/90 text-accent-foreground" 
+          data-testid="button-generate-wallet"
+          onClick={generateDepositAddress}
+          disabled={depositState.isGenerating}
+        >
+          {depositState.isGenerating ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              Generate New Deposit Address
+            </>
+          )}
         </Button>
       </div>
 
@@ -107,6 +249,9 @@ export default function WalletManagerPage() {
                 <div className="text-right">
                   <div className="text-2xl font-bold text-foreground" data-testid="text-total-balance">
                     $ {currentBalance?.usdValue || '0.00'}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {currentBalance?.balance || '0.00000000'} {selectedToken}
                   </div>
                 </div>
               </div>
@@ -169,7 +314,7 @@ export default function WalletManagerPage() {
                         </SelectItem>
                         <SelectItem value="ckBTC">
                           <div className="flex items-center space-x-2">
-                            <Bitcoin className="w-4 h-4 text-warning" />
+                            <Globe className="w-4 h-4 text-warning" />
                             <span>Chain Key Bitcoin</span>
                           </div>
                         </SelectItem>
@@ -177,22 +322,42 @@ export default function WalletManagerPage() {
                     </Select>
                   </div>
 
+                  {/* Status Alert */}
+                  {depositState.error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{depositState.error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {selectedToken === 'ckBTC' && (
+                    <Alert>
+                      <CheckCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        ckBTC deposits are powered by Internet Computer's Chain-key Bitcoin integration. 
+                        Your deposits will be automatically converted to ckBTC tokens.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   {/* Deposit Address */}
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Deposit address
+                      Deposit address {depositState.isGenerating && '(Generating...)'}
                     </label>
                     <div className="flex items-center space-x-2">
                       <Input
-                        value={currentBalance?.address || ''}
+                        value={depositState.address}
                         readOnly
                         className="flex-1 bg-background"
+                        placeholder={depositState.isGenerating ? "Generating address..." : "No address generated"}
                         data-testid="input-deposit-address"
                       />
                       <Button 
                         size="icon" 
                         variant="outline"
-                        onClick={() => handleCopyAddress(currentBalance?.address || '')}
+                        onClick={() => handleCopyAddress(depositState.address)}
+                        disabled={!depositState.address}
                         data-testid="button-copy-address"
                       >
                         <Copy className="w-4 h-4" />
@@ -204,15 +369,40 @@ export default function WalletManagerPage() {
                   <div className="flex justify-between items-center">
                     <Button 
                       onClick={handleUpdateBalance}
+                      disabled={isUpdatingBalance}
                       className="bg-accent hover:bg-accent/90 text-accent-foreground"
                       data-testid="button-update-balance"
                     >
-                      Update balance
+                      {isUpdatingBalance ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        'Update balance'
+                      )}
                     </Button>
-                    <Button variant="outline" data-testid="button-show-qr">
+                    <Button 
+                      variant="outline" 
+                      onClick={generateQRCode}
+                      disabled={!depositState.address}
+                      data-testid="button-show-qr"
+                    >
+                      <QrCode className="w-4 h-4 mr-2" />
                       Show QR Code
                     </Button>
                   </div>
+
+                  {/* Deposit Instructions */}
+                  <Alert>
+                    <Bitcoin className="h-4 w-4" />
+                    <AlertDescription>
+                      {selectedToken === 'ckBTC' 
+                        ? "Send Bitcoin to the address above. It will automatically be converted to ckBTC on the Internet Computer network with 1:1 backing."
+                        : "Send Bitcoin to the address above. Minimum deposit: 0.001 BTC"
+                      }
+                    </AlertDescription>
+                  </Alert>
                 </div>
               </TabsContent>
 
@@ -230,7 +420,11 @@ export default function WalletManagerPage() {
                     <Select value={selectedNetwork} onValueChange={setSelectedNetwork}>
                       <SelectTrigger data-testid="select-withdraw-network">
                         <div className="flex items-center space-x-2">
-                          <Bitcoin className="w-4 h-4 text-warning" />
+                          {networks.find(n => n.id === selectedNetwork)?.icon && 
+                            React.createElement(networks.find(n => n.id === selectedNetwork)!.icon, { 
+                              className: "w-4 h-4 text-warning" 
+                            })
+                          }
                           <SelectValue />
                         </div>
                       </SelectTrigger>
@@ -255,13 +449,27 @@ export default function WalletManagerPage() {
                     <Select value={selectedToken} onValueChange={setSelectedToken}>
                       <SelectTrigger data-testid="select-withdraw-token">
                         <div className="flex items-center space-x-2">
-                          <Bitcoin className="w-4 h-4 text-warning" />
+                          {selectedToken === 'ckBTC' ? (
+                            <Globe className="w-4 h-4 text-warning" />
+                          ) : (
+                            <Bitcoin className="w-4 h-4 text-warning" />
+                          )}
                           <SelectValue />
                         </div>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="BTC">Bitcoin</SelectItem>
-                        <SelectItem value="ckBTC">Chain Key Bitcoin</SelectItem>
+                        <SelectItem value="BTC">
+                          <div className="flex items-center space-x-2">
+                            <Bitcoin className="w-4 h-4 text-warning" />
+                            <span>Bitcoin</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="ckBTC">
+                          <div className="flex items-center space-x-2">
+                            <Globe className="w-4 h-4 text-warning" />
+                            <span>Chain Key Bitcoin</span>
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -299,7 +507,12 @@ export default function WalletManagerPage() {
                         className="flex-1"
                         data-testid="input-withdraw-amount"
                       />
-                      <Button variant="outline" size="sm" data-testid="button-max-amount">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setWithdrawAmount(currentBalance?.balance || '0')}
+                        data-testid="button-max-amount"
+                      >
                         All
                       </Button>
                     </div>
@@ -324,9 +537,9 @@ export default function WalletManagerPage() {
                         <span className="text-sm text-muted-foreground">Receive amount</span>
                         <div className="text-right">
                           <div className="text-sm font-medium text-warning" data-testid="text-receive-amount">
-                            -{withdrawAmount || '0.00000000'} {selectedToken}
+                            {withdrawAmount || '0.00000000'} {selectedToken}
                           </div>
-                          <div className="text-xs text-muted-foreground">0.01 USD</div>
+                          <div className="text-xs text-muted-foreground">≈ $0.01 USD</div>
                         </div>
                       </div>
                       <div className="flex justify-between mt-2">
@@ -345,7 +558,14 @@ export default function WalletManagerPage() {
                     className="w-full bg-accent hover:bg-accent/90 text-accent-foreground py-3"
                     data-testid="button-withdraw"
                   >
-                    {withdrawMutation.isPending ? 'Processing...' : 'Withdraw'}
+                    {withdrawMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      'Withdraw'
+                    )}
                   </Button>
                 </div>
               </TabsContent>

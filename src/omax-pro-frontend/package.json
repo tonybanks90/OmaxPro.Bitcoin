@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ckboost/client": "^0.1.0",
     "@dfinity/agent": "^3.2.2",
     "@dfinity/auth-client": "^3.2.2",
     "@dfinity/principal": "^3.2.2",
