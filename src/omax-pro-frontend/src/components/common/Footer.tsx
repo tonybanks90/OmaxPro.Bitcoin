@@ -81,7 +81,7 @@ export function Footer() {
               </Link>
 
               <Link
-  href="/boost"
+  href="/ckbtcdeposit"
   className={`flex items-center space-x-2 rounded-lg px-2 py-1 transition-all duration-300
     ${
       isActive('/coming-soon')

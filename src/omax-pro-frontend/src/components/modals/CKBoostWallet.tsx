@@ -1,18 +1,31 @@
+import { useTheme } from '../../contexts/ThemeContext';
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../auth/AuthProvider'; // Assuming your auth hook is in a separate file
-import { 
-  ckTESTBTCClient, 
+import { useAuth } from '../../auth/AuthProvider';
+import {
+  ckTESTBTCClient,
   BoostStatus,
-  CKBoostErrorType, // Corrected: Imported as a value
+  CKBoostErrorType,
   type BoostRequest,
   type DepositAddress,
   type TokenConfig
 } from '@ckboost/client';
-import { Wallet, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, AlertCircle, Copy, ExternalLink } from 'lucide-react';
+import { 
+  Wallet, 
+  ArrowUpRight, 
+  ArrowDownLeft, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle, 
+  Copy, 
+  ExternalLink,
+  Sun,
+  Moon
+} from 'lucide-react';
 
 const CKBoostWallet = () => {
-const { identity, isAuthenticated, principalId, login } = useAuth();
-  
+  const { identity, isAuthenticated, principalId, login } = useAuth();
+  const { theme, toggleTheme } = useTheme(); // Use the theme context
+
   // Client instance
   const [client] = useState(() => new ckTESTBTCClient({
     host: 'https://icp-api.io',
@@ -26,7 +39,7 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   // Deposit state
   const [depositInfo, setDepositInfo] = useState<DepositAddress | null>(null);
   const [activeRequests, setActiveRequests] = useState<BoostRequest[]>([]);
@@ -39,7 +52,7 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
     // Get token configuration on mount
     const config = client.getTokenConfig();
     setTokenConfig(config);
-    
+
     // Load active requests on mount
     if (isAuthenticated) {
       loadActiveRequests();
@@ -76,9 +89,9 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
       const result = await client.getBoostRequest(requestId);
       if (result.success) {
         const request = result.data;
-        
+
         // Update the request in our list
-        setActiveRequests(prev => 
+        setActiveRequests(prev =>
           prev.map(r => r.id === requestId ? request : r)
         );
 
@@ -130,7 +143,7 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
       if (result.success) {
         setDepositInfo(result.data);
         setSuccess('Deposit address generated successfully!');
-        
+
         // Add to active requests and start monitoring
         const newRequest: BoostRequest = {
           id: result.data.requestId,
@@ -146,10 +159,10 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
           owner: principalId ?? '',
           explorerUrl: result.data.explorerUrl
         };
-        
+
         setActiveRequests(prev => [newRequest, ...prev]);
         startMonitoring(result.data.requestId);
-        
+
         // Clear form
         setDepositAmount('');
       } else {
@@ -180,19 +193,20 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
     setSuccess('Copied to clipboard!');
     setTimeout(() => setSuccess(''), 3000);
   };
-
+  
+  // Updated to use theme colors with opacity
   const getStatusColor = (status: BoostStatus) => {
     switch (status) {
       case BoostStatus.PENDING:
-        return 'text-yellow-600 bg-yellow-100';
+        return 'text-warning bg-warning/10';
       case BoostStatus.ACTIVE:
-        return 'text-blue-600 bg-blue-100';
+        return 'text-accent bg-accent/10';
       case BoostStatus.COMPLETED:
-        return 'text-green-600 bg-green-100';
+        return 'text-success bg-success/10';
       case BoostStatus.CANCELLED:
-        return 'text-red-600 bg-red-100';
+        return 'text-destructive bg-destructive/10';
       default:
-        return 'text-gray-600 bg-gray-100';
+        return 'text-muted-foreground bg-muted/10';
     }
   };
 
@@ -212,16 +226,16 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
 
   if (!isAuthenticated) {
     return (
-      <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-lg">
+      <div className="max-w-md mx-auto mt-10 p-6 bg-card rounded-lg shadow-lg animate-fade-in">
         <div className="text-center">
-          <Wallet className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-800 mb-4">CKBTC Fast Deposit</h2>
-          <p className="text-gray-600 mb-6">
+          <Wallet className="w-12 h-12 text-accent mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-card-foreground mb-4">CKBTC Fast Deposit</h2>
+          <p className="text-muted-foreground mb-6">
             Connect your wallet to start using CKBTC-Fast-Depo acceleration services
           </p>
           <button
             onClick={login}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full bg-accent text-accent-foreground py-2 px-4 rounded-lg hover:bg-accent/90 transition-colors"
           >
             Connect Wallet
           </button>
@@ -231,32 +245,37 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-6 space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-card rounded-lg shadow-lg p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Wallet className="w-8 h-8 text-blue-600" />
+            <Wallet className="w-8 h-8 text-accent" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">CKTESTBTC-Deposit</h1>
-              <p className="text-gray-600">Fast ckTESTBTC conversions under 10mins</p>
+              <h1 className="text-2xl font-bold text-card-foreground">CKTESTBTC-Deposit</h1>
+              <p className="text-muted-foreground">Fast ckTESTBTC conversions under 10mins</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-600">Connected as</p>
-            <p className="font-mono text-sm text-gray-800 truncate max-w-[200px]">{principalId}</p>
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Connected as</p>
+              <p className="font-mono text-sm text-foreground truncate max-w-[200px]">{principalId}</p>
+            </div>
+             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-secondary">
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
           </div>
         </div>
       </div>
 
       {/* Alerts */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg animate-slide-up">
           {error}
         </div>
       )}
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+        <div className="bg-success/10 border border-success/20 text-success px-4 py-3 rounded-lg animate-slide-up">
           {success}
         </div>
       )}
@@ -264,15 +283,15 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Panel - Actions */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-lg p-6">
+        <div className="lg:col-span-2 bg-card rounded-lg shadow-lg p-6">
           {/* Tabs */}
           <div className="flex space-x-1 mb-6">
             <button
               onClick={() => setActiveTab('deposit')}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                 activeTab === 'deposit'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-accent text-accent-foreground'
+                  : 'bg-secondary text-muted-foreground hover:bg-surface-light'
               }`}
             >
               <ArrowDownLeft className="w-4 h-4" />
@@ -282,8 +301,8 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
               onClick={() => setActiveTab('withdraw')}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                 activeTab === 'withdraw'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-accent text-accent-foreground'
+                  : 'bg-secondary text-muted-foreground hover:bg-surface-light'
               }`}
             >
               <ArrowUpRight className="w-4 h-4" />
@@ -295,13 +314,13 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
           {activeTab === 'deposit' && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                <h3 className="text-lg font-semibold text-card-foreground mb-4">
                   Create Deposit Request
                 </h3>
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-muted-foreground mb-2">
                       Amount (ckTESTBTC)
                     </label>
                     <input
@@ -311,18 +330,18 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
                       max={tokenConfig?.maximumAmount || "1"}
                       value={depositAmount}
                       onChange={(e) => setDepositAmount(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2 bg-secondary border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-accent"
                       placeholder="0.01"
                     />
                     {tokenConfig && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Min: {tokenConfig.minimumAmount}, Max: {tokenConfig.maximumAmount}
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-muted-foreground mb-2">
                       Maximum Fee ({maxFee}%)
                     </label>
                     <input
@@ -332,9 +351,9 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
                       step="0.1"
                       value={maxFee}
                       onChange={(e) => setMaxFee(parseFloat(e.target.value))}
-                      className="w-full"
+                      className="w-full accent-accent"
                     />
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between text-xs text-muted-foreground">
                       <span>0.1%</span>
                       <span>2.0%</span>
                     </div>
@@ -343,7 +362,7 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
                   <button
                     onClick={handleDeposit}
                     disabled={loading || !depositAmount}
-                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+                    className="w-full bg-accent text-accent-foreground py-3 px-4 rounded-lg hover:bg-accent/90 disabled:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                   >
                     {loading ? 'Creating Request...' : 'Generate Deposit Address'}
                   </button>
@@ -352,19 +371,19 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
 
               {/* Deposit Info */}
               {depositInfo && (
-                <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-                  <h4 className="font-semibold text-gray-800">Deposit Information</h4>
+                <div className="border border-border rounded-lg p-4 space-y-3 animate-slide-up">
+                  <h4 className="font-semibold text-card-foreground">Deposit Information</h4>
                   
                   <div className="space-y-2">
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Bitcoin Address:</label>
+                      <label className="text-sm font-medium text-muted-foreground">Bitcoin Address:</label>
                       <div className="flex items-center space-x-2 mt-1">
-                        <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono break-all">
+                        <code className="bg-muted px-2 py-1 rounded text-sm font-mono break-all">
                           {depositInfo.address}
                         </code>
                         <button
                           onClick={() => copyToClipboard(depositInfo.address)}
-                          className="text-blue-600 hover:text-blue-700"
+                          className="text-accent hover:text-accent/90"
                         >
                           <Copy className="w-4 h-4" />
                         </button>
@@ -372,12 +391,12 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Amount (Satoshis):</label>
+                      <label className="text-sm font-medium text-muted-foreground">Amount (Satoshis):</label>
                       <p className="font-mono text-sm">{depositInfo.amountRaw}</p>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Request ID:</label>
+                      <label className="text-sm font-medium text-muted-foreground">Request ID:</label>
                       <p className="font-mono text-sm">{depositInfo.requestId}</p>
                     </div>
 
@@ -385,7 +404,7 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
                       href={depositInfo.explorerUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm"
+                      className="inline-flex items-center space-x-1 text-accent hover:text-accent/90 text-sm"
                     >
                       <span>View on Explorer</span>
                       <ExternalLink className="w-3 h-3" />
@@ -399,9 +418,9 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
           {/* Withdraw Tab */}
           {activeTab === 'withdraw' && (
             <div className="space-y-6">
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-muted-foreground">
                 <ArrowUpRight className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Withdrawal Feature</h3>
+                <h3 className="text-lg font-medium mb-2 text-foreground">Withdrawal Feature</h3>
                 <p>Standard ckTESTBTC withdrawals can be done through your wallet interface.</p>
                 <p className="text-sm mt-2">CKBTC-Deposit focuses on accelerating deposits (Bitcoin → ckTESTBTC).</p>
               </div>
@@ -410,39 +429,39 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
         </div>
 
         {/* Right Panel - Active Requests */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Active Requests</h3>
+        <div className="bg-card rounded-lg shadow-lg p-6">
+          <h3 className="text-lg font-semibold text-card-foreground mb-4">Active Requests</h3>
           
           {activeRequests.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               <Clock className="w-8 h-8 mx-auto mb-3 opacity-50" />
               <p className="text-sm">No active requests</p>
             </div>
           ) : (
             <div className="space-y-3">
               {activeRequests.map((request) => (
-                <div key={request.id} className="border border-gray-200 rounded-lg p-3">
+                <div key={request.id} className="border border-border rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
                       {getStatusIcon(request.status)}
                       <span>{request.status}</span>
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-muted-foreground">
                       {new Date(request.createdAt).toLocaleString()}
                     </span>
                   </div>
                   
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Amount:</span>
+                      <span className="text-muted-foreground">Amount:</span>
                       <span className="font-mono">{request.amount} ckTESTBTC</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Received:</span>
+                      <span className="text-muted-foreground">Received:</span>
                       <span className="font-mono">{request.receivedAmount} ckTESTBTC</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Progress:</span>
+                      <span className="text-muted-foreground">Progress:</span>
                       <span className="text-xs">
                         {((parseFloat(request.receivedAmount) / parseFloat(request.amount)) * 100).toFixed(1)}%
                       </span>
@@ -450,18 +469,18 @@ const { identity, isAuthenticated, principalId, login } = useAuth();
                   </div>
 
                   {request.depositAddress && (
-                    <div className="mt-2 pt-2 border-t border-gray-100">
-                      <p className="text-xs text-gray-600 mb-1">Deposit Address:</p>
+                    <div className="mt-2 pt-2 border-t border-border/50">
+                      <p className="text-xs text-muted-foreground mb-1">Deposit Address:</p>
                       <div className="flex items-center space-x-1">
-                        <code className="text-xs font-mono bg-gray-50 px-1 rounded flex-1 truncate">
+                        <code className="text-xs font-mono bg-secondary px-1 rounded flex-1 truncate">
                           {request.depositAddress}
                         </code>
                         <button
-  onClick={() => request.depositAddress && copyToClipboard(request.depositAddress)}
-  className="text-blue-600 hover:text-blue-700"
->
-    <Copy className="w-3 h-3" />
-</button>
+                          onClick={() => request.depositAddress && copyToClipboard(request.depositAddress)}
+                          className="text-accent hover:text-accent/90"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
                       </div>
                     </div>
                   )}

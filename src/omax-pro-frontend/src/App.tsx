@@ -31,7 +31,7 @@ function Router() {
       <Switch>
         <Route path="/" component={TrendingPage} />
         <Route path="/trending" component={TrendingPage} />
-        <Route path="/boost" component={CKBoostWallet} />
+        <Route path="/ckbtcdeposit" component={CKBoostWallet} />
         <Route path="/trenches" component={TrenchesPage} />
         <Route path="/token/:id" component={TokenPage} />
         <Route path="/wallet" component={WalletPage} />
