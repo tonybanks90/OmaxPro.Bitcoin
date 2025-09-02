@@ -17,6 +17,7 @@ import {
   Check,
 } from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider";
+import CryptoBalances from "./CryproBalances";
 
 interface WalletConnectionModalProps {
   isOpen: boolean;
@@ -87,6 +88,8 @@ export function WalletConnectionModal({
             <p className="text-sm font-mono text-foreground break-all text-center">
               {principalId}
             </p>
+            {/* Pass principalId to CryptoBalances */}
+                      {principalId && <CryptoBalances principalId={principalId} />}
 
             <div className="flex items-center gap-3 w-full">
               <Button

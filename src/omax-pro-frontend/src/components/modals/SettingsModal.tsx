@@ -121,7 +121,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   {/* Buy Amount */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Buy Amount</label>
-                    <p className="text-xs text-muted-foreground">Amount of SOL to snipe with.</p>
+                    <p className="text-xs text-muted-foreground">Amount of BTC to snipe with.</p>
                     <div className="flex items-center space-x-2">
                       <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                         <span className="text-xs text-white">≡</span>
@@ -165,7 +165,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   {/* Buy Fee */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Buy Fee</label>
-                    <p className="text-xs text-muted-foreground">Extra SOL for validators.</p>
+                    <p className="text-xs text-muted-foreground">Extra BTC for validators.</p>
                     <Input
                       type="number"
                       value={buyFee}
