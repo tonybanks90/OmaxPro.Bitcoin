@@ -4,6 +4,10 @@
       "main": "src/multi-trader-backend/WalletTracker/main.mo",
       "type": "motoko"
     },
+    "PredictionMarkets": {
+      "main": "src/multi-trader-backend/PredictionMarkets/markets.mo",
+      "type": "motoko"
+    },
     "OmaxRouter": {
       "main": "src/multi-trader-backend/OmaxRouter/omaxkongroute.mo",
       "type": "motoko"

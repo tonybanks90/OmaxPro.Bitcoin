@@ -62,15 +62,19 @@ const CKBoostWallet = () => {
       // Cleanup monitoring intervals
       monitoringIntervals.forEach(interval => clearInterval(interval));
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, principalId]); // Added principalId to dependency array
 
   const loadActiveRequests = async () => {
     try {
       const result = await client.getPendingBoostRequests();
-      if (result.success) {
-        setActiveRequests(result.data);
-        // Start monitoring each pending request
-        result.data.forEach(request => {
+      if (result.success && principalId) { // Ensure principalId is available
+        // Filter requests to only show those owned by the current user
+        const userRequests = result.data.filter(req => req.owner === principalId);
+        
+        setActiveRequests(userRequests);
+        
+        // Start monitoring each of the user's pending requests
+        userRequests.forEach(request => {
           if (request.status === BoostStatus.PENDING || request.status === BoostStatus.ACTIVE) {
             startMonitoring(request.id);
           }
@@ -194,7 +198,6 @@ const CKBoostWallet = () => {
     setTimeout(() => setSuccess(''), 3000);
   };
   
-  // Updated to use theme colors with opacity
   const getStatusColor = (status: BoostStatus) => {
     switch (status) {
       case BoostStatus.PENDING:
