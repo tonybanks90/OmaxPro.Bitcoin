@@ -8,6 +8,14 @@
       "main": "src/multi-trader-backend/PredictionMarkets/markets.mo",
       "type": "motoko"
     },
+    "Vault": {
+      "main": "src/multi-trader-backend/PredictionMarkets/vault.mo",
+      "type": "motoko"
+    },
+    "MockCkBTC": {
+      "main": "src/multi-trader-backend/PredictionMarkets/MockCkBTC.mo",
+      "type": "motoko"
+    },
     "OmaxRouter": {
       "main": "src/multi-trader-backend/OmaxRouter/omaxkongroute.mo",
       "type": "motoko"
