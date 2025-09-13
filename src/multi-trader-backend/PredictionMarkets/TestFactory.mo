@@ -1,3 +1,4 @@
+
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
@@ -70,28 +71,93 @@ actor TokenFactory {
     #Init : InitArgs;
   };
 
-  // Market types
+  // Enhanced market types with metadata support
   public type MarketId = Nat;
+  
+  public type Category = {
+    #Runes;
+    #Stocks;
+    #Political;
+    #Sports;
+    #Entertainment;
+    #Technology;
+    #Crypto;
+    #AI;
+  };
+
+  public type Tag = {
+    #web2;
+    #AI;
+    #Sports;
+    #Crypto;
+    #Political;
+    #Technology;
+    #Entertainment;
+    #Runes;
+  };
+
+  public type ImageData = {
+    #ImageUrl : Text;
+    #ImageBlob : Blob;
+  };
+
+  public type MarketMetadata = {
+    title : Text;
+    description : Text;
+    category : Category;
+    creator : Principal;
+    image : ImageData;
+    tags : [Tag];
+    bettingCloseTime : Int;
+    expirationTime : Int;
+    resolutionLink : Text;
+    resolutionDescription : Text;
+    created_at : Int;
+  };
   
   public type MarketType = {
     #Binary;
     #MultipleChoice : { outcomes : [Text] };
-    #Compound : { subjects : [Text] }; // Each subject has Yes/No
+    #Compound : { subjects : [Text] };
   };
 
-  // Unified market creation args
+  // Enhanced market creation args with full metadata
   public type CreateBinaryMarketArgs = {
-    question : Text;
+    title : Text;
+    description : Text;
+    category : Category;
+    image : ImageData;
+    tags : [Tag];
+    bettingCloseTime : Int;
+    expirationTime : Int;
+    resolutionLink : Text;
+    resolutionDescription : Text;
   };
 
   public type CreateMultipleChoiceMarketArgs = {
-    question : Text;
-    outcomes : [Text]; // e.g., ["Candidate A", "Candidate B", "Candidate C"]
+    title : Text;
+    description : Text;
+    category : Category;
+    image : ImageData;
+    tags : [Tag];
+    outcomes : [Text];
+    bettingCloseTime : Int;
+    expirationTime : Int;
+    resolutionLink : Text;
+    resolutionDescription : Text;
   };
 
   public type CreateCompoundMarketArgs = {
-    question : Text;
-    subjects : [Text]; // e.g., ["Team A", "Team B", "Team C"] - each gets Yes/No
+    title : Text;
+    description : Text;
+    category : Category;
+    image : ImageData;
+    tags : [Tag];
+    subjects : [Text];
+    bettingCloseTime : Int;
+    expirationTime : Int;
+    resolutionLink : Text;
+    resolutionDescription : Text;
   };
 
   // Token mapping for different market types
@@ -101,11 +167,11 @@ actor TokenFactory {
   };
 
   public type MultipleChoiceTokens = {
-    outcomeLedgers : [(Text, Principal)]; // outcome name -> ledger principal
+    outcomeLedgers : [(Text, Principal)];
   };
 
   public type CompoundTokens = {
-    subjectTokens : [(Text, BinaryTokens)]; // subject -> (yes/no ledgers)
+    subjectTokens : [(Text, BinaryTokens)];
   };
 
   public type MarketTokens = {
@@ -116,8 +182,7 @@ actor TokenFactory {
 
   public type MarketInfo = {
     id : MarketId;
-    question : Text;
-    created_at : Int;
+    metadata : MarketMetadata;
     marketType : MarketType;
     tokens : MarketTokens;
   };
@@ -126,13 +191,17 @@ actor TokenFactory {
   
   private let DEFAULT_DECIMALS : Nat8 = 8;
   private let DEFAULT_FEE : Nat = 10_000;
-  private let DEFAULT_SUPPLY : Nat = 1_000_000_000; // 1B tokens for outcomes
-  private let MAX_OUTCOMES : Nat = 20; // Limit for multiple choice
-  private let MAX_SUBJECTS : Nat = 10; // Limit for compound markets
+  private let DEFAULT_SUPPLY : Nat = 1_000_000_000;
+  private let MAX_OUTCOMES : Nat = 20;
+  private let MAX_SUBJECTS : Nat = 10;
+  private let MAX_TITLE_LENGTH : Nat = 200;
+  private let MIN_TITLE_LENGTH : Nat = 1;
+  private let MAX_DESCRIPTION_LENGTH : Nat = 1000;
+  private let MIN_DESCRIPTION_LENGTH : Nat = 1;
+  private let MAX_TAGS : Nat = 5;
 
   // ===== STATE =====
   
-  // Stable storage
   private stable var tokens : List.List<Principal> = List.nil();
   private stable var createdCanisters : List.List<Principal> = List.nil();
   private stable var wasm_module : ?Blob = null;
@@ -140,7 +209,6 @@ actor TokenFactory {
   private stable var marketInfoEntries : [(MarketId, MarketInfo)] = [];
   private stable var nextMarketId : MarketId = 1;
   
-  // Runtime storage
   private var tokenMetadata = HashMap.HashMap<Principal, TokenMetadata>(0, Principal.equal, Principal.hash);
   private var marketInfo = TrieMap.TrieMap<MarketId, MarketInfo>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
 
@@ -153,25 +221,6 @@ actor TokenFactory {
       arg : Blob;
       mode : { #install; #reinstall; #upgrade };
     } -> async ();
-  };
-
-  // ===== UTILITY FUNCTIONS =====
-
-  // Custom uppercase conversion function
-  private func charToUpper(c : Char) : Char {
-    let code = Char.toNat32(c);
-    if (code >= 97 and code <= 122) { // 'a' to 'z'
-      Char.fromNat32(code - 32) // Convert to uppercase
-    } else {
-      c // Return as-is if not lowercase
-    }
-  };
-
-  // Convert string to uppercase with underscore replacement
-  private func textToUpperSymbol(text : Text) : Text {
-    Text.map(text, func(c: Char) : Char { 
-      if (c == ' ') '_' else charToUpper(c)
-    })
   };
 
   // ===== INITIALIZATION =====
@@ -198,6 +247,62 @@ actor TokenFactory {
     marketInfoEntries := [];
   };
 
+  // ===== VALIDATION FUNCTIONS =====
+
+  private func validateTitle(title : Text) : Bool {
+    let length = Text.size(title);
+    length >= MIN_TITLE_LENGTH and length <= MAX_TITLE_LENGTH
+  };
+
+  private func validateDescription(description : Text) : Bool {
+    let length = Text.size(description);
+    length >= MIN_DESCRIPTION_LENGTH and length <= MAX_DESCRIPTION_LENGTH
+  };
+
+  private func validateTags(tags : [Tag]) : Bool {
+    tags.size() <= MAX_TAGS
+  };
+
+  private func validateTimes(bettingCloseTime : Int, expirationTime : Int) : Bool {
+    let currentTime = Time.now();
+    bettingCloseTime > currentTime and expirationTime > bettingCloseTime
+  };
+
+  private func validateOutcomeName(outcome : Text) : Bool {
+    Text.size(outcome) > 0 and Text.size(outcome) <= 50
+  };
+
+  private func validateMarketArgs(
+    title : Text, 
+    description : Text, 
+    tags : [Tag], 
+    bettingCloseTime : Int, 
+    expirationTime : Int
+  ) : Result.Result<(), Text> {
+    if (not validateTitle(title)) {
+      return #err("Title must be between " # Nat.toText(MIN_TITLE_LENGTH) # " and " # Nat.toText(MAX_TITLE_LENGTH) # " characters");
+    };
+    if (not validateDescription(description)) {
+      return #err("Description must be between " # Nat.toText(MIN_DESCRIPTION_LENGTH) # " and " # Nat.toText(MAX_DESCRIPTION_LENGTH) # " characters");
+    };
+    if (not validateTags(tags)) {
+      return #err("Maximum " # Nat.toText(MAX_TAGS) # " tags allowed");
+    };
+    if (not validateTimes(bettingCloseTime, expirationTime)) {
+      return #err("Betting close time must be in the future and expiration time must be after betting close time");
+    };
+    #ok()
+  };
+
+  // Helper function to convert text to uppercase symbol
+  private func toUpperSymbol(text : Text) : Text {
+    Text.map(text, func(c: Char) : Char { 
+      if (c == ' ') '_' 
+      else if (c >= 'a' and c <= 'z') Char.fromNat32(Char.toNat32(c) - 32)
+      else c 
+    })
+  };
+
   // ===== ADMIN FUNCTIONS =====
 
   public shared func uploadWasm(wasm_blob : Blob) : async Result.Result<Text, Text> {
@@ -216,22 +321,18 @@ actor TokenFactory {
 
   // ===== HELPER FUNCTIONS =====
 
-  private func validateOutcomeName(outcome : Text) : Bool {
-    Text.size(outcome) > 0 and Text.size(outcome) <= 50
-  };
-
   private func createTokenMetadata(
     marketId : MarketId,
     tokenName : Text,
     tokenSymbol : Text,
-    question : Text,
+    title : Text,
     description : Text
   ) : [(Text, MetadataValue)] {
     [
       ("icrc1:description", #Text(description)),
       ("custom:market_id", #Nat(marketId)),
       ("custom:token_name", #Text(tokenName)),
-      ("custom:market_question", #Text(question)),
+      ("custom:market_title", #Text(title)),
       ("custom:token_type", #Text("prediction_market")),
     ]
   };
@@ -240,7 +341,7 @@ actor TokenFactory {
     marketId : MarketId,
     tokenName : Text,
     tokenSymbol : Text,
-    question : Text,
+    title : Text,
     description : Text
   ) : async Result.Result<Principal, Text> {
     try {
@@ -260,9 +361,8 @@ actor TokenFactory {
 
       switch (wasm_module) {
         case (?icrc1_wasm) {
-          let metadata = createTokenMetadata(marketId, tokenName, tokenSymbol, question, description);
+          let metadata = createTokenMetadata(marketId, tokenName, tokenSymbol, title, description);
           
-          // TokenFactory is the minter
           let minterAccount : Account = { 
             owner = Principal.fromActor(TokenFactory); 
             subaccount = null 
@@ -297,7 +397,6 @@ actor TokenFactory {
             mode = #install;
           });
 
-          // Store token metadata
           let tokenMeta : TokenMetadata = {
             name = tokenName;
             symbol = tokenSymbol;
@@ -329,9 +428,11 @@ actor TokenFactory {
 
   // ===== PUBLIC API - MARKET CREATION =====
 
-  public shared func createBinaryMarket(args : CreateBinaryMarketArgs) : async Result.Result<MarketId, Text> {
-    if (Text.size(args.question) == 0) {
-      return #err("Question cannot be empty");
+  public shared({ caller }) func createBinaryMarket(args : CreateBinaryMarketArgs) : async Result.Result<MarketId, Text> {
+    // Validate input
+    switch (validateMarketArgs(args.title, args.description, args.tags, args.bettingCloseTime, args.expirationTime)) {
+      case (#err(msg)) return #err(msg);
+      case (#ok()) {};
     };
 
     let marketId = nextMarketId;
@@ -341,8 +442,8 @@ actor TokenFactory {
       marketId,
       "YES" # Nat.toText(marketId),
       "YES" # Nat.toText(marketId),
-      args.question,
-      "YES token for: " # args.question
+      args.title,
+      "YES token for: " # args.title
     );
     let yesLedger = switch (yesResult) {
       case (#ok(ledger)) ledger;
@@ -354,19 +455,33 @@ actor TokenFactory {
       marketId,
       "NO" # Nat.toText(marketId),
       "NO" # Nat.toText(marketId),
-      args.question,
-      "NO token for: " # args.question
+      args.title,
+      "NO token for: " # args.title
     );
     let noLedger = switch (noResult) {
       case (#ok(ledger)) ledger;
       case (#err(error)) return #err("Failed to deploy NO ledger: " # error);
     };
 
+    // Create market metadata
+    let metadata : MarketMetadata = {
+      title = args.title;
+      description = args.description;
+      category = args.category;
+      creator = caller;
+      image = args.image;
+      tags = args.tags;
+      bettingCloseTime = args.bettingCloseTime;
+      expirationTime = args.expirationTime;
+      resolutionLink = args.resolutionLink;
+      resolutionDescription = args.resolutionDescription;
+      created_at = Time.now();
+    };
+
     // Store market info
     let info : MarketInfo = {
       id = marketId;
-      question = args.question;
-      created_at = Time.now();
+      metadata = metadata;
       marketType = #Binary;
       tokens = #Binary({
         yesLedger = yesLedger;
@@ -378,17 +493,18 @@ actor TokenFactory {
     nextMarketId += 1;
     
     Debug.print("Binary Market #" # Nat.toText(marketId) # " created:");
-    Debug.print("Question: " # args.question);
+    Debug.print("Title: " # args.title);
     Debug.print("YES: " # Principal.toText(yesLedger));
     Debug.print("NO: " # Principal.toText(noLedger));
     
     #ok(marketId)
   };
 
-  public shared func createMultipleChoiceMarket(args : CreateMultipleChoiceMarketArgs) : async Result.Result<MarketId, Text> {
-    // Validate inputs
-    if (Text.size(args.question) == 0) {
-      return #err("Question cannot be empty");
+  public shared({ caller }) func createMultipleChoiceMarket(args : CreateMultipleChoiceMarketArgs) : async Result.Result<MarketId, Text> {
+    // Validate input
+    switch (validateMarketArgs(args.title, args.description, args.tags, args.bettingCloseTime, args.expirationTime)) {
+      case (#err(msg)) return #err(msg);
+      case (#ok()) {};
     };
 
     if (args.outcomes.size() < 2) {
@@ -414,9 +530,9 @@ actor TokenFactory {
       let tokenResult = await deployTokenLedger(
         marketId,
         outcome # " - Market #" # Nat.toText(marketId),
-        textToUpperSymbol(outcome) # Nat.toText(marketId),
-        args.question,
-        outcome # " token for: " # args.question
+        toUpperSymbol(outcome) # Nat.toText(marketId),
+        args.title,
+        outcome # " token for: " # args.title
       );
 
       switch (tokenResult) {
@@ -429,11 +545,25 @@ actor TokenFactory {
       };
     };
 
+    // Create market metadata
+    let metadata : MarketMetadata = {
+      title = args.title;
+      description = args.description;
+      category = args.category;
+      creator = caller;
+      image = args.image;
+      tags = args.tags;
+      bettingCloseTime = args.bettingCloseTime;
+      expirationTime = args.expirationTime;
+      resolutionLink = args.resolutionLink;
+      resolutionDescription = args.resolutionDescription;
+      created_at = Time.now();
+    };
+
     // Store market info
     let info : MarketInfo = {
       id = marketId;
-      question = args.question;
-      created_at = Time.now();
+      metadata = metadata;
       marketType = #MultipleChoice({ outcomes = args.outcomes });
       tokens = #MultipleChoice({
         outcomeLedgers = outcomeLedgers;
@@ -444,7 +574,7 @@ actor TokenFactory {
     nextMarketId += 1;
     
     Debug.print("Multiple Choice Market #" # Nat.toText(marketId) # " created:");
-    Debug.print("Question: " # args.question);
+    Debug.print("Title: " # args.title);
     for ((outcome, ledger) in outcomeLedgers.vals()) {
       Debug.print(outcome # ": " # Principal.toText(ledger));
     };
@@ -452,10 +582,11 @@ actor TokenFactory {
     #ok(marketId)
   };
 
-  public shared func createCompoundMarket(args : CreateCompoundMarketArgs) : async Result.Result<MarketId, Text> {
-    // Validate inputs
-    if (Text.size(args.question) == 0) {
-      return #err("Question cannot be empty");
+  public shared({ caller }) func createCompoundMarket(args : CreateCompoundMarketArgs) : async Result.Result<MarketId, Text> {
+    // Validate input
+    switch (validateMarketArgs(args.title, args.description, args.tags, args.bettingCloseTime, args.expirationTime)) {
+      case (#err(msg)) return #err(msg);
+      case (#ok()) {};
     };
 
     if (args.subjects.size() < 2) {
@@ -482,9 +613,9 @@ actor TokenFactory {
       let yesResult = await deployTokenLedger(
         marketId,
         subject # " YES - Market #" # Nat.toText(marketId),
-        textToUpperSymbol(subject) # "_YES" # Nat.toText(marketId),
-        args.question,
-        "YES token for " # subject # " in: " # args.question
+        toUpperSymbol(subject) # "_YES" # Nat.toText(marketId),
+        args.title,
+        "YES token for " # subject # " in: " # args.title
       );
 
       let yesLedger = switch (yesResult) {
@@ -496,9 +627,9 @@ actor TokenFactory {
       let noResult = await deployTokenLedger(
         marketId,
         subject # " NO - Market #" # Nat.toText(marketId),
-        textToUpperSymbol(subject) # "_NO" # Nat.toText(marketId),
-        args.question,
-        "NO token for " # subject # " in: " # args.question
+        toUpperSymbol(subject) # "_NO" # Nat.toText(marketId),
+        args.title,
+        "NO token for " # subject # " in: " # args.title
       );
 
       let noLedger = switch (noResult) {
@@ -514,11 +645,25 @@ actor TokenFactory {
       subjectTokens := Array.append(subjectTokens, [(subject, binaryTokens)]);
     };
 
+    // Create market metadata
+    let metadata : MarketMetadata = {
+      title = args.title;
+      description = args.description;
+      category = args.category;
+      creator = caller;
+      image = args.image;
+      tags = args.tags;
+      bettingCloseTime = args.bettingCloseTime;
+      expirationTime = args.expirationTime;
+      resolutionLink = args.resolutionLink;
+      resolutionDescription = args.resolutionDescription;
+      created_at = Time.now();
+    };
+
     // Store market info
     let info : MarketInfo = {
       id = marketId;
-      question = args.question;
-      created_at = Time.now();
+      metadata = metadata;
       marketType = #Compound({ subjects = args.subjects });
       tokens = #Compound({
         subjectTokens = subjectTokens;
@@ -529,7 +674,7 @@ actor TokenFactory {
     nextMarketId += 1;
     
     Debug.print("Compound Market #" # Nat.toText(marketId) # " created:");
-    Debug.print("Question: " # args.question);
+    Debug.print("Title: " # args.title);
     for ((subject, tokens) in subjectTokens.vals()) {
       Debug.print(subject # " YES: " # Principal.toText(tokens.yesLedger));
       Debug.print(subject # " NO: " # Principal.toText(tokens.noLedger));
@@ -538,9 +683,20 @@ actor TokenFactory {
     #ok(marketId)
   };
 
-  // Legacy function for backward compatibility
-  public shared func createMarket(args : CreateBinaryMarketArgs) : async Result.Result<MarketId, Text> {
-    await createBinaryMarket(args)
+  // Legacy function for backward compatibility (simple binary market)
+  public shared({ caller }) func createMarket(args : { question : Text }) : async Result.Result<MarketId, Text> {
+    let legacyArgs : CreateBinaryMarketArgs = {
+      title = args.question;
+      description = "Legacy market created with basic question";
+      category = #Technology;
+      image = #ImageUrl("");
+      tags = [];
+      bettingCloseTime = Time.now() + (24 * 60 * 60 * 1000_000_000); // 1 day from now
+      expirationTime = Time.now() + (7 * 24 * 60 * 60 * 1000_000_000); // 7 days from now
+      resolutionLink = "";
+      resolutionDescription = "Manual resolution required";
+    };
+    await createBinaryMarket(legacyArgs)
   };
 
   // ===== QUERY FUNCTIONS =====
@@ -551,6 +707,58 @@ actor TokenFactory {
 
   public query func getAllMarkets() : async [MarketInfo] {
     Iter.toArray(marketInfo.vals())
+  };
+
+  public query func getMarketsByCategory(category : Category) : async [MarketInfo] {
+    let filtered = Array.filter<MarketInfo>(
+      Iter.toArray(marketInfo.vals()),
+      func(market : MarketInfo) : Bool {
+        market.metadata.category == category
+      }
+    );
+    filtered
+  };
+
+  public query func getMarketsByCreator(creator : Principal) : async [MarketInfo] {
+    let filtered = Array.filter<MarketInfo>(
+      Iter.toArray(marketInfo.vals()),
+      func(market : MarketInfo) : Bool {
+        market.metadata.creator == creator
+      }
+    );
+    filtered
+  };
+
+  public query func getMarketsByTag(tag : Tag) : async [MarketInfo] {
+    let filtered = Array.filter<MarketInfo>(
+      Iter.toArray(marketInfo.vals()),
+      func(market : MarketInfo) : Bool {
+        Array.find<Tag>(market.metadata.tags, func(t : Tag) : Bool { t == tag }) != null
+      }
+    );
+    filtered
+  };
+
+  public query func getActiveMarkets() : async [MarketInfo] {
+    let currentTime = Time.now();
+    let filtered = Array.filter<MarketInfo>(
+      Iter.toArray(marketInfo.vals()),
+      func(market : MarketInfo) : Bool {
+        market.metadata.bettingCloseTime > currentTime
+      }
+    );
+    filtered
+  };
+
+  public query func getExpiredMarkets() : async [MarketInfo] {
+    let currentTime = Time.now();
+    let filtered = Array.filter<MarketInfo>(
+      Iter.toArray(marketInfo.vals()),
+      func(market : MarketInfo) : Bool {
+        market.metadata.expirationTime <= currentTime
+      }
+    );
+    filtered
   };
 
   public query func getMarketsByType(marketType : MarketType) : async [MarketInfo] {
@@ -586,6 +794,23 @@ actor TokenFactory {
     };
 
     { binary = binary; multipleChoice = multipleChoice; compound = compound }
+  };
+
+  public query func getMarketCountByCategory() : async [(Category, Nat)] {
+    let categories : [Category] = [#Runes, #Stocks, #Political, #Sports, #Entertainment, #Technology, #Crypto, #AI];
+    var counts : [(Category, Nat)] = [];
+    
+    for (category in categories.vals()) {
+      var count = 0;
+      for (market in marketInfo.vals()) {
+        if (market.metadata.category == category) {
+          count += 1;
+        };
+      };
+      counts := Array.append(counts, [(category, count)]);
+    };
+    
+    counts
   };
 
   public query func getCreatedTokens() : async [Principal] {
