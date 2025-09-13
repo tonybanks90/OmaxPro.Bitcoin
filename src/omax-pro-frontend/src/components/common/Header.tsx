@@ -34,6 +34,17 @@ export function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-6">
+              <Link
+    href="/prediction-markets"
+    className={`font-medium transition-colors ${
+      isActive('/prediction-markets')
+        ? 'text-accent'
+        : 'text-muted-foreground hover:text-accent'
+    }`}
+    data-testid="link-prediction-markets"
+  >
+    {t('nav.PredictionMarkets')}
+  </Link>
   <Link
     href="/trending"
     className={`font-medium transition-colors ${

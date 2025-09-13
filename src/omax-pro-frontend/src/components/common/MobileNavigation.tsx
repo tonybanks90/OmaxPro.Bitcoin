@@ -41,6 +41,7 @@ export function MobileNavigation() {
 
   const mainMenuItems = [
     { path: '/trending', label: 'Trending', icon: TrendingUp },
+    { path: '/prediction-markets', label: 'Prediction', icon: TrendingUp },
     { path: '/holdings', label: 'Holdings', icon: BarChart3 },
     { path: '/wallet', label: 'Wallet Tracker', icon: Eye },
     { path: '/earn', label: 'Referral', icon: Gift },
@@ -51,6 +52,7 @@ export function MobileNavigation() {
 
   const otherMenuItems = [
     { path: '/sniper', label: 'Sniper', icon: Target },
+    { path: '/create-prediction', label: 'Create Prediction', icon: Target },
     { path: '/coming-soon', label: 'Alerts', icon: Bell },
     { path: '/holdings', label: 'P&L Tracker', icon: TrendingDown },
   ];
@@ -163,17 +165,21 @@ export function MobileNavigation() {
               data-testid="nav-home"
             >
               <Diamond className="w-5 h-5" />
-              <span className="text-xs">Omax</span>
+              <span className="text-xs">Trade</span>
             </a>
           </Link>
 
-          <button
-            className="flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-            data-testid="nav-search"
-          >
-            <Search className="w-5 h-5" />
-            <span className="text-xs">Search</span>
-          </button>
+          <Link href="/prediction-markets">
+            <a
+              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
+                isActive('/prediction-markets') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+              }`}
+              data-testid="nav-home"
+            >
+              <Diamond className="w-5 h-5" />
+              <span className="text-xs">Predict</span>
+            </a>
+          </Link>
 
           <button
             onClick={toggleExplore}

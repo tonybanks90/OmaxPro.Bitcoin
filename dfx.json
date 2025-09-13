@@ -4,7 +4,7 @@
       "main": "src/multi-trader-backend/WalletTracker/main.mo",
       "type": "motoko"
     },
-    "PredictionMarkets": {
+    "Markets": {
       "main": "src/multi-trader-backend/PredictionMarkets/markets.mo",
       "type": "motoko"
     },
@@ -12,8 +12,12 @@
       "main": "src/multi-trader-backend/PredictionMarkets/vault.mo",
       "type": "motoko"
     },
-    "MockCkBTC": {
-      "main": "src/multi-trader-backend/PredictionMarkets/MockCkBTC.mo",
+    "TokenFactory": {
+      "main": "src/multi-trader-backend/PredictionMarkets/MarketFactory.mo",
+      "type": "motoko"
+    },
+    "TFactory": {
+      "main": "src/multi-trader-backend/PredictionMarkets/TestFactory.mo",
       "type": "motoko"
     },
     "OmaxRouter": {

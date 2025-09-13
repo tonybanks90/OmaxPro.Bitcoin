@@ -10,7 +10,7 @@ echo "=========================================="
 
 # Configuration
 CANISTER_NAME="PredictionMarkets"
-NETWORK="--playground"
+NETWORK="local"
 IDENTITY="default"
 
 # Colors for output

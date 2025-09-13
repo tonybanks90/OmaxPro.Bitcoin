@@ -22,6 +22,9 @@ import { AuthProvider } from "./auth/AuthProvider";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import TestOdin from "./pages/testodin";
 import CKBoostWallet from "./components/modals/CKBoostWallet";
+import CreatePredictionPage from "./pages/CrearePredictionPage";
+import PredictionMarketsPage from "./pages/PredictionMarketsPage";
+import PredictionMarketDetailPage from "./pages/PredictionMarketDetailPage";
 
 
 function Router() {
@@ -30,6 +33,9 @@ function Router() {
       <Header />
       <Switch>
         <Route path="/" component={TrendingPage} />
+        <Route path="/create-prediction" component={CreatePredictionPage} />
+        <Route path="/prediction-markets" component={PredictionMarketsPage} />
+        <Route path="/prediction/:id" component={PredictionMarketDetailPage} />
         <Route path="/trending" component={TrendingPage} />
         <Route path="/ckbtcdeposit" component={CKBoostWallet} />
         <Route path="/trenches" component={TrenchesPage} />
