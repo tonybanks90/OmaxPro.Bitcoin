@@ -1,4 +1,3 @@
-
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
@@ -17,6 +16,7 @@ import Array "mo:base/Array";
 import Int "mo:base/Int";
 import Char "mo:base/Char";
 import TrieMap "mo:base/TrieMap";
+import Cycles "mo:base/ExperimentalCycles";
 
 actor TokenFactory {
   // ===== TYPES =====
@@ -199,6 +199,10 @@ actor TokenFactory {
   private let MAX_DESCRIPTION_LENGTH : Nat = 1000;
   private let MIN_DESCRIPTION_LENGTH : Nat = 1;
   private let MAX_TAGS : Nat = 5;
+  
+  // Cycle constants
+  private let CANISTER_CREATION_FEE : Nat = 500_000_000_000; // 500B cycles required
+  private let CYCLES_PER_TOKEN : Nat = 1_000_000_000_000; // 1T cycles per token canister
 
   // ===== STATE =====
   
@@ -319,6 +323,29 @@ actor TokenFactory {
     }
   };
 
+  // ===== CYCLE MANAGEMENT =====
+
+  public query func getCycleBalance() : async Nat {
+    Cycles.balance()
+  };
+
+  public shared func acceptCycles() : async Nat {
+    let amount = Cycles.accept(Cycles.available());
+    Debug.print("Accepted " # Nat.toText(amount) # " cycles");
+    amount
+  };
+
+  // Check if factory has enough cycles for market creation
+  public query func canCreateMarket(tokenCount : Nat) : async { canCreate : Bool; currentBalance : Nat; requiredCycles : Nat } {
+    let currentBalance = Cycles.balance();
+    let requiredCycles = tokenCount * CYCLES_PER_TOKEN;
+    {
+      canCreate = currentBalance >= requiredCycles;
+      currentBalance = currentBalance;
+      requiredCycles = requiredCycles;
+    }
+  };
+
   // ===== HELPER FUNCTIONS =====
 
   private func createTokenMetadata(
@@ -349,10 +376,19 @@ actor TokenFactory {
         return #err("WASM module not available. Please upload it first using uploadWasm().");
       };
 
+      // Check if we have enough cycles
+      if (Cycles.balance() < CYCLES_PER_TOKEN) {
+        return #err("Insufficient cycles. Need " # Nat.toText(CYCLES_PER_TOKEN) # " cycles but only have " # Nat.toText(Cycles.balance()));
+      };
+
       Debug.print("Creating " # tokenName # " token canister for market #" # Nat.toText(marketId));
       
+      // Add cycles to the call
+      Cycles.add(CYCLES_PER_TOKEN);
       let createResult = await mgmt.create_canister({
-        settings = null
+        settings = ?{
+          controllers = [Principal.fromActor(TokenFactory)];
+        }
       });
       let newCanister = createResult.canister_id;
       Debug.print("New " # tokenName # " token canister created: " # Principal.toText(newCanister));
@@ -435,6 +471,12 @@ actor TokenFactory {
       case (#ok()) {};
     };
 
+    // Check cycles before starting
+    let cycleCheck = await canCreateMarket(2); // Binary market needs 2 tokens
+    if (not cycleCheck.canCreate) {
+      return #err("Insufficient cycles to create binary market. Need " # Nat.toText(cycleCheck.requiredCycles) # " but have " # Nat.toText(cycleCheck.currentBalance));
+    };
+
     let marketId = nextMarketId;
 
     // Deploy YES ledger
@@ -496,6 +538,7 @@ actor TokenFactory {
     Debug.print("Title: " # args.title);
     Debug.print("YES: " # Principal.toText(yesLedger));
     Debug.print("NO: " # Principal.toText(noLedger));
+    Debug.print("Remaining cycles: " # Nat.toText(Cycles.balance()));
     
     #ok(marketId)
   };
@@ -513,6 +556,12 @@ actor TokenFactory {
 
     if (args.outcomes.size() > MAX_OUTCOMES) {
       return #err("Too many outcomes. Maximum is " # Nat.toText(MAX_OUTCOMES));
+    };
+
+    // Check cycles before starting
+    let cycleCheck = await canCreateMarket(args.outcomes.size());
+    if (not cycleCheck.canCreate) {
+      return #err("Insufficient cycles to create multiple choice market. Need " # Nat.toText(cycleCheck.requiredCycles) # " but have " # Nat.toText(cycleCheck.currentBalance));
     };
 
     // Validate outcome names
@@ -578,6 +627,7 @@ actor TokenFactory {
     for ((outcome, ledger) in outcomeLedgers.vals()) {
       Debug.print(outcome # ": " # Principal.toText(ledger));
     };
+    Debug.print("Remaining cycles: " # Nat.toText(Cycles.balance()));
     
     #ok(marketId)
   };
@@ -595,6 +645,12 @@ actor TokenFactory {
 
     if (args.subjects.size() > MAX_SUBJECTS) {
       return #err("Too many subjects. Maximum is " # Nat.toText(MAX_SUBJECTS));
+    };
+
+    // Check cycles before starting (compound market needs 2 tokens per subject)
+    let cycleCheck = await canCreateMarket(args.subjects.size() * 2);
+    if (not cycleCheck.canCreate) {
+      return #err("Insufficient cycles to create compound market. Need " # Nat.toText(cycleCheck.requiredCycles) # " but have " # Nat.toText(cycleCheck.currentBalance));
     };
 
     // Validate subject names
@@ -679,6 +735,7 @@ actor TokenFactory {
       Debug.print(subject # " YES: " # Principal.toText(tokens.yesLedger));
       Debug.print(subject # " NO: " # Principal.toText(tokens.noLedger));
     };
+    Debug.print("Remaining cycles: " # Nat.toText(Cycles.balance()));
     
     #ok(marketId)
   };

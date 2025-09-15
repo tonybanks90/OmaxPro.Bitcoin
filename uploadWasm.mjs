@@ -9,11 +9,12 @@ import { promisify } from "util";
 global.fetch = fetch;
 
 // === CONFIGURATION ===
-const canisterId = "6xhyy-ryaaa-aaaab-qacqa-cai"; // your TokenFactory canister
+const canisterId = "uxrrr-q7777-77774-qaaaq-cai"; // your TokenFactory canister
 const wasmFilePath = "/mnt/c/Users/user/OmaxPro.Bitcoin/icrc1_ledger.wasm.gz";
 
 // Try multiple endpoints in order of preference
 const endpoints = [
+  "http://127.0.0.1:4943", // Local replica (if running)
   "https://ic0.app", // Primary IC boundary node
   "https://icp0.io",  // Alternative boundary node
   "http://127.0.0.1:4943", // Local replica (if running)
