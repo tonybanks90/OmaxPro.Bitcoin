@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRoute } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { PredictionMarket, PredictionOption } from '../types';
@@ -12,22 +12,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Separator } from '../components/ui/separator';
 import { ArrowLeft, Share, Clock, Users, DollarSign, Bitcoin, TrendingUp, Calendar, Info } from 'lucide-react';
 import { Link } from 'wouter';
+import { MarketActivity } from '../components/prediction/MarketActivity';
 
 
 export default function PredictionMarketDetailPage() {
   const { t } = useLanguage();
   const [, params] = useRoute('/prediction/:id');
   const [selectedOption, setSelectedOption] = useState<PredictionOption | undefined>();
-  
+
   const marketId = params?.id || '1';
-  
+
   // Fetch market data from API
   const { data: market, isLoading, error } = usePredictionMarket(marketId);
+
+  // Set first option as default when market loads
+  useEffect(() => {
+    if (market && market.options.length > 0) {
+      setSelectedOption(market.options[0]);
+    }
+  }, [market]);
 
   const formatTimeRemaining = (endDate: Date | string) => {
     const now = new Date();
     let endDateObj: Date;
-    
+
     if (typeof endDate === 'string') {
       endDateObj = new Date(endDate);
     } else if (endDate instanceof Date) {
@@ -35,18 +43,18 @@ export default function PredictionMarketDetailPage() {
     } else {
       return 'Invalid date';
     }
-    
+
     // Check if date is valid
     if (isNaN(endDateObj.getTime())) {
       return 'Invalid date';
     }
-    
+
     const diff = endDateObj.getTime() - now.getTime();
     if (diff <= 0) return 'Market Closed';
-    
+
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
+
     if (days > 0) return `${days} days, ${hours} hours remaining`;
     return `${hours} hours remaining`;
   };
@@ -142,37 +150,37 @@ export default function PredictionMarketDetailPage() {
             </div>
 
             {/* Market Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-surface border border-border rounded-lg p-3">
-                <div className="flex items-center space-x-2 mb-1">
-                  <DollarSign className="w-4 h-4 text-success" />
-                  <span className="text-xs text-muted-foreground">Volume (USD)</span>
+            <div className="grid grid-cols-4 gap-2 lg:gap-3">
+              <div className="bg-surface border border-border rounded-lg p-2">
+                <div className="flex items-center space-x-1 mb-1">
+                  <DollarSign className="w-3 h-3 text-success" />
+                  <span className="text-xs text-muted-foreground">Volume</span>
                 </div>
-                <div className="font-bold text-lg">{market.totalVolumeUSD}</div>
+                <div className="font-bold text-sm">{market.totalVolumeUSD}</div>
               </div>
-              
-              <div className="bg-surface border border-border rounded-lg p-3">
-                <div className="flex items-center space-x-2 mb-1">
-                  <Bitcoin className="w-4 h-4 text-warning" />
-                  <span className="text-xs text-muted-foreground">Volume (Sats)</span>
+
+              <div className="bg-surface border border-border rounded-lg p-2">
+                <div className="flex items-center space-x-1 mb-1">
+                  <Bitcoin className="w-3 h-3 text-warning" />
+                  <span className="text-xs text-muted-foreground">Sats</span>
                 </div>
-                <div className="font-bold text-lg">{market.totalVolumeSats}</div>
+                <div className="font-bold text-sm">{market.totalVolumeSats}</div>
               </div>
-              
-              <div className="bg-surface border border-border rounded-lg p-3">
-                <div className="flex items-center space-x-2 mb-1">
-                  <Users className="w-4 h-4 text-accent" />
-                  <span className="text-xs text-muted-foreground">Participants</span>
+
+              <div className="bg-surface border border-border rounded-lg p-2">
+                <div className="flex items-center space-x-1 mb-1">
+                  <Users className="w-3 h-3 text-accent" />
+                  <span className="text-xs text-muted-foreground">Users</span>
                 </div>
-                <div className="font-bold text-lg">{market.participants.toLocaleString()}</div>
+                <div className="font-bold text-sm">{market.participants.toLocaleString()}</div>
               </div>
-              
-              <div className="bg-surface border border-border rounded-lg p-3">
-                <div className="flex items-center space-x-2 mb-1">
-                  <TrendingUp className="w-4 h-4 text-muted-foreground" />
+
+              <div className="bg-surface border border-border rounded-lg p-2">
+                <div className="flex items-center space-x-1 mb-1">
+                  <TrendingUp className="w-3 h-3 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">Options</span>
                 </div>
-                <div className="font-bold text-lg">{market.options.length}</div>
+                <div className="font-bold text-sm">{market.options.length}</div>
               </div>
             </div>
 
@@ -193,6 +201,9 @@ export default function PredictionMarketDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Market Chart */}
           <MarketChart market={market} />
+
+          {/* Market Activity */}
+          <MarketActivity marketId={marketId} />
 
           {/* Market Description */}
           <Card className="border-2 border-border/50 shadow-lg bg-gradient-to-br from-surface to-surface/80">
@@ -215,9 +226,9 @@ export default function PredictionMarketDetailPage() {
                   </p>
                 </div>
               </div>
-              
+
               <Separator className="my-6 bg-gradient-to-r from-transparent via-border to-transparent" />
-              
+
               {/* Market Details Grid */}
               <div className="space-y-6">
                 <div>
@@ -235,7 +246,7 @@ export default function PredictionMarketDetailPage() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="bg-muted/30 rounded-lg p-4 border border-border/30">
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground text-sm font-medium">Resolution Date</span>
@@ -255,7 +266,7 @@ export default function PredictionMarketDetailPage() {
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="bg-muted/30 rounded-lg p-4 border border-border/30">
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground text-sm font-medium">Market ID</span>
@@ -264,7 +275,7 @@ export default function PredictionMarketDetailPage() {
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="bg-muted/30 rounded-lg p-4 border border-border/30">
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground text-sm font-medium">Status</span>
@@ -278,7 +289,7 @@ export default function PredictionMarketDetailPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Tags Section */}
                 {market.tags.length > 0 && (
                   <div>

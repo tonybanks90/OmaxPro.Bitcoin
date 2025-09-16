@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,9 +13,11 @@ import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { X, Plus, Calendar, Link, Hash, User, FileText, Tag, Upload, Image, Coins, BarChart3, TreePine } from "lucide-react";
+import { X, Plus, Calendar, Link, Hash, User, FileText, Tag, Upload, Image, Coins, BarChart3, TreePine, AlertCircle } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { useLocation } from "wouter";
+import { icService } from "../services/ic-service";
+import { Alert, AlertDescription } from "../components/ui/alert";
 
 const createPredictionSchema = z.object({
   title: z.string().min(10, "Title must be at least 10 characters").max(200, "Title must be less than 200 characters"),
@@ -45,9 +47,8 @@ const categories = [
   { value: 'crypto', label: 'Crypto', icon: '₿' },
   { value: 'tech', label: 'Technology', icon: '💻' },
   { value: 'entertainment', label: 'Entertainment', icon: '🎬' },
-  { value: 'economy', label: 'Economy', icon: '📈' },
-  { value: 'science', label: 'Science', icon: '🔬' },
-  { value: 'weather', label: 'Weather', icon: '🌤️' }
+  { value: 'ai', label: 'AI', icon: '🤖' },
+  { value: 'runes', label: 'Runes', icon: '⚡' }
 ];
 
 const predictionTypes = [
@@ -81,6 +82,23 @@ export default function CreatePredictionPage() {
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [initError, setInitError] = useState<string>("");
+
+  // Initialize IC Service
+  useEffect(() => {
+    const initializeService = async () => {
+      try {
+        await icService.initialize();
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize IC service:', error);
+        setInitError(error instanceof Error ? error.message : 'Failed to initialize IC service');
+      }
+    };
+
+    initializeService();
+  }, []);
 
   const form = useForm<CreatePredictionForm>({
     resolver: zodResolver(createPredictionSchema),
@@ -131,52 +149,78 @@ export default function CreatePredictionPage() {
 
   const createPredictionMutation = useMutation({
     mutationFn: async (data: CreatePredictionForm) => {
-      const response = await fetch("/api/prediction-markets", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          title: data.title,
-          description: data.description,
-          category: data.category,
-          endDate: data.endDate,
-          expirationTime: data.expirationTime,
-          resolutionLink: data.resolutionLink,
-          resolutionDescription: data.resolutionDescription,
-          predictionType: data.predictionType,
-          creator: data.creator,
-          options: data.options,
-          tags,
-          imageUrl: data.imageUrl
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create prediction");
+      if (!isInitialized) {
+        throw new Error("IC Service not initialized");
       }
 
-      return response.json();
+      // Prepare market data
+      const marketData = {
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        endDate: data.endDate,
+        expirationTime: data.expirationTime,
+        resolutionLink: data.resolutionLink,
+        resolutionDescription: data.resolutionDescription || "",
+        tags: tags,
+        imageUrl: data.imageUrl
+      };
+
+      let marketId;
+
+      // Call appropriate IC method based on prediction type
+      if (data.predictionType === "binary") {
+        marketId = await icService.createBinaryMarket(marketData);
+      } else if (data.predictionType === "multiple") {
+        const outcomes = data.options.map(option => option.label);
+        marketId = await icService.createMultipleChoiceMarket({
+          ...marketData,
+          outcomes
+        });
+      } else if (data.predictionType === "compound") {
+        const subjects = data.options.map(option => option.label);
+        marketId = await icService.createCompoundMarket({
+          ...marketData,
+          subjects
+        });
+      } else {
+        throw new Error("Invalid prediction type");
+      }
+
+      return { marketId, type: data.predictionType };
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/prediction-markets"] });
+      queryClient.invalidateQueries({ queryKey: ["markets"] });
+      queryClient.invalidateQueries({ queryKey: ["active-markets"] });
+      
       toast({
-        title: "Prediction Created",
-        description: "Your prediction market has been created successfully!",
+        title: "Prediction Market Created! 🎉",
+        description: `Your ${data.type} prediction market has been created successfully with ID: ${data.marketId.toString()}`,
       });
+      
+      // Navigate to markets page or specific market
       navigate("/prediction-markets");
     },
     onError: (error) => {
+      console.error('Market creation error:', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create prediction",
+        title: "Failed to Create Market",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive"
       });
     }
   });
 
   const onSubmit = (data: CreatePredictionForm) => {
+    if (!isInitialized) {
+      toast({
+        title: "Service Not Ready",
+        description: "Please wait for the IC service to initialize",
+        variant: "destructive"
+      });
+      return;
+    }
+
     createPredictionMutation.mutate(data);
   };
 
@@ -204,13 +248,46 @@ export default function CreatePredictionPage() {
     }
   };
 
+  // Show initialization error
+  if (initError) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to connect to Internet Computer: {initError}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (!isInitialized) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Connecting to Internet Computer...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Create Prediction Market</h1>
         <p className="text-muted-foreground">
-          Create advanced prediction markets with binary, multiple choice, or compound outcomes.
+          Create decentralized prediction markets with ICRC-2 tokens on the Internet Computer.
         </p>
+        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            ✅ Connected to Internet Computer • Each market type creates corresponding ICRC-2 ledgers automatically
+          </p>
+        </div>
       </div>
 
       <Form {...form}>
@@ -323,8 +400,11 @@ export default function CreatePredictionPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Hash className="h-5 w-5" />
-                    Prediction Type & Options
+                    Prediction Type & Token Creation
                   </CardTitle>
+                  <CardDescription>
+                    Each market type automatically creates ICRC-2 ledgers for trading
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Tabs value={predictionType} onValueChange={(value) => handlePredictionTypeChange(value as "binary" | "multiple" | "compound")}>
@@ -354,7 +434,9 @@ export default function CreatePredictionPage() {
                           {optionFields.map((field, index) => (
                             <div key={field.id} className="border rounded-lg p-4">
                               <div className="flex items-center gap-2 mb-3">
-                                <span className="font-medium">Option {index + 1}</span>
+                                <span className="font-medium">
+                                  {predictionType === "compound" ? `Subject ${index + 1}` : `Option ${index + 1}`}
+                                </span>
                                 {(predictionType === "multiple" || predictionType === "compound") && optionFields.length > 2 && (
                                   <Button
                                     type="button"
@@ -375,7 +457,11 @@ export default function CreatePredictionPage() {
                                   <FormItem>
                                     <FormControl>
                                       <Input 
-                                        placeholder={predictionType === "compound" ? "Team/Entity name" : "Option label"}
+                                        placeholder={
+                                          predictionType === "binary" ? (index === 0 ? "Yes" : "No") :
+                                          predictionType === "compound" ? "Team/Entity name" : 
+                                          "Option label"
+                                        }
                                         {...field}
                                         data-testid={`input-option-${index}`}
                                       />
@@ -387,11 +473,33 @@ export default function CreatePredictionPage() {
 
                               {predictionType === "compound" && (
                                 <div className="mt-3 pl-4 border-l-2 border-muted">
-                                  <Label className="text-sm text-muted-foreground">Sub-options (Yes/No)</Label>
+                                  <Label className="text-sm text-muted-foreground">
+                                    Tokens created: {field.label || `Subject ${index + 1}`}_YES, {field.label || `Subject ${index + 1}`}_NO
+                                  </Label>
                                   <div className="grid grid-cols-2 gap-2 mt-2">
-                                    <Input value="Yes" disabled className="text-center" />
-                                    <Input value="No" disabled className="text-center" />
+                                    <div className="p-2 bg-green-50 border border-green-200 rounded text-center text-sm">
+                                      YES Token
+                                    </div>
+                                    <div className="p-2 bg-red-50 border border-red-200 rounded text-center text-sm">
+                                      NO Token
+                                    </div>
                                   </div>
+                                </div>
+                              )}
+
+                              {predictionType === "multiple" && (
+                                <div className="mt-2">
+                                  <Label className="text-xs text-muted-foreground">
+                                    Creates: {field.label || `Option${index + 1}`}_TOKEN ledger
+                                  </Label>
+                                </div>
+                              )}
+
+                              {predictionType === "binary" && (
+                                <div className="mt-2">
+                                  <Label className="text-xs text-muted-foreground">
+                                    Creates: {field.label.toUpperCase()}_TOKEN ledger
+                                  </Label>
                                 </div>
                               )}
                             </div>
@@ -402,14 +510,16 @@ export default function CreatePredictionPage() {
                               type="button"
                               variant="outline"
                               onClick={() => addOption({ 
-                                label: `Option ${optionFields.length + 1}`,
+                                label: predictionType === "compound" ? 
+                                  `Subject ${optionFields.length + 1}` : 
+                                  `Option ${optionFields.length + 1}`,
                                 subOptions: predictionType === "compound" ? [{ label: "Yes" }, { label: "No" }] : []
                               })}
                               className="w-full"
                               data-testid="button-add-option"
                             >
                               <Plus className="h-4 w-4 mr-2" />
-                              Add Option
+                              Add {predictionType === "compound" ? "Subject" : "Option"}
                             </Button>
                           )}
                         </div>
@@ -434,7 +544,7 @@ export default function CreatePredictionPage() {
                       name="endDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>End Date</FormLabel>
+                          <FormLabel>Betting Close Time</FormLabel>
                           <FormControl>
                             <Input 
                               type="datetime-local" 
@@ -442,7 +552,7 @@ export default function CreatePredictionPage() {
                               data-testid="input-end-date"
                             />
                           </FormControl>
-                          <FormDescription>When betting closes</FormDescription>
+                          <FormDescription>When betting/trading closes</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -453,7 +563,7 @@ export default function CreatePredictionPage() {
                       name="expirationTime"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Expiration Time</FormLabel>
+                          <FormLabel>Market Expiration</FormLabel>
                           <FormControl>
                             <Input 
                               type="datetime-local" 
@@ -461,7 +571,7 @@ export default function CreatePredictionPage() {
                               data-testid="input-expiration-time"
                             />
                           </FormControl>
-                          <FormDescription>When market resolves</FormDescription>
+                          <FormDescription>When market resolves and expires</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -475,7 +585,7 @@ export default function CreatePredictionPage() {
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
                           <Link className="h-4 w-4" />
-                          Resolution Link
+                          Resolution Source
                         </FormLabel>
                         <FormControl>
                           <Input 
@@ -485,7 +595,7 @@ export default function CreatePredictionPage() {
                             data-testid="input-resolution-link"
                           />
                         </FormControl>
-                        <FormDescription>Official source for resolution</FormDescription>
+                        <FormDescription>Official source for market resolution</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -496,7 +606,7 @@ export default function CreatePredictionPage() {
                     name="resolutionDescription"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Resolution Description</FormLabel>
+                        <FormLabel>Resolution Criteria</FormLabel>
                         <FormControl>
                           <Textarea
                             placeholder="Detailed criteria for how this prediction will be resolved..."
@@ -504,6 +614,7 @@ export default function CreatePredictionPage() {
                             data-testid="textarea-resolution-description"
                           />
                         </FormControl>
+                        <FormDescription>Clear rules for determining the outcome</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -608,7 +719,7 @@ export default function CreatePredictionPage() {
                   </div>
                   
                   <p className="text-xs text-muted-foreground">
-                    Add up to 8 tags to help users find your prediction.
+                    Add up to 8 tags to help users discover your market.
                   </p>
                 </CardContent>
               </Card>
@@ -619,12 +730,19 @@ export default function CreatePredictionPage() {
                   <div className="space-y-3">
                     <Button 
                       type="submit" 
-                      disabled={createPredictionMutation.isPending}
+                      disabled={createPredictionMutation.isPending || !isInitialized}
                       className="w-full"
                       size="lg"
                       data-testid="button-create-prediction"
                     >
-                      {createPredictionMutation.isPending ? "Creating..." : "Create Prediction Market"}
+                      {createPredictionMutation.isPending ? (
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Creating Market...
+                        </div>
+                      ) : (
+                        "Create Prediction Market"
+                      )}
                     </Button>
                     <Button 
                       type="button" 
@@ -635,6 +753,16 @@ export default function CreatePredictionPage() {
                     >
                       Cancel
                     </Button>
+                  </div>
+
+                  {/* Market Creation Info */}
+                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                    <p className="text-xs text-muted-foreground">
+                      💡 <strong>Token Creation:</strong><br />
+                      • Binary: 2 ICRC-2 ledgers (YES, NO)<br />
+                      • Multiple: N ledgers (per option)<br />
+                      • Compound: 2×N ledgers (YES/NO per subject)
+                    </p>
                   </div>
                 </CardContent>
               </Card>
