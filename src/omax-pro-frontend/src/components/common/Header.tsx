@@ -57,9 +57,9 @@ export function Header() {
     {t('nav.trending')}
   </Link>
   <Link
-    href="/coming-soon"
+    href="/trenches"
     className={`font-medium transition-colors ${
-      isActive('/coming-soon')
+      isActive('/trenches')
         ? 'text-accent'
         : 'text-muted-foreground hover:text-accent'
     }`}

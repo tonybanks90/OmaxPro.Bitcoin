@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { Link } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
-import { useLanguage } from '../contexts/LanguageContext';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { FilterModal } from '../components/modals/FilterModal';
-import { SettingsModal } from '../components/modals/SettingsModal';
-import { Search, Filter, Settings, TrendingUp } from 'lucide-react';
+import { useState } from "react";
+import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { useLanguage } from "../contexts/LanguageContext";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { FilterModal } from "../components/modals/FilterModal";
+import { SettingsModal } from "../components/modals/SettingsModal";
+import { Search, Filter, Settings, TrendingUp } from "lucide-react";
 
 // Odin API Types
 interface OdinTokenData {
@@ -33,36 +33,30 @@ interface OdinTokensResponse {
 }
 
 // API function
-const ODIN_API_BASE = 'https://api.odin.fun/v1';
+const ODIN_API_BASE = "https://api.odin.fun/v1";
 
 async function fetchOdinTokens(): Promise<OdinTokensResponse> {
   const searchParams = new URLSearchParams({
-    page: '1',
-    limit: '100',
-    env: 'development',
-    sort: 'marketcap:desc',
-    bonded: 'true'
+    page: "1",
+    limit: "100",
+    env: "development",
+    sort: "marketcap:desc",
+    bonded: "true",
   });
 
   const response = await fetch(`${ODIN_API_BASE}/tokens?${searchParams}`);
-  
+
   if (!response.ok) {
     throw new Error(`Failed to fetch Odin tokens: ${response.statusText}`);
   }
-  
+
   return response.json();
 }
 
-
 // Hook for Odin tokens
 function useOdinTokens() {
-  const {
-    data,
-    isLoading,
-    error,
-    refetch
-  } = useQuery({
-    queryKey: ['odin', 'tokens'],
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["odin", "tokens"],
     queryFn: fetchOdinTokens,
     refetchInterval: 10000, // 30 seconds
   });
@@ -72,7 +66,7 @@ function useOdinTokens() {
     totalCount: data?.count || 0,
     isLoading,
     error,
-    refetch
+    refetch,
   };
 }
 
@@ -91,9 +85,9 @@ function formatPrice(price: number): string {
 }
 
 function getPriceChangePercent(current: number, previous: number): string {
-  if (previous === 0) return '+0.00%';
+  if (previous === 0) return "+0.00%";
   const percentage = ((current - previous) / previous) * 100;
-  const sign = percentage >= 0 ? '+' : '';
+  const sign = percentage >= 0 ? "+" : "";
   return `${sign}${percentage.toFixed(2)}%`;
 }
 
@@ -108,27 +102,111 @@ function getTimeAgo(dateString: string): string {
   if (diffDays > 0) return `${diffDays}d ago`;
   if (diffHours > 0) return `${diffHours}h ago`;
   if (diffMinutes > 0) return `${diffMinutes}m ago`;
-  return 'Just now';
+  return "Just now";
+}
+
+// Function to get Odin image URL
+function getOdinImageUrl(type: string, id: string): string {
+  return `${ODIN_API_BASE}/${type}/${id}/image`;
 }
 
 export default function TrendingPage() {
   const { t } = useLanguage();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [activeTimeframe, setActiveTimeframe] = useState('1M');
+  const [activeTimeframe, setActiveTimeframe] = useState("1M");
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState({
+    minMarketCap: '',
+    maxMarketCap: '',
+    minVolume: '',
+    maxVolume: '',
+    tokenAge: 'all',
+    hideBundled: false,
+    onlyVerified: false,
+  });
 
   // Use Odin API hook
   const { tokens: odinTokens, isLoading, error } = useOdinTokens();
 
-  // Filter tokens based on search
-  const filteredTokens = odinTokens.filter(
-    (token) =>
-      token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      token.ticker.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Helper function to check token age
+  const getTokenAgeInHours = (createdTime: string): number => {
+    const now = new Date();
+    const created = new Date(createdTime);
+    return (now.getTime() - created.getTime()) / (1000 * 60 * 60);
+  };
 
-  const timeframes = ['1M', '5M', '30M', '1H'];
+  // Helper function to check if token matches age filter
+  const matchesAgeFilter = (token: OdinTokenData, ageFilter: string): boolean => {
+    if (ageFilter === 'all') return true;
+
+    const ageInHours = getTokenAgeInHours(token.created_time);
+
+    switch (ageFilter) {
+      case '1h': return ageInHours < 1;
+      case '1-6h': return ageInHours >= 1 && ageInHours < 6;
+      case '6-24h': return ageInHours >= 6 && ageInHours < 24;
+      case '1d+': return ageInHours >= 24;
+      default: return true;
+    }
+  };
+
+  // Count active filters
+  const countActiveFilters = (): number => {
+    let count = 0;
+    if (activeFilters.minMarketCap) count++;
+    if (activeFilters.maxMarketCap) count++;
+    if (activeFilters.minVolume) count++;
+    if (activeFilters.maxVolume) count++;
+    if (activeFilters.tokenAge !== 'all') count++;
+    if (activeFilters.hideBundled) count++;
+    if (activeFilters.onlyVerified) count++;
+    return count;
+  };
+
+  // Apply all filters
+  const filteredTokens = odinTokens.filter((token) => {
+    // Search filter
+    const matchesSearch = 
+      token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      token.ticker.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    // Market cap filters
+    if (activeFilters.minMarketCap && token.marketcap < parseFloat(activeFilters.minMarketCap)) {
+      return false;
+    }
+    if (activeFilters.maxMarketCap && token.marketcap > parseFloat(activeFilters.maxMarketCap)) {
+      return false;
+    }
+
+    // Volume filters
+    if (activeFilters.minVolume && token.volume_24 < parseFloat(activeFilters.minVolume)) {
+      return false;
+    }
+    if (activeFilters.maxVolume && token.volume_24 > parseFloat(activeFilters.maxVolume)) {
+      return false;
+    }
+
+    // Age filter
+    if (!matchesAgeFilter(token, activeFilters.tokenAge)) {
+      return false;
+    }
+
+    // Security filters (Note: Odin API doesn't have these fields yet, but preparing for future)
+    // if (activeFilters.hideBundled && token.bundled) return false;
+    // if (activeFilters.onlyVerified && !token.verified) return false;
+
+    return true;
+  });
+
+  // Handle filter application
+  const handleApplyFilters = (filters: any) => {
+    setActiveFilters(filters);
+  };
+
+  const timeframes = ["1M", "5M", "30M", "1H"];
 
   return (
     <main
@@ -141,10 +219,10 @@ export default function TrendingPage() {
           className="text-2xl font-bold text-foreground mb-2"
           data-testid="text-page-title"
         >
-          {t('pages.trending.title')}
+          {t("pages.trending.title")}
         </h1>
         <p className="text-muted-foreground" data-testid="text-page-subtitle">
-          {t('pages.trending.subtitle')} - Powered by Odin Network
+          {t("pages.trending.subtitle")} - Powered by Odin Network
         </p>
       </div>
 
@@ -158,7 +236,7 @@ export default function TrendingPage() {
               <Button
                 key={timeframe}
                 size="sm"
-                variant={activeTimeframe === timeframe ? 'default' : 'ghost'}
+                variant={activeTimeframe === timeframe ? "default" : "ghost"}
                 onClick={() => setActiveTimeframe(timeframe)}
                 data-testid={`button-timeframe-${timeframe.toLowerCase()}`}
               >
@@ -170,7 +248,9 @@ export default function TrendingPage() {
           {/* Odin Network Badge */}
           <div className="flex items-center space-x-2 bg-surface rounded-lg px-3 py-2">
             <TrendingUp className="text-accent text-sm" />
-            <span className="text-sm font-medium text-foreground">Odin Network</span>
+            <span className="text-sm font-medium text-foreground">
+              Odin Network
+            </span>
             <span
               className="bg-accent text-accent-foreground text-xs px-2 py-1 rounded-full"
               data-testid="text-token-count"
@@ -192,7 +272,7 @@ export default function TrendingPage() {
               className="bg-success text-white text-xs px-2 py-1 rounded-full"
               data-testid="text-active-filters"
             >
-              0
+              {countActiveFilters()}
             </span>
           </Button>
         </div>
@@ -246,8 +326,8 @@ export default function TrendingPage() {
             </h3>
             <p className="text-muted-foreground">
               {searchTerm
-                ? 'Try adjusting your search terms.'
-                : 'No tokens available from Odin API at the moment.'}
+                ? "Try adjusting your search terms."
+                : "No tokens available from Odin API at the moment."}
             </p>
           </div>
         ) : (
@@ -304,12 +384,11 @@ export default function TrendingPage() {
                         className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
                       >
                         <img
-                          // --- ✅ CORRECTED LINE ---
-                          src={`${ODIN_API_BASE}/token/${token.id}/image`}
+                          src={getOdinImageUrl('token', token.id)}
                           alt={token.name}
                           className="w-10 h-10 rounded-full bg-gray-100"
                           onError={(e) => {
-                            e.currentTarget.src = 'https://placehold.co/40x40/f3f4f6/9ca3af?text=' + token.ticker.charAt(0);
+                            e.currentTarget.src = `https://placehold.co/40x40/f3f4f6/9ca3af?text=${token.ticker?.charAt(0) || 'T'}`;
                           }}
                           data-testid={`img-token-avatar-${token.id}`}
                         />
@@ -332,7 +411,10 @@ export default function TrendingPage() {
 
                     {/* Age */}
                     <td className="py-4 px-4 text-right">
-                      <Link to={`/token/${token.id}`} className="block hover:opacity-80 transition-opacity">
+                      <Link
+                        to={`/token/${token.id}`}
+                        className="block hover:opacity-80 transition-opacity"
+                      >
                         <span className="text-sm text-muted-foreground">
                           {getTimeAgo(token.created_time)}
                         </span>
@@ -341,7 +423,10 @@ export default function TrendingPage() {
 
                     {/* Price */}
                     <td className="py-4 px-4 text-right">
-                      <Link to={`/token/${token.id}`} className="block hover:opacity-80 transition-opacity">
+                      <Link
+                        to={`/token/${token.id}`}
+                        className="block hover:opacity-80 transition-opacity"
+                      >
                         <span className="text-sm font-medium text-foreground">
                           {formatPrice(token.price)}
                         </span>
@@ -350,7 +435,10 @@ export default function TrendingPage() {
 
                     {/* Market Cap */}
                     <td className="py-4 px-4 text-right">
-                      <Link to={`/token/${token.id}`} className="block hover:opacity-80 transition-opacity">
+                      <Link
+                        to={`/token/${token.id}`}
+                        className="block hover:opacity-80 transition-opacity"
+                      >
                         <span className="text-sm font-medium">
                           {formatNumber(token.marketcap)}
                         </span>
@@ -359,7 +447,10 @@ export default function TrendingPage() {
 
                     {/* Holders */}
                     <td className="py-4 px-4 text-right">
-                      <Link to={`/token/${token.id}`} className="block hover:opacity-80 transition-opacity">
+                      <Link
+                        to={`/token/${token.id}`}
+                        className="block hover:opacity-80 transition-opacity"
+                      >
                         <span className="text-sm">
                           {token.holder_count.toLocaleString()}
                         </span>
@@ -368,12 +459,18 @@ export default function TrendingPage() {
 
                     {/* Price Changes */}
                     <td className="py-4 px-4 text-right">
-                      <Link to={`/token/${token.id}`} className="block hover:opacity-80 transition-opacity">
+                      <Link
+                        to={`/token/${token.id}`}
+                        className="block hover:opacity-80 transition-opacity"
+                      >
                         <span
                           className={`text-sm font-medium ${
-                            getPriceChangePercent(token.price, token.price_5m).startsWith('+')
-                              ? 'text-success'
-                              : 'text-destructive'
+                            getPriceChangePercent(
+                              token.price,
+                              token.price_5m,
+                            ).startsWith("+")
+                              ? "text-success"
+                              : "text-destructive"
                           }`}
                         >
                           {getPriceChangePercent(token.price, token.price_5m)}
@@ -381,12 +478,18 @@ export default function TrendingPage() {
                       </Link>
                     </td>
                     <td className="py-4 px-4 text-right">
-                      <Link to={`/token/${token.id}`} className="block hover:opacity-80 transition-opacity">
+                      <Link
+                        to={`/token/${token.id}`}
+                        className="block hover:opacity-80 transition-opacity"
+                      >
                         <span
                           className={`text-sm font-medium ${
-                            getPriceChangePercent(token.price, token.price_1h).startsWith('+')
-                              ? 'text-success'
-                              : 'text-destructive'
+                            getPriceChangePercent(
+                              token.price,
+                              token.price_1h,
+                            ).startsWith("+")
+                              ? "text-success"
+                              : "text-destructive"
                           }`}
                         >
                           {getPriceChangePercent(token.price, token.price_1h)}
@@ -394,12 +497,18 @@ export default function TrendingPage() {
                       </Link>
                     </td>
                     <td className="py-4 px-4 text-right">
-                      <Link to={`/token/${token.id}`} className="block hover:opacity-80 transition-opacity">
+                      <Link
+                        to={`/token/${token.id}`}
+                        className="block hover:opacity-80 transition-opacity"
+                      >
                         <span
                           className={`text-sm font-medium ${
-                            getPriceChangePercent(token.price, token.price_6h).startsWith('+')
-                              ? 'text-success'
-                              : 'text-destructive'
+                            getPriceChangePercent(
+                              token.price,
+                              token.price_6h,
+                            ).startsWith("+")
+                              ? "text-success"
+                              : "text-destructive"
                           }`}
                         >
                           {getPriceChangePercent(token.price, token.price_6h)}
@@ -407,12 +516,18 @@ export default function TrendingPage() {
                       </Link>
                     </td>
                     <td className="py-4 px-4 text-right">
-                      <Link to={`/token/${token.id}`} className="block hover:opacity-80 transition-opacity">
+                      <Link
+                        to={`/token/${token.id}`}
+                        className="block hover:opacity-80 transition-opacity"
+                      >
                         <span
                           className={`text-sm font-medium ${
-                            getPriceChangePercent(token.price, token.price_1d).startsWith('+')
-                              ? 'text-success'
-                              : 'text-destructive'
+                            getPriceChangePercent(
+                              token.price,
+                              token.price_1d,
+                            ).startsWith("+")
+                              ? "text-success"
+                              : "text-destructive"
                           }`}
                         >
                           {getPriceChangePercent(token.price, token.price_1d)}
@@ -422,7 +537,10 @@ export default function TrendingPage() {
 
                     {/* Volume */}
                     <td className="py-4 px-4 text-right">
-                      <Link to={`/token/${token.id}`} className="block hover:opacity-80 transition-opacity">
+                      <Link
+                        to={`/token/${token.id}`}
+                        className="block hover:opacity-80 transition-opacity"
+                      >
                         <span className="text-sm font-medium">
                           {formatNumber(token.volume_24)}
                         </span>
@@ -431,14 +549,14 @@ export default function TrendingPage() {
 
                     {/* Actions */}
                     <td className="py-4 px-6 text-right">
-                      <Button 
+                      <Button
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           // Handle trade action
                         }}
                       >
-                        {t('common.trade')}
+                        {t("common.trade")}
                       </Button>
                     </td>
                   </tr>
@@ -453,9 +571,7 @@ export default function TrendingPage() {
       <FilterModal
         isOpen={showFilterModal}
         onClose={() => setShowFilterModal(false)}
-        onApply={(filters) => {
-          console.log('Applied filters:', filters);
-        }}
+        onApply={handleApplyFilters}
       />
       <SettingsModal
         isOpen={showSettingsModal}

@@ -1,23 +1,30 @@
+// pages/CreatePredictionPage.tsx
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "../components/ui/form";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { X, Plus, Calendar, Link, Hash, User, FileText, Tag, Upload, Image, Coins, BarChart3, TreePine, AlertCircle } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { useLocation } from "wouter";
-import { icService } from "../services/ic-service";
 import { Alert, AlertDescription } from "../components/ui/alert";
+
+// Import your actor hook and service
+import { useTFactoryActor } from "../hooks/useTFactoryActor";
+import { TFactoryService } from "../services/tfactory-service";
+
+// Assuming you have an identity provider - replace with your actual one
+// import { useInternetIdentity } from "ic-use-internet-identity";
+// or your custom identity hook
 
 const createPredictionSchema = z.object({
   title: z.string().min(10, "Title must be at least 10 characters").max(200, "Title must be less than 200 characters"),
@@ -82,23 +89,64 @@ export default function CreatePredictionPage() {
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [imagePreview, setImagePreview] = useState<string>("");
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [initError, setInitError] = useState<string>("");
 
-  // Initialize IC Service
+  // Use the actor hook
+  const {
+    actor,
+    authenticate,
+    isAuthenticated,
+    status,
+    isInitializing,
+    isSuccess,
+    isError,
+    error,
+    reset,
+    clearError,
+    setInterceptors
+  } = useTFactoryActor();
+
+  // Replace with your actual identity hook
+  // const { identity } = useInternetIdentity();
+
+  // Set up interceptors for global error handling
   useEffect(() => {
-    const initializeService = async () => {
-      try {
-        await icService.initialize();
-        setIsInitialized(true);
-      } catch (error) {
-        console.error('Failed to initialize IC service:', error);
-        setInitError(error instanceof Error ? error.message : 'Failed to initialize IC service');
-      }
-    };
+    setInterceptors({
+      onRequest: (data) => {
+        console.log(`🚀 Calling ${data.methodName}`, data.args);
+        return data.args;
+      },
+      onResponse: (data) => {
+        console.log(`✅ Response from ${data.methodName}:`, data.response);
+        return data.response;
+      },
+      onRequestError: (data) => {
+        console.error(`🚨 Request error in ${data.methodName}:`, data.error);
+        return data.error;
+      },
+      onResponseError: (data) => {
+        console.error(`❌ Response error in ${data.methodName}:`, data.error);
+        
+        // Handle specific errors
+        if (data.error.message?.includes('delegation expired')) {
+          toast({
+            title: "Session Expired",
+            description: "Please authenticate again",
+            variant: "destructive"
+          });
+          // Handle logout if needed
+        }
+        
+        return data.error;
+      },
+    });
+  }, [setInterceptors, toast]);
 
-    initializeService();
-  }, []);
+  // Authenticate when identity becomes available
+  // useEffect(() => {
+  //   if (identity) {
+  //     void authenticate(identity);
+  //   }
+  // }, [identity, authenticate]);
 
   const form = useForm<CreatePredictionForm>({
     resolver: zodResolver(createPredictionSchema),
@@ -149,8 +197,8 @@ export default function CreatePredictionPage() {
 
   const createPredictionMutation = useMutation({
     mutationFn: async (data: CreatePredictionForm) => {
-      if (!isInitialized) {
-        throw new Error("IC Service not initialized");
+      if (!isSuccess || !actor) {
+        throw new Error("TFactory actor not ready");
       }
 
       // Prepare market data
@@ -168,18 +216,18 @@ export default function CreatePredictionPage() {
 
       let marketId;
 
-      // Call appropriate IC method based on prediction type
+      // Call appropriate service method based on prediction type
       if (data.predictionType === "binary") {
-        marketId = await icService.createBinaryMarket(marketData);
+        marketId = await TFactoryService.createBinaryMarket(marketData);
       } else if (data.predictionType === "multiple") {
         const outcomes = data.options.map(option => option.label);
-        marketId = await icService.createMultipleChoiceMarket({
+        marketId = await TFactoryService.createMultipleChoiceMarket({
           ...marketData,
           outcomes
         });
       } else if (data.predictionType === "compound") {
         const subjects = data.options.map(option => option.label);
-        marketId = await icService.createCompoundMarket({
+        marketId = await TFactoryService.createCompoundMarket({
           ...marketData,
           subjects
         });
@@ -198,7 +246,6 @@ export default function CreatePredictionPage() {
         description: `Your ${data.type} prediction market has been created successfully with ID: ${data.marketId.toString()}`,
       });
       
-      // Navigate to markets page or specific market
       navigate("/prediction-markets");
     },
     onError: (error) => {
@@ -212,10 +259,10 @@ export default function CreatePredictionPage() {
   });
 
   const onSubmit = (data: CreatePredictionForm) => {
-    if (!isInitialized) {
+    if (!isSuccess || !actor) {
       toast({
-        title: "Service Not Ready",
-        description: "Please wait for the IC service to initialize",
+        title: "Actor Not Ready",
+        description: "Please wait for the connection to be established",
         variant: "destructive"
       });
       return;
@@ -248,33 +295,52 @@ export default function CreatePredictionPage() {
     }
   };
 
-  // Show initialization error
-  if (initError) {
+  // Handle actor errors
+  if (isError && error) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Failed to connect to Internet Computer: {initError}
+            Failed to connect to TFactory canister: {error.message}
           </AlertDescription>
         </Alert>
+        <Button onClick={() => { clearError(); reset(); }} className="mt-4">
+          Retry Connection
+        </Button>
       </div>
     );
   }
 
   // Show loading state
-  if (!isInitialized) {
+  if (isInitializing) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Connecting to Internet Computer...</p>
+            <p className="text-muted-foreground">Connecting to TFactory canister...</p>
           </div>
         </div>
       </div>
     );
   }
+
+  // Show authentication required state (if you need authentication)
+  /*
+  if (isSuccess && !isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Please authenticate to create prediction markets.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  */
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -285,7 +351,7 @@ export default function CreatePredictionPage() {
         </p>
         <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
-            ✅ Connected to Internet Computer • Each market type creates corresponding ICRC-2 ledgers automatically
+            ✅ Connected to TFactory • Status: {status} • Authenticated: {isAuthenticated ? 'Yes' : 'No'}
           </p>
         </div>
       </div>
@@ -470,38 +536,6 @@ export default function CreatePredictionPage() {
                                   </FormItem>
                                 )}
                               />
-
-                              {predictionType === "compound" && (
-                                <div className="mt-3 pl-4 border-l-2 border-muted">
-                                  <Label className="text-sm text-muted-foreground">
-                                    Tokens created: {field.label || `Subject ${index + 1}`}_YES, {field.label || `Subject ${index + 1}`}_NO
-                                  </Label>
-                                  <div className="grid grid-cols-2 gap-2 mt-2">
-                                    <div className="p-2 bg-green-50 border border-green-200 rounded text-center text-sm">
-                                      YES Token
-                                    </div>
-                                    <div className="p-2 bg-red-50 border border-red-200 rounded text-center text-sm">
-                                      NO Token
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-
-                              {predictionType === "multiple" && (
-                                <div className="mt-2">
-                                  <Label className="text-xs text-muted-foreground">
-                                    Creates: {field.label || `Option${index + 1}`}_TOKEN ledger
-                                  </Label>
-                                </div>
-                              )}
-
-                              {predictionType === "binary" && (
-                                <div className="mt-2">
-                                  <Label className="text-xs text-muted-foreground">
-                                    Creates: {field.label.toUpperCase()}_TOKEN ledger
-                                  </Label>
-                                </div>
-                              )}
                             </div>
                           ))}
                           
@@ -730,7 +764,7 @@ export default function CreatePredictionPage() {
                   <div className="space-y-3">
                     <Button 
                       type="submit" 
-                      disabled={createPredictionMutation.isPending || !isInitialized}
+                      disabled={createPredictionMutation.isPending || !isSuccess}
                       className="w-full"
                       size="lg"
                       data-testid="button-create-prediction"
@@ -772,4 +806,4 @@ export default function CreatePredictionPage() {
       </Form>
     </div>
   );
-}
+};

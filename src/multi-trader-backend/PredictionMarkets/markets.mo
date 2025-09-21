@@ -16,7 +16,7 @@ import TrieMap "mo:base/TrieMap";
 import Array "mo:base/Array";
 import Buffer "mo:base/Buffer";
 
-actor Markets {
+persistent actor Markets  {
     
     // ===== TYPES =====
     
@@ -273,144 +273,157 @@ actor Markets {
         #MultipleChoice: MultipleChoiceConfig;
         #Compound: CompoundConfig;
     };
-    
-    // ===== STATE =====
-    
-    stable var marketsEntries : [(Nat, MarketState)] = [];
-    private var markets : TrieMap.TrieMap<Nat, MarketState> = TrieMap.TrieMap<Nat, MarketState>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
-    stable var nextMarketId : Nat = 1;
-    
-    // Configuration
-    private stable var tokenFactoryCanister : ?Principal = null;
-    private stable var vaultCanister : ?Principal = null;
-    
-    // ===== HELPER FUNCTIONS =====
-    
-    // Convert between satoshis and float for LMSR calculations
-    private func satoshisToFloat(satoshis: Nat64) : Float {
-        Float.fromInt64(Int64.fromNat64(satoshis))
-    };
-    
-    private func floatToSatoshis(amount: Float) : Nat64 {
-        let rounded = Float.toInt(Float.nearest(amount));
-        Nat64.fromNat(Int.abs(rounded))
-    };
-    
-    // Check if array elements are unique
-    private func isUniqueArray<T>(arr: [T]) : Bool {
-        let size = arr.size();
-        for (i in Iter.range(0, size - 1)) {
-            for (j in Iter.range(i + 1, size - 1)) {
-                if (arr[i] == arr[j]) {
-                    return false;
-                };
+
+// TRANSIENT DECLARATIONS FIX - Lines 298-349
+// Replace the ===== STATE ===== section with this:
+
+// ===== STATE =====
+
+stable var marketsEntries : [(Nat, MarketState)] = [];
+private transient var markets : TrieMap.TrieMap<Nat, MarketState> = TrieMap.TrieMap<Nat, MarketState>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
+stable var nextMarketId : Nat = 1;
+
+// Configuration
+private stable var tokenFactoryCanister : ?Principal = null;
+private stable var vaultCanister : ?Principal = null;
+
+// ===== HELPER FUNCTIONS =====
+
+// Convert between satoshis and float for LMSR calculations
+private transient func satoshisToFloat(satoshis: Nat64) : Float {
+    Float.fromInt64(Int64.fromNat64(satoshis))
+};
+
+private transient func floatToSatoshis(amount: Float) : Nat64 {
+    let rounded = Float.toInt(Float.nearest(amount));
+    Nat64.fromNat(Int.abs(rounded))
+};
+
+// Check if array elements are unique
+private transient func isUniqueArray<T>(arr: [T]) : Bool {
+    let size = arr.size();
+    for (i in Iter.range(0, size - 1)) {
+        for (j in Iter.range(i + 1, size - 1)) {
+            if (arr[i] == arr[j]) {
+                return false;
             };
         };
-        true
+    };
+    true
+};
+
+// Validate base registration arguments
+private transient func validateBaseArgs(args: BaseRegistrationArgs) : Result.Result<(), Text> {
+    if (Text.size(args.question) == 0) {
+        return #err("Question cannot be empty");
     };
     
-    // Validate base registration arguments
-    private func validateBaseArgs(args: BaseRegistrationArgs) : Result.Result<(), Text> {
-        if (Text.size(args.question) == 0) {
-            return #err("Question cannot be empty");
-        };
-        
-        if (args.expiry <= Nat64.fromNat(Int.abs(Time.now()))) {
-            return #err("Expiry must be in the future");
-        };
-        
-        if (args.b <= 0.0) {
-            return #err("Liquidity parameter b must be positive");
-        };
-        
-        if (args.totalSupply == 0) {
-            return #err("Total supply must be greater than 0");
-        };
-        
-        #ok()
+    if (args.expiry <= Nat64.fromNat(Int.abs(Time.now()))) {
+        return #err("Expiry must be in the future");
     };
     
-    // Get inventory for specific outcome in multiple choice
-    private func getInventoryForOutcome(inventories: [(Text, Float)], targetOutcome: Text) : Float {
-        switch (Array.find<(Text, Float)>(inventories, func((name, _)) = name == targetOutcome)) {
-            case (null) { 0.0 };
-            case (?(_, inventory)) { inventory };
-        }
+    if (args.b <= 0.0) {
+        return #err("Liquidity parameter b must be positive");
     };
     
-    // Update inventory for specific outcome
-    private func updateInventory(inventories: [(Text, Float)], targetOutcome: Text, change: Float) : [(Text, Float)] {
-        Array.map<(Text, Float), (Text, Float)>(
-            inventories,
-            func((name, inventory)) = if (name == targetOutcome) { (name, inventory + change) } else { (name, inventory) }
-        )
+    if (args.totalSupply == 0) {
+        return #err("Total supply must be greater than 0");
     };
     
-    // Get ledger for specific outcome
-    private func getLedgerForOutcome(outcomes: [(Text, Principal)], targetOutcome: Text) : ?Principal {
-        switch (Array.find<(Text, Principal)>(outcomes, func((name, _)) = name == targetOutcome)) {
-            case (null) { null };
-            case (?(_, ledger)) { ?ledger };
-        }
-    };
-    
-    // Get subject configuration from compound market
-    private func getSubjectConfig(subjects: [(Text, BinaryMarketConfig)], targetSubject: Text) : ?BinaryMarketConfig {
-        switch (Array.find<(Text, BinaryMarketConfig)>(subjects, func((name, _)) = name == targetSubject)) {
-            case (null) { null };
-            case (?(_, config)) { ?config };
-        }
-    };
-    
-    // Update subject in compound market
-    private func updateSubjectInCompound(subjects: [(Text, BinaryMarketConfig)], targetSubject: Text, newConfig: BinaryMarketConfig) : [(Text, BinaryMarketConfig)] {
-        Array.map<(Text, BinaryMarketConfig), (Text, BinaryMarketConfig)>(
-            subjects,
-            func((name, config)) = if (name == targetSubject) { (name, newConfig) } else { (name, config) }
-        )
-    };
-    
-    // Extract vault addresses from config
-    private func extractVaultAddresses(vaultConfig: VaultAddressConfig) : [Principal] {
-        switch (vaultConfig) {
-            case (#Binary(config)) { [config.marketVault] };
-            case (#MultipleChoice(config)) { [config.marketVault] };
-            case (#Compound(config)) { Array.map<(Text, Principal), Principal>(config.subjectVaults, func((_, vault)) = vault) };
-        }
-    };
-    
-    // Calculate winning tokens based on resolution
-    private func calculateWinningTokens(marketType: MarketType, resolution: MarketResolution) : [WinningToken] {
-        switch (marketType, resolution) {
-            case (#Binary, #Binary(outcome)) {
-                let tokenType = switch (outcome) {
-                    case (#Yes) { #Binary(#YES) };
-                    case (#No) { #Binary(#NO) };
-                };
-                [{ tokenIdentifier = tokenType; payoutRatio = 1.0 }]
+    #ok()
+};
+
+// Get inventory for specific outcome in multiple choice
+private transient func getInventoryForOutcome(inventories: [(Text, Float)], targetOutcome: Text) : Float {
+    switch (Array.find<(Text, Float)>(inventories, func((name, _)) = name == targetOutcome)) {
+        case (null) { 0.0 };
+        case (?(_, inventory)) { inventory };
+    }
+};
+
+// Update inventory for specific outcome
+private transient func updateInventory(inventories: [(Text, Float)], targetOutcome: Text, change: Float) : [(Text, Float)] {
+    Array.map<(Text, Float), (Text, Float)>(
+        inventories,
+        func((name, inventory)) = if (name == targetOutcome) { (name, inventory + change) } else { (name, inventory) }
+    )
+};
+
+// Get ledger for specific outcome
+private transient func getLedgerForOutcome(outcomes: [(Text, Principal)], targetOutcome: Text) : ?Principal {
+    switch (Array.find<(Text, Principal)>(outcomes, func((name, _)) = name == targetOutcome)) {
+        case (null) { null };
+        case (?(_, ledger)) { ?ledger };
+    }
+};
+
+// Get subject configuration from compound market
+private transient func getSubjectConfig(subjects: [(Text, BinaryMarketConfig)], targetSubject: Text) : ?BinaryMarketConfig {
+    switch (Array.find<(Text, BinaryMarketConfig)>(subjects, func((name, _)) = name == targetSubject)) {
+        case (null) { null };
+        case (?(_, config)) { ?config };
+    }
+};
+
+// Update subject in compound market
+private transient func updateSubjectInCompound(subjects: [(Text, BinaryMarketConfig)], targetSubject: Text, newConfig: BinaryMarketConfig) : [(Text, BinaryMarketConfig)] {
+    Array.map<(Text, BinaryMarketConfig), (Text, BinaryMarketConfig)>(
+        subjects,
+        func((name, config)) = if (name == targetSubject) { (name, newConfig) } else { (name, config) }
+    )
+};
+
+// Extract vault addresses from config
+private transient func extractVaultAddresses(vaultConfig: VaultAddressConfig) : [Principal] {
+    switch (vaultConfig) {
+        case (#Binary(config)) { [config.marketVault] };
+        case (#MultipleChoice(config)) { [config.marketVault] };
+        case (#Compound(config)) { Array.map<(Text, Principal), Principal>(config.subjectVaults, func((_, vault)) = vault) };
+    }
+};
+
+// FUNCTION CLOSURE FIX - The calculateWinningTokens function is not properly closed
+
+// Find the calculateWinningTokens function (around line 400-408) and replace it entirely with:
+
+private func calculateWinningTokens(marketType: MarketType, resolution: MarketResolution) : [WinningToken] {
+    switch (marketType, resolution) {
+        // Binary market resolution
+        case (#Binary, #Binary(outcome)) {
+            let tokenType = switch (outcome) {
+                case (#Yes) { #Binary(#YES) };
+                case (#No)  { #Binary(#NO)  };
             };
-            
-            case (#MultipleChoice, #MultipleChoice(winningOutcome)) {
-                [{ tokenIdentifier = #Outcome(winningOutcome); payoutRatio = 1.0 }]
-            };
-            
-            case (#Compound, #Compound(subjectResults)) {
-                Array.map<(Text, BinaryOutcome), WinningToken>(
-                    subjectResults,
-                    func((subject, outcome)) = {
-                        let tokenType = switch (outcome) {
-                            case (#Yes) { #Subject((subject, #YES)) };
-                            case (#No) { #Subject((subject, #NO)) };
-                        };
-                        { tokenIdentifier = tokenType; payoutRatio = 1.0 }
-                    }
-                )
-            };
-            
-            case (_, _) { [] }; // Invalid combination
-        }
-    };
-    
+            [ { tokenIdentifier = tokenType; payoutRatio = 1.0 } ]
+        };
+
+        // Multiple choice resolution
+        case (#MultipleChoice, #MultipleChoice(winningOutcome)) {
+            [ { tokenIdentifier = #Outcome(winningOutcome); payoutRatio = 1.0 } ]
+        };
+
+        // Compound market resolution: map each subject -> winning token
+        case (#Compound, #Compound(subjectResults)) {
+            Array.map<(Text, BinaryOutcome), WinningToken>(
+                subjectResults,
+                func ((subject, outcome)) {
+                    let tokenType = switch (outcome) {
+                        case (#Yes) { #Subject((subject, #YES)) };
+                        case (#No)  { #Subject((subject, #NO))  };
+                    };
+                    { tokenIdentifier = tokenType; payoutRatio = 1.0 }
+                }
+            )
+        };
+
+        // Fallback for invalid combinations
+        case (_, _) {
+            []
+        };
+    }
+};
+
+// The next function should start on a new line after this
     // Get ledger for token identifier
     private func getLedgerForToken(market: MarketState, tokenIdentifier: TokenIdentifier) : ?Principal {
         switch (market.marketType, tokenIdentifier) {
@@ -487,7 +500,7 @@ actor Markets {
         }
     };
     
-    // ===== LMSR MATH =====
+   // ===== LMSR MATH =====
     
     // Binary market LMSR functions
     private func costFunction(qYes: Float, qNo: Float, b: Float) : Float {
@@ -1241,17 +1254,16 @@ actor Markets {
         };
         
         // Update compound market state - only update specific subject
-        let updatedSubjectConfig = switch (binaryToken) {
-            case (#YES) { { subjectConfig with qYes = newQYes } };
-            case (#NO) { { subjectConfig with qNo = newQNo } };
+       // Update binary market state
+        let updatedBinaryConfig = {
+            binaryConfig with
+            qYes = newQYes;
+            qNo = newQNo;
         };
-        
-        let updatedSubjects = updateSubjectInCompound(config.subjects, subjectName, updatedSubjectConfig);
-        let updatedConfig = { config with subjects = updatedSubjects };
         
         let updatedMarket = {
             market with
-            compoundConfig = ?updatedConfig;
+            binaryConfig = ?updatedBinaryConfig;
             totalVolumeSatoshis = market.totalVolumeSatoshis + amountSatoshis;
             currentSupply = market.currentSupply + tokensToMint;
         };
@@ -1265,101 +1277,101 @@ actor Markets {
         })
     };
     
-    private func sellCompoundTokens(
-        market: MarketState,
-        tokenIdentifier: TokenIdentifier,
-        amountTokens: Nat64,
-        minPrice: Nat64,
-        caller: Principal
-    ) : async Result.Result<SellResult, Text> {
-        
-        let (subjectName, binaryToken) = switch (tokenIdentifier) {
-            case (#Subject(subject, token)) { (subject, token) };
-            case (_) { return #err("Invalid token identifier for compound market") };
-        };
-        
-        let config = switch (market.compoundConfig) {
-            case (null) { return #err("Compound configuration missing") };
-            case (?config) { config };
-        };
-        
-        // Find subject configuration
-        let subjectConfig = switch (getSubjectConfig(config.subjects, subjectName)) {
-            case (null) { return #err("Subject not found: " # subjectName) };
-            case (?config) { config };
-        };
-        
-        // Check token balance
-        let ledger = switch (binaryToken) {
-            case (#YES) { subjectConfig.yesLedger };
-            case (#NO) { subjectConfig.noLedger };
-        };
-        
-        switch (await getTokenBalance(ledger, caller)) {
-            case (#err(error)) { return #err("Failed to check balance: " # error) };
-            case (#ok(balance)) {
-                if (balance < amountTokens) {
-                    return #err("Insufficient token balance");
-                }
-            };
-        };
-        
-        // Calculate satoshis to receive (negative tokens = selling)
-        let tokensInFloat = satoshisToFloat(amountTokens);
-        let satoshisToReceive = calculateCostForTokens(
-            subjectConfig.qYes, 
-            subjectConfig.qNo, 
-            market.b, 
-            binaryToken, 
-            -tokensInFloat
-        );
-        
-        let satoshiAmount = floatToSatoshis(satoshisToReceive);
-        
-        // Check minimum price
-        if (satoshiAmount < minPrice) {
-            return #err("Price below minimum acceptable");
-        };
-        
-        // Execute burn and payment
-        switch (await burnTokens(ledger, caller, amountTokens)) {
-            case (#err(error)) { return #err("Failed to burn tokens: " # error) };
-            case (#ok()) {};
-        };
-        
-        switch (await paySatoshisFromMarketVault(market.id, caller, satoshiAmount, tokenIdentifier)) {
-            case (#err(error)) {
-                ignore await mintTokens(ledger, caller, amountTokens);
-                return #err("Failed to pay satoshis: " # error)
-            };
-            case (#ok()) {};
-        };
-        
-        // Update compound market state - only update specific subject
-        let updatedSubjectConfig = switch (binaryToken) {
-            case (#YES) { { subjectConfig with qYes = subjectConfig.qYes - tokensInFloat } };
-            case (#NO) { { subjectConfig with qNo = subjectConfig.qNo - tokensInFloat } };
-        };
-        
-        let updatedSubjects = updateSubjectInCompound(config.subjects, subjectName, updatedSubjectConfig);
-        let updatedConfig = { config with subjects = updatedSubjects };
-        
-        let updatedMarket = {
-            market with
-            compoundConfig = ?updatedConfig;
-            totalVolumeSatoshis = market.totalVolumeSatoshis + satoshiAmount;
-            currentSupply = market.currentSupply - amountTokens;
-        };
-        
-        markets.put(market.id, updatedMarket);
-        
-        let newPrice = calculatePrice(updatedSubjectConfig.qYes, updatedSubjectConfig.qNo, market.b, binaryToken);
-        
-        #ok({
-            satoshisReceived = satoshiAmount;
-            newPrice = newPrice;
-        })
+    
+    // Add this function after the buyBinaryTokens function (around line 1400)
+
+private func sellBinaryTokens(
+    market: MarketState,
+    tokenIdentifier: TokenIdentifier,
+    amountTokens: Nat64,
+    minPrice: Nat64,
+    caller: Principal
+) : async Result.Result<SellResult, Text> {
+    
+    let binaryToken = switch (tokenIdentifier) {
+        case (#Binary(token)) { token };
+        case (_) { return #err("Invalid token identifier for binary market") };
     };
+    
+    let binaryConfig = switch (market.binaryConfig) {
+        case (null) { return #err("Binary configuration missing") };
+        case (?config) { config };
+    };
+    
+    // Check token balance
+    let ledger = switch (binaryToken) {
+        case (#YES) { binaryConfig.yesLedger };
+        case (#NO) { binaryConfig.noLedger };
+    };
+    
+    switch (await getTokenBalance(ledger, caller)) {
+        case (#err(error)) { return #err("Failed to check balance: " # error) };
+        case (#ok(balance)) {
+            if (balance < amountTokens) {
+                return #err("Insufficient token balance");
+            }
+        };
+    };
+    
+    // Calculate satoshis to receive (negative tokens = selling)
+    let tokensInFloat = satoshisToFloat(amountTokens);
+    let satoshisToReceive = calculateCostForTokens(
+        binaryConfig.qYes, 
+        binaryConfig.qNo, 
+        market.b, 
+        binaryToken, 
+        -tokensInFloat
+    );
+    
+    let satoshiAmount = floatToSatoshis(satoshisToReceive);
+    
+    // Check minimum price
+    if (satoshiAmount < minPrice) {
+        return #err("Price below minimum acceptable");
+    };
+    
+    // Execute burn and payment
+    switch (await burnTokens(ledger, caller, amountTokens)) {
+        case (#err(error)) { return #err("Failed to burn tokens: " # error) };
+        case (#ok()) {};
+    };
+    
+    switch (await paySatoshisFromMarketVault(market.id, caller, satoshiAmount, tokenIdentifier)) {
+        case (#err(error)) {
+            ignore await mintTokens(ledger, caller, amountTokens);
+            return #err("Failed to pay satoshis: " # error)
+        };
+        case (#ok()) {};
+    };
+    
+    // Update binary market state
+    let (newQYes, newQNo) = switch (binaryToken) {
+        case (#YES) { (binaryConfig.qYes - tokensInFloat, binaryConfig.qNo) };
+        case (#NO) { (binaryConfig.qYes, binaryConfig.qNo - tokensInFloat) };
+    };
+    
+    let updatedBinaryConfig = {
+        binaryConfig with
+        qYes = newQYes;
+        qNo = newQNo;
+    };
+    
+    let updatedMarket = {
+        market with
+        binaryConfig = ?updatedBinaryConfig;
+        totalVolumeSatoshis = market.totalVolumeSatoshis + satoshiAmount;
+        currentSupply = market.currentSupply - amountTokens;
+    };
+    
+    markets.put(market.id, updatedMarket);
+    
+    let newPrice = calculatePrice(newQYes, newQNo, market.b, binaryToken);
+    
+    #ok({
+        satoshisReceived = satoshiAmount;
+        newPrice = newPrice;
+    })
+};
 
 
      // ===== MULTIPLE CHOICE MARKET TRADING =====
@@ -1529,178 +1541,274 @@ actor Markets {
         })
     };
     
+
+    // ===== COMPOUND MARKET TRADING =====
     
-    // ===== MARKET RESOLUTION =====
-    
-    public shared(msg) func resolveMarket(
-        marketId: Nat, 
-        resolution: MarketResolution
-    ) : async Result.Result<(), Text> {
+    private func buyCompoundTokens(
+        market: MarketState,
+        tokenIdentifier: TokenIdentifier,
+        amountSatoshis: Nat64,
+        maxSlippage: Float,
+        caller: Principal
+    ) : async Result.Result<BuyResult, Text> {
         
-        switch (markets.get(marketId)) {
-            case (null) { return #err("Market not found") };
-            case (?market) {
-                // Validate resolver
-                if (msg.caller != market.resolver) {
-                    return #err("Only designated resolver can resolve market");
-                };
-                
-                if (market.resolved != null) {
-                    return #err("Market already resolved");
-                };
-                
-                // Validate resolution matches market type
-                let validResolution = switch (market.marketType, resolution) {
-                    case (#Binary, #Binary(_)) { true };
-                    case (#MultipleChoice, #MultipleChoice(_)) { true };
-                    case (#Compound, #Compound(_)) { true };
-                    case (_, _) { false };
-                };
-                
-                if (not validResolution) {
-                    return #err("Resolution type does not match market type");
-                };
-                
-                // Update market state
-                let resolvedMarket = {
-                    market with
-                    resolved = ?resolution;
-                    active = false;
-                };
-                markets.put(marketId, resolvedMarket);
-                
-                // Notify vault of resolution
-                switch (market.vaultConfig, vaultCanister) {
-                    case (?vaultConfig, ?vault) {
-                        let vaultActor: VaultInterface = actor(Principal.toText(vault));
-                        
-                        let resolutionRequest: VaultResolutionRequest = {
-                            marketId = marketId;
-                            resolution = resolution;
-                            vaultAddresses = extractVaultAddresses(vaultConfig);
-                            winningTokens = calculateWinningTokens(market.marketType, resolution);
-                        };
-                        
-                        // Vault prepares for payouts
-                        switch (await vaultActor.resolveMarketVault(resolutionRequest)) {
-                            case (#err(error)) { 
-                                return #err("Vault resolution failed: " # error) 
-                            };
-                            case (#ok()) { #ok() };
-                        }
+        // Extract subject and binary token from identifier
+        let (subjectName, binaryToken) = switch (tokenIdentifier) {
+            case (#Subject(subject, token)) { (subject, token) };
+            case (_) { return #err("Invalid token identifier for compound market") };
+        };
+        
+        // Get compound configuration
+        let config = switch (market.compoundConfig) {
+            case (null) { return #err("Compound configuration missing") };
+            case (?config) { config };
+        };
+        
+        // Find the specific subject configuration
+        let subjectConfig = switch (getSubjectConfig(config.subjects, subjectName)) {
+            case (null) { return #err("Subject not found: " # subjectName) };
+            case (?config) { config };
+        };
+        
+        // Use binary market logic for this individual subject
+        let currentPrice = calculatePrice(subjectConfig.qYes, subjectConfig.qNo, market.b, binaryToken);
+        let costInFloat = satoshisToFloat(amountSatoshis);
+        let tokensToReceive = calculateTokensForCost(
+            subjectConfig.qYes, 
+            subjectConfig.qNo, 
+            market.b, 
+            binaryToken, 
+            costInFloat
+        );
+        
+        if (tokensToReceive <= 0.0) {
+            return #err("Invalid token calculation");
+        };
+        
+        // Calculate new price after purchase for slippage check
+        let (newQYes, newQNo) = switch (binaryToken) {
+            case (#YES) { (subjectConfig.qYes + tokensToReceive, subjectConfig.qNo) };
+            case (#NO) { (subjectConfig.qYes, subjectConfig.qNo + tokensToReceive) };
+        };
+        let newPrice = calculatePrice(newQYes, newQNo, market.b, binaryToken);
+        
+        // Check slippage protection
+        let priceIncrease = if (currentPrice > 0.0) { 
+            (newPrice - currentPrice) / currentPrice 
+        } else { 
+            0.0 
+        };
+        
+        if (priceIncrease > maxSlippage) {
+            return #err("Price slippage too high: " # Float.toText(priceIncrease * 100.0) # "%");
+        };
+        
+        // Execute financial operations - pull satoshis from subject-specific vault
+        switch (await pullSatoshisFromMarketVault(market.id, caller, amountSatoshis, tokenIdentifier)) {
+            case (#err(error)) { return #err("Failed to pull satoshis: " # error) };
+            case (#ok()) {};
+        };
+        
+        // Mint tokens to appropriate ledger for this subject
+        let ledger = switch (binaryToken) {
+            case (#YES) { subjectConfig.yesLedger };
+            case (#NO) { subjectConfig.noLedger };
+        };
+        
+        let tokensToMint = floatToSatoshis(tokensToReceive);
+        switch (await mintTokens(ledger, caller, tokensToMint)) {
+            case (#err(error)) { 
+                // Rollback: refund satoshis on mint failure
+                ignore await paySatoshisFromMarketVault(market.id, caller, amountSatoshis, tokenIdentifier);
+                return #err("Failed to mint tokens: " # error) 
+            };
+            case (#ok()) {};
+        };
+        
+        // Update compound market state - only update the specific subject
+        let updatedSubjectConfig = switch (binaryToken) {
+            case (#YES) { { subjectConfig with qYes = newQYes } };
+            case (#NO) { { subjectConfig with qNo = newQNo } };
+        };
+        
+        // Update only this subject in the compound market, leave others unchanged
+        let updatedSubjects = updateSubjectInCompound(config.subjects, subjectName, updatedSubjectConfig);
+        let updatedConfig = { config with subjects = updatedSubjects };
+        
+        let updatedMarket = {
+            market with
+            compoundConfig = ?updatedConfig;
+            totalVolumeSatoshis = market.totalVolumeSatoshis + amountSatoshis;
+            currentSupply = market.currentSupply + tokensToMint;
+        };
+        
+        markets.put(market.id, updatedMarket);
+        
+        #ok({
+            tokensReceived = tokensToReceive;
+            actualCostSatoshis = amountSatoshis;
+            newPrice = newPrice;
+        })
+    };
+    
+    private func sellCompoundTokens(
+        market: MarketState,
+        tokenIdentifier: TokenIdentifier,
+        amountTokens: Nat64,
+        minPrice: Nat64,
+        caller: Principal
+    ) : async Result.Result<SellResult, Text> {
+        
+        // Extract subject and binary token from identifier
+        let (subjectName, binaryToken) = switch (tokenIdentifier) {
+            case (#Subject(subject, token)) { (subject, token) };
+            case (_) { return #err("Invalid token identifier for compound market") };
+        };
+        
+        // Get compound configuration
+        let config = switch (market.compoundConfig) {
+            case (null) { return #err("Compound configuration missing") };
+            case (?config) { config };
+        };
+        
+        // Find the specific subject configuration
+        let subjectConfig = switch (getSubjectConfig(config.subjects, subjectName)) {
+            case (null) { return #err("Subject not found: " # subjectName) };
+            case (?config) { config };
+        };
+        
+        // Determine the ledger for this subject's token
+        let ledger = switch (binaryToken) {
+            case (#YES) { subjectConfig.yesLedger };
+            case (#NO) { subjectConfig.noLedger };
+        };
+        
+        // Check user has sufficient tokens to sell
+        switch (await getTokenBalance(ledger, caller)) {
+            case (#err(error)) { return #err("Failed to check balance: " # error) };
+            case (#ok(balance)) {
+                if (balance < amountTokens) {
+                    return #err("Insufficient token balance: have " # Nat64.toText(balance) # ", need " # Nat64.toText(amountTokens));
+                }
+            };
+        };
+        
+        // Calculate satoshis to receive (negative tokens = selling)
+        let tokensInFloat = satoshisToFloat(amountTokens);
+        let satoshisToReceive = calculateCostForTokens(
+            subjectConfig.qYes, 
+            subjectConfig.qNo, 
+            market.b, 
+            binaryToken, 
+            -tokensInFloat  // Negative for selling
+        );
+        
+        let satoshiAmount = floatToSatoshis(satoshisToReceive);
+        
+        // Check minimum price protection
+        if (satoshiAmount < minPrice) {
+            return #err("Price below minimum acceptable: " # Nat64.toText(satoshiAmount) # " < " # Nat64.toText(minPrice));
+        };
+        
+        // Execute burn operation first
+        switch (await burnTokens(ledger, caller, amountTokens)) {
+            case (#err(error)) { return #err("Failed to burn tokens: " # error) };
+            case (#ok()) {};
+        };
+        
+        // Pay satoshis from subject-specific vault
+        switch (await paySatoshisFromMarketVault(market.id, caller, satoshiAmount, tokenIdentifier)) {
+            case (#err(error)) {
+                // Rollback: re-mint tokens on payment failure
+                ignore await mintTokens(ledger, caller, amountTokens);
+                return #err("Failed to pay satoshis: " # error)
+            };
+            case (#ok()) {};
+        };
+        
+        // Update compound market state - only update the specific subject
+        let updatedSubjectConfig = switch (binaryToken) {
+            case (#YES) { { subjectConfig with qYes = subjectConfig.qYes - tokensInFloat } };
+            case (#NO) { { subjectConfig with qNo = subjectConfig.qNo - tokensInFloat } };
+        };
+        
+        // Update only this subject in the compound market, leave others unchanged
+        let updatedSubjects = updateSubjectInCompound(config.subjects, subjectName, updatedSubjectConfig);
+        let updatedConfig = { config with subjects = updatedSubjects };
+        
+        let updatedMarket = {
+            market with
+            compoundConfig = ?updatedConfig;
+            totalVolumeSatoshis = market.totalVolumeSatoshis + satoshiAmount;
+            currentSupply = market.currentSupply - amountTokens;
+        };
+        
+        markets.put(market.id, updatedMarket);
+        
+        // Calculate new price after the sale
+        let newPrice = calculatePrice(updatedSubjectConfig.qYes, updatedSubjectConfig.qNo, market.b, binaryToken);
+        
+        #ok({
+            satoshisReceived = satoshiAmount;
+            newPrice = newPrice;
+        })
+    };
+    
+    // Helper function to validate compound market token identifier
+    private func validateCompoundTokenIdentifier(
+        config: CompoundConfig, 
+        tokenIdentifier: TokenIdentifier
+    ) : Result.Result<(Text, BinaryToken), Text> {
+        switch (tokenIdentifier) {
+            case (#Subject((subjectName, binaryToken))) {
+                // Check if subject exists in this compound market
+                switch (getSubjectConfig(config.subjects, subjectName)) {
+                    case (null) { #err("Subject '" # subjectName # "' not found in this compound market") };
+                    case (?_) { #ok((subjectName, binaryToken)) };
+                }
+            };
+            case (_) { #err("Token identifier must be #Subject for compound markets") };
+        }
+    };
+    
+    // Helper function to get subject price information
+    private func getCompoundSubjectPrice(
+        market: MarketState,
+        subjectName: Text,
+        binaryToken: BinaryToken
+    ) : Result.Result<Float, Text> {
+        switch (market.compoundConfig) {
+            case (null) { #err("Compound configuration missing") };
+            case (?config) {
+                switch (getSubjectConfig(config.subjects, subjectName)) {
+                    case (null) { #err("Subject not found: " # subjectName) };
+                    case (?subjectConfig) {
+                        let price = calculatePrice(subjectConfig.qYes, subjectConfig.qNo, market.b, binaryToken);
+                        #ok(price)
                     };
-                    case (_, _) { return #err("Vault configuration missing") };
                 }
             };
         }
     };
     
-    // ===== REDEMPTION =====
-    
-    public shared(msg) func redeemWinningTokens(marketId: Nat) : async Result.Result<RedemptionResult, Text> {
-        switch (markets.get(marketId)) {
-            case (null) { return #err("Market not found") };
-            case (?market) {
-                // Check market is resolved
-                let resolution = switch (market.resolved) {
-                    case (null) { return #err("Market not resolved") };
-                    case (?resolution) { resolution };
-                };
-                
-                // Calculate user's total winnings across all winning tokens
-                var totalRedemption: Nat64 = 0;
-                let redemptionDetails: Buffer.Buffer<TokenRedemption> = Buffer.Buffer(10);
-                
-                // Check each potential winning token type
-                let winningTokens = calculateWinningTokens(market.marketType, resolution);
-                
-                for (winningToken in winningTokens.vals()) {
-                    // Get appropriate ledger for this token
-                    let ledger = switch (getLedgerForToken(market, winningToken.tokenIdentifier)) {
-                        case (null) { continue };  // Skip if ledger not found
-                        case (?ledger) { ledger };
-                    };
-                    
-                    // Check user's balance of this winning token
-                    switch (await getTokenBalance(ledger, msg.caller)) {
-                        case (#err(_)) { continue };  // Skip on error
-                        case (#ok(balance)) {
-                            if (balance > 0) {
-                                // Calculate payout amount
-                                let payoutAmount = Float.toInt(Float.fromInt(Int.fromNat64(balance)) * winningToken.payoutRatio);
-                                let payoutSatoshis = Int.abs(payoutAmount);
-                                let payoutSatoshis64 = Nat64.fromNat(payoutSatoshis);
-                                
-                                // Burn winning tokens
-                                switch (await burnTokens(ledger, msg.caller, balance)) {
-                                    case (#err(error)) { 
-                                        return #err("Failed to burn tokens: " # error) 
-                                    };
-                                    case (#ok()) {};
-                                };
-                                
-                                // Request payout from appropriate vault
-                                switch (market.vaultConfig) {
-                                    case (null) { 
-                                        // Re-mint tokens on vault config error
-                                        ignore await mintTokens(ledger, msg.caller, balance);
-                                        return #err("Vault config missing") 
-                                    };
-                                    case (?vaultConfig) {
-                                        let vaultAddress = selectVaultAddress(market.marketType, vaultConfig, winningToken.tokenIdentifier);
-                                        
-                                        switch (vaultCanister) {
-                                            case (null) { 
-                                                // Re-mint tokens on vault canister error
-                                                ignore await mintTokens(ledger, msg.caller, balance);
-                                                return #err("Vault canister not set") 
-                                            };
-                                            case (?vault) {
-                                                let vaultActor: VaultInterface = actor(Principal.toText(vault));
-                                                
-                                                let payoutRequest: VaultPayoutRequest = {
-                                                    marketId = marketId;
-                                                    vaultAddress = vaultAddress;
-                                                    user = msg.caller;
-                                                    amount = payoutSatoshis64;
-                                                    tokenIdentifier = winningToken.tokenIdentifier;
-                                                };
-                                                
-                                                switch (await vaultActor.processPayouts(payoutRequest)) {
-                                                    case (#err(error)) {
-                                                        // Re-mint tokens on payout failure
-                                                        ignore await mintTokens(ledger, msg.caller, balance);
-                                                        return #err("Payout failed: " # error)
-                                                    };
-                                                    case (#ok(_)) {
-                                                        totalRedemption += payoutSatoshis64;
-                                                        redemptionDetails.add({
-                                                            tokenIdentifier = winningToken.tokenIdentifier;
-                                                            tokensBurned = balance;
-                                                            satoshisReceived = payoutSatoshis64;
-                                                        });
-                                                    };
-                                                }
-                                            };
-                                        }
-                                    };
-                                }
-                            }
-                        };
-                    }
-                };
-                
-                if (totalRedemption == 0) {
-                    return #err("No winning tokens to redeem");
-                };
-                
-                #ok({
-                    totalSatoshisRedeemed = totalRedemption;
-                    redemptions = Buffer.toArray(redemptionDetails);
-                })
-            };
-        }
+   // Helper function to get all subject prices for a compound market
+private func getAllCompoundPrices(market : MarketState) : [(Text, Float, Float)] {
+  switch (market.compoundConfig) {
+    case (null) { [] };
+    case (?config) {
+      Array.map<(Text, BinaryMarketConfig), (Text, Float, Float)>(
+        config.subjects,
+        func ((subjectName, subjectConfig)) {
+          let yesPrice = calculatePrice(subjectConfig.qYes, subjectConfig.qNo, market.b, #YES);
+          let noPrice  = calculatePrice(subjectConfig.qYes, subjectConfig.qNo, market.b, #NO);
+          (subjectName, yesPrice, noPrice)
+        },
+      )
     };
+  }
+};
+    
+
     
     // ===== QUERY FUNCTIONS =====
     
@@ -1900,129 +2008,5 @@ actor Markets {
             };
         }
     };
-    
-       // ===== SYSTEM FUNCTIONS =====
-    
-    system func preupgrade() {
-        marketsEntries := Iter.toArray(markets.entries());
-    };
-    
-    system func postupgrade() {
-        markets := TrieMap.fromEntries(marketsEntries.vals(), Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
-        marketsEntries := [];
-    };
-});
-                return #err("Failed to mint tokens: " # error) 
-            };
-            case (#ok()) {};
-        };
-        
-        // Update market state
-        let updatedConfig = {
-            config with
-            inventories = newInventories;
-        };
-        
-        let updatedMarket = {
-            market with
-            multipleChoiceConfig = ?updatedConfig;
-            totalVolumeSatoshis = market.totalVolumeSatoshis + amountSatoshis;
-            currentSupply = market.currentSupply + tokensToMint;
-        };
-        
-        markets.put(market.id, updatedMarket);
-        
-        #ok({
-            tokensReceived = tokensToReceive;
-            actualCostSatoshis = amountSatoshis;
-            newPrice = newPrice;
-        })
-    };
-    
-    private func sellMultipleChoiceTokens(
-        market: MarketState,
-        tokenIdentifier: TokenIdentifier,
-        amountTokens: Nat64,
-        minPrice: Nat64,
-        caller: Principal
-    ) : async Result.Result<SellResult, Text> {
-        
-        let outcomeName = switch (tokenIdentifier) {
-            case (#Outcome(name)) { name };
-            case (_) { return #err("Invalid token identifier for multiple choice market") };
-        };
-        
-        let config = switch (market.multipleChoiceConfig) {
-            case (null) { return #err("Multiple choice configuration missing") };
-            case (?config) { config };
-        };
-        
-        // Validate outcome exists and get ledger
-        let ledger = switch (getLedgerForOutcome(config.outcomes, outcomeName)) {
-            case (null) { return #err("Outcome not found: " # outcomeName) };
-            case (?ledger) { ledger };
-        };
-        
-        // Check token balance
-        switch (await getTokenBalance(ledger, caller)) {
-            case (#err(error)) { return #err("Failed to check balance: " # error) };
-            case (#ok(balance)) {
-                if (balance < amountTokens) {
-                    return #err("Insufficient token balance");
-                }
-            };
-        };
-        
-        // Calculate satoshis to receive (negative tokens = selling)
-        let tokensInFloat = satoshisToFloat(amountTokens);
-        let newInventories = updateInventory(config.inventories, outcomeName, -tokensInFloat);
-        let currentCost = calculateMultipleChoiceCost(config.inventories, market.b);
-        let newCost = calculateMultipleChoiceCost(newInventories, market.b);
-        let satoshisToReceive = currentCost - newCost;
-        
-        let satoshiAmount = floatToSatoshis(satoshisToReceive);
-        
-        // Check minimum price
-        if (satoshiAmount < minPrice) {
-            return #err("Price below minimum acceptable");
-        };
-        
-        // Execute burn and payment
-        switch (await burnTokens(ledger, caller, amountTokens)) {
-            case (#err(error)) { return #err("Failed to burn tokens: " # error) };
-            case (#ok()) {};
-        };
-        
-        switch (await paySatoshisFromMarketVault(market.id, caller, satoshiAmount, tokenIdentifier)) {
-            case (#err(error)) {
-                ignore await mintTokens(ledger, caller, amountTokens);
-                return #err("Failed to pay satoshis: " # error)
-            };
-            case (#ok()) {};
-        };
-        
-        // Update market state
-        let updatedConfig = {
-            config with
-            inventories = newInventories;
-        };
-        
-        let updatedMarket = {
-            market with
-            multipleChoiceConfig = ?updatedConfig;
-            totalVolumeSatoshis = market.totalVolumeSatoshis + satoshiAmount;
-            currentSupply = market.currentSupply - amountTokens;
-        };
-        
-        markets.put(market.id, updatedMarket);
-        
-        let newPrice = calculateMultipleChoicePrice(newInventories, market.b, outcomeName);
-        
-        #ok({
-            satoshisReceived = satoshiAmount;
-            newPrice = newPrice;
-        })
-    };
-   
-    
+};
    

@@ -1,222 +1,406 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'wouter';
+
+import React, { useState, useMemo } from 'react';
 import { Button } from '../ui/button';
 import { TrendingUp, Download, Maximize2 } from 'lucide-react';
+import { useOdinTokenTrades, type OdinTradeData } from '../../hooks/useOdinAPI';
+import { 
+  ComposedChart, 
+  Bar, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  ReferenceLine
+} from 'recharts';
 
 interface PriceChartProps {
-  tokenSymbol?: string; // Made optional since we can get it from API
+  tokenSymbol: string;
 }
 
-// Types for API responses
-interface TradeData {
-  id: string;
-  user: string;
-  token: string;
+interface CandlestickData {
   time: string;
-  buy: boolean;
-  amount_btc: number;
-  amount_token: number;
-  price: number;
-  bonded: boolean;
-  user_username: string;
-  user_image: string;
-  decimals: Record<string, any>;
-  divisibility: Record<string, any>;
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  buyVolume: number;
+  sellVolume: number;
+  trades: number;
+  buyTrades: number;
+  sellTrades: number;
 }
 
-interface HolderData {
-  user: string;
-  token: string;
-  balance: number;
-  user_username: string;
-  user_image: string;
-  tokenid: string;
-  fiat_value: number;
-}
+// Custom candlestick bar component
+const CandlestickBar = (props: any) => {
+  const { payload } = props;
+  if (!payload || !payload.payload) return null;
 
-interface ApiResponse<T> {
-  data: T[];
-  count: number;
-  page: number;
-  limit: number;
-}
+  const data = payload.payload;
+  const { open, high, low, close } = data;
 
-// API functions
-const ODIN_API_BASE = 'https://api.odin.fun/v1';
-
-async function fetchTokenTrades(tokenId: string): Promise<ApiResponse<TradeData>> {
-  const response = await fetch(`${ODIN_API_BASE}/token/${tokenId}/trades`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch trades: ${response.statusText}`);
+  if (typeof open !== 'number' || typeof high !== 'number' || 
+      typeof low !== 'number' || typeof close !== 'number') {
+    return null;
   }
-  return response.json();
-}
 
-async function fetchTokenHolders(tokenId: string): Promise<ApiResponse<HolderData>> {
-  const response = await fetch(`${ODIN_API_BASE}/token/${tokenId}/power_holders`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch holders: ${response.statusText}`);
-  }
-  return response.json();
-}
+  const isGreen = close >= open;
+  const color = isGreen ? '#10b981' : '#ef4444'; // green-500 : red-500
 
-// Utility functions
-function formatNumber(num: number): string {
-  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
-  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
-  if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
-  return num.toFixed(2);
-}
+  const x = payload.x || 0;
+  const y = payload.y || 0;
+  const width = payload.width || 20;
+  const height = payload.height || 100;
 
-function formatPrice(price: number): string {
-  if (price < 0.01) return `$${price.toFixed(6)}`;
-  if (price < 1) return `$${price.toFixed(4)}`;
-  return `$${price.toFixed(2)}`;
-}
+  // Calculate positions relative to the chart scale
+  const priceRange = high - low;
+  if (priceRange === 0) return null;
 
-function getTimeAgo(dateString: string): string {
-  const now = new Date();
-  const created = new Date(dateString);
-  const diffMs = now.getTime() - created.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const bodyTop = Math.max(open, close);
+  const bodyBottom = Math.min(open, close);
+  const bodyHeight = Math.abs(close - open);
 
-  if (diffDays > 0) return `${diffDays}d ago`;
-  if (diffHours > 0) return `${diffHours}h ago`;
-  if (diffMinutes > 0) return `${diffMinutes}m ago`;
-  return 'Just now';
-}
+  const wickX = x + width / 2;
+  const scale = height / priceRange;
 
-export function PriceChart({ tokenSymbol }: PriceChartProps) {
-  const [activeTab, setActiveTab] = useState('trades');
-  const [timeframe, setTimeframe] = useState('1d');
-  
-  // Get tokenId from URL params
-  const params = useParams();
-  const tokenId = params.id || params.tokenId; // Support both /token/:id and /token/:tokenId patterns
-
-  // Fetch trades data
-  const { 
-    data: tradesData, 
-    isLoading: tradesLoading, 
-    error: tradesError 
-  } = useQuery({
-    queryKey: ['odin', 'trades', tokenId],
-    queryFn: () => fetchTokenTrades(tokenId!),
-    refetchInterval: 10000, // 10 seconds for trades
-    enabled: !!tokenId
-  });
-
-  // Fetch holders data
-  const { 
-    data: holdersData, 
-    isLoading: holdersLoading, 
-    error: holdersError 
-  } = useQuery({
-    queryKey: ['odin', 'holders', tokenId],
-    queryFn: () => fetchTokenHolders(tokenId!),
-    refetchInterval: 30000, // 30 seconds for holders
-    enabled: !!tokenId
-  });
-
-  const trades = tradesData?.data || [];
-  const holders = holdersData?.data || [];
-
-  const timeframes = ['3m', '1m', '5d', '1d'];
-  const tabs = [
-    { key: 'trades', label: 'Trades' },
-    { key: 'holders', label: `Holders (${holders.length})` },
-    { key: 'top-traders', label: 'Top Traders' },
-    { key: 'dev-tokens', label: 'Dev Tokens' },
-    { key: 'my-position', label: 'My Position' }
-  ];
+  // Y positions (inverted because SVG y increases downward)
+  const highY = y;
+  const lowY = y + height;
+  const bodyTopY = y + (high - bodyTop) * scale;
+  const bodyBottomY = y + (high - bodyBottom) * scale;
 
   return (
-    <div className="bg-surface border border-border rounded-xl p-4 sm:p-6">
-      {/* --- Top Controls --- */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="default" data-testid="button-price-mc">
-            Price/MC
-          </Button>
-          <Button size="sm" variant="ghost" data-testid="button-trades-filter">
-            Trades Filter
-          </Button>
-          <Button size="sm" variant="ghost" data-testid="button-hide-buy-line">
-            Hide Buy Avg Price Line
-          </Button>
-          <Button size="sm" variant="ghost" data-testid="button-hide-sell-line">
-            Hide Sell Avg Price Line
-          </Button>
-        </div>
-        <Button size="sm" variant="outline" data-testid="button-reset-chart">
-          Reset
-        </Button>
-      </div>
+    <g>
+      {/* High-Low wick */}
+      <line
+        x1={wickX}
+        y1={highY}
+        x2={wickX}
+        y2={lowY}
+        stroke={color}
+        strokeWidth={1}
+        opacity={0.8}
+      />
+      {/* Open-Close body */}
+      <rect
+        x={x + width * 0.25}
+        y={bodyTopY}
+        width={width * 0.5}
+        height={Math.max(bodyBottomY - bodyTopY, 1)}
+        fill={isGreen ? color : 'transparent'}
+        stroke={color}
+        strokeWidth={isGreen ? 0 : 1}
+        opacity={0.9}
+      />
+    </g>
+  );
+};
 
-      {/* --- Chart Placeholder --- */}
-      <div className="h-80 sm:h-96 bg-background border border-border rounded-lg flex items-center justify-center relative">
-        <div className="text-center px-2">
-          <TrendingUp className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground mx-auto mb-2 sm:mb-4" />
-          <p className="text-muted-foreground text-sm sm:text-base">
-            Price Chart for {tokenSymbol || tokenId || 'Token'}
-          </p>
-          <p className="text-xs sm:text-sm text-muted-foreground">Chart component integration pending</p>
-        </div>
-
-        {/* --- Timeframe Controls --- */}
-        <div className="absolute bottom-3 left-3 right-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
-            {/* Timeframes */}
-            <div className="flex flex-wrap gap-2">
-              {timeframes.map((tf) => (
-                <button
-                  key={tf}
-                  onClick={() => setTimeframe(tf)}
-                  className={`px-2 py-1 rounded transition-colors ${
-                    timeframe === tf ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
-                  }`}
-                  data-testid={`button-timeframe-${tf}`}
-                >
-                  {tf}
-                </button>
-              ))}
+// Custom tooltip
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-surface border border-border rounded-lg p-3 shadow-lg">
+        <p className="text-sm font-medium text-foreground mb-2">
+          {new Date(data.time).toLocaleString()}
+        </p>
+        <div className="space-y-1 text-xs">
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">Open:</span>
+            <span className="font-medium">${data.open.toFixed(6)}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">High:</span>
+            <span className="font-medium">${data.high.toFixed(6)}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">Low:</span>
+            <span className="font-medium">${data.low.toFixed(6)}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">Close:</span>
+            <span className="font-medium">${data.close.toFixed(6)}</span>
+          </div>
+          <div className="border-t border-border pt-1 mt-2">
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Volume:</span>
+              <span className="font-medium">{data.volume.toFixed(0)}</span>
             </div>
-
-            {/* Right-side indicators */}
-            <div className="flex items-center space-x-2 justify-end">
-              <span data-testid="text-current-time" className="whitespace-nowrap">
-                14:38:09 (UTC+3)
-              </span>
-              <span>%</span>
-              <span>log</span>
-              <span className="text-warning">auto</span>
+            <div className="flex justify-between gap-4">
+              <span className="text-success">Buy Vol:</span>
+              <span className="font-medium text-success">{data.buyVolume.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-destructive">Sell Vol:</span>
+              <span className="font-medium text-destructive">{data.sellVolume.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Trades:</span>
+              <span className="font-medium">{data.trades}</span>
             </div>
           </div>
         </div>
       </div>
+    );
+  }
+  return null;
+};
 
-      {/* --- Tabs + Actions --- */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
-        {/* Tabs */}
-        <div className="flex overflow-x-auto no-scrollbar gap-2">
-          {tabs.map((tab) => (
+export function PriceChart({ tokenSymbol }: PriceChartProps) {
+  const [activeTab, setActiveTab] = useState('trades');
+  const [timeframe, setTimeframe] = useState('1d');
+  const [chartType, setChartType] = useState<'candlestick' | 'line' | 'volume'>('candlestick');
+
+  // Get token ID from symbol (in a real app, you'd have this mapping)
+  // For now, we'll use a placeholder or extract from URL/context
+  const tokenId = tokenSymbol || '2kcf'; // fallback to sample token
+
+  const { trades, isLoading, error } = useOdinTokenTrades(tokenId, 1, 200);
+
+  const timeframes = ['5m', '15m', '1h', '4h', '1d'];
+  const tabs = ['Candlestick', 'Line', 'Volume', 'Trades', 'Depth'];
+
+  // Process trades data into candlestick format
+  const candlestickData = useMemo(() => {
+    if (!trades || trades.length === 0) return [];
+
+    // Sort trades by time first
+    const sortedTrades = [...trades].sort((a, b) => 
+      new Date(a.time).getTime() - new Date(b.time).getTime()
+    );
+
+    // Group trades by time intervals
+    const intervals: { [key: string]: OdinTradeData[] } = {};
+    const intervalMs = timeframe === '5m' ? 5 * 60 * 1000 :
+                     timeframe === '15m' ? 15 * 60 * 1000 :
+                     timeframe === '1h' ? 60 * 60 * 1000 :
+                     timeframe === '4h' ? 4 * 60 * 60 * 1000 :
+                     24 * 60 * 60 * 1000; // 1d
+
+    sortedTrades.forEach(trade => {
+      // Skip trades with invalid price data
+      if (!trade.price || trade.price <= 0) return;
+
+      const tradeTime = new Date(trade.time).getTime();
+      const intervalStart = Math.floor(tradeTime / intervalMs) * intervalMs;
+      const intervalKey = intervalStart.toString();
+
+      if (!intervals[intervalKey]) {
+        intervals[intervalKey] = [];
+      }
+      intervals[intervalKey].push(trade);
+    });
+
+    // Convert to candlestick data
+    const candlesticks: CandlestickData[] = [];
+
+    Object.entries(intervals)
+      .sort(([a], [b]) => parseInt(a) - parseInt(b))
+      .forEach(([timestamp, intervalTrades]) => {
+        if (intervalTrades.length === 0) return;
+
+        // Sort trades within interval by time
+        intervalTrades.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+        const prices = intervalTrades.map(t => t.price).filter(p => p > 0);
+        if (prices.length === 0) return;
+
+        const open = intervalTrades[0].price;
+        const close = intervalTrades[intervalTrades.length - 1].price;
+        const high = Math.max(...prices);
+        const low = Math.min(...prices);
+
+        // Ensure we have valid OHLC data
+        if (!open || !close || !high || !low || high < low) return;
+
+        const buyTrades = intervalTrades.filter(t => t.buy);
+        const sellTrades = intervalTrades.filter(t => !t.buy);
+
+        const volume = intervalTrades.reduce((sum, t) => sum + (t.amount_token || 0), 0);
+        const buyVolume = buyTrades.reduce((sum, t) => sum + (t.amount_token || 0), 0);
+        const sellVolume = sellTrades.reduce((sum, t) => sum + (t.amount_token || 0), 0);
+
+        candlesticks.push({
+          time: new Date(parseInt(timestamp)).toISOString(),
+          timestamp: parseInt(timestamp),
+          open: Number(open),
+          high: Number(high),
+          low: Number(low),
+          close: Number(close),
+          volume: Number(volume),
+          buyVolume: Number(buyVolume),
+          sellVolume: Number(sellVolume),
+          trades: intervalTrades.length,
+          buyTrades: buyTrades.length,
+          sellTrades: sellTrades.length
+        });
+      });
+
+    return candlesticks;
+  }, [trades, timeframe]);
+
+  if (isLoading) {
+    return (
+      <div className="bg-surface border border-border rounded-xl p-6">
+        <div className="h-96 flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mb-4"></div>
+            <p className="text-muted-foreground">Loading chart data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-surface border border-border rounded-xl p-6">
+        <div className="h-96 flex items-center justify-center">
+          <div className="text-center">
+            <TrendingUp className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">Failed to load chart data</p>
+            <p className="text-sm text-muted-foreground mt-2">Please try again later</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-surface border border-border rounded-xl p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-4">
+          <Button 
+            size="sm" 
+            variant={chartType === 'candlestick' ? 'default' : 'ghost'}
+            onClick={() => setChartType('candlestick')}
+            data-testid="button-candlestick"
+          >
+            Candlestick
+          </Button>
+          <Button 
+            size="sm" 
+            variant={chartType === 'line' ? 'default' : 'ghost'}
+            onClick={() => setChartType('line')}
+            data-testid="button-line"
+          >
+            Line
+          </Button>
+          <Button 
+            size="sm" 
+            variant={chartType === 'volume' ? 'default' : 'ghost'}
+            onClick={() => setChartType('volume')}
+            data-testid="button-volume"
+          >
+            Volume
+          </Button>
+        </div>
+        <div className="flex items-center space-x-2">
+          {timeframes.map((tf) => (
             <Button
-              key={tab.key}
+              key={tf}
               size="sm"
-              variant={activeTab === tab.key ? 'default' : 'ghost'}
-              onClick={() => setActiveTab(tab.key)}
-              data-testid={`button-tab-${tab.key}`}
-              className="whitespace-nowrap"
+              variant={timeframe === tf ? 'default' : 'ghost'}
+              onClick={() => setTimeframe(tf)}
+              data-testid={`button-timeframe-${tf}`}
             >
-              {tab.label}
+              {tf}
             </Button>
           ))}
         </div>
+      </div>
 
-        {/* Download / Expand */}
+      {/* Chart Container */}
+      <div className="h-96 w-full">
+        {candlestickData.length === 0 ? (
+          <div className="h-full flex items-center justify-center">
+            <div className="text-center">
+              <TrendingUp className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No trading data available</p>
+              <p className="text-sm text-muted-foreground mt-2">Chart will appear when trades are made</p>
+            </div>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart 
+              data={candlestickData} 
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis 
+                dataKey="time"
+                tickFormatter={(time) => {
+                  const date = new Date(time);
+                  return date.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: timeframe.includes('m') || timeframe.includes('h') ? '2-digit' : undefined,
+                    minute: timeframe.includes('m') ? '2-digit' : undefined
+                  });
+                }}
+                stroke="hsl(var(--muted-foreground))"
+              />
+              <YAxis 
+                domain={['dataMin - 0.000001', 'dataMax + 0.000001']}
+                tickFormatter={(value) => `$${Number(value).toFixed(6)}`}
+                stroke="hsl(var(--muted-foreground))"
+              />
+              <Tooltip content={<CustomTooltip />} />
+
+              {chartType === 'candlestick' && (
+                <Bar
+                  dataKey="high"
+                  fill="transparent"
+                  shape={(props) => <CandlestickBar {...props} />}
+                  isAnimationActive={false}
+                />
+              )}
+
+              {chartType === 'line' && (
+                <Line
+                  type="monotone"
+                  dataKey="close"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4, fill: "hsl(var(--primary))" }}
+                />
+              )}
+
+              {chartType === 'volume' && (
+                <>
+                  <Bar
+                    dataKey="buyVolume"
+                    fill="hsl(var(--success))"
+                    opacity={0.7}
+                  />
+                  <Bar
+                    dataKey="sellVolume"
+                    fill="hsl(var(--destructive))"
+                    opacity={0.7}
+                  />
+                </>
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* Chart Controls */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="flex items-center space-x-2">
+          <div className="text-sm text-muted-foreground">
+            {candlestickData.length > 0 && (
+              <span>
+                {candlestickData.length} intervals • {trades.length} total trades
+              </span>
+            )}
+          </div>
+        </div>
         <div className="flex items-center space-x-2">
           <Button size="sm" variant="ghost" data-testid="button-download-chart">
             <Download className="w-4 h-4" />
@@ -227,242 +411,32 @@ export function PriceChart({ tokenSymbol }: PriceChartProps) {
         </div>
       </div>
 
-      {/* --- Trades Table --- */}
-      {activeTab === 'trades' && (
-        <div className="mt-6 bg-background border border-border rounded-lg overflow-hidden">
-          {tradesLoading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-accent mx-auto mb-2"></div>
-              <p className="text-muted-foreground text-sm">Loading trades...</p>
+      {/* Trading Summary */}
+      {candlestickData.length > 0 && (
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-background border border-border rounded-lg">
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground">Total Volume</div>
+            <div className="text-sm font-medium">
+              {candlestickData.reduce((sum, d) => sum + d.volume, 0).toFixed(0)}
             </div>
-          ) : tradesError ? (
-            <div className="p-8 text-center">
-              <p className="text-destructive text-sm">Failed to load trades data</p>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground">Buy Volume</div>
+            <div className="text-sm font-medium text-success">
+              {candlestickData.reduce((sum, d) => sum + d.buyVolume, 0).toFixed(0)}
             </div>
-          ) : trades.length === 0 ? (
-            <div className="text-center py-6 sm:py-8 px-2">
-              <p className="text-muted-foreground text-sm sm:text-base">No recent trades to display</p>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                Trade data will appear here once transactions occur
-              </p>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground">Sell Volume</div>
+            <div className="text-sm font-medium text-destructive">
+              {candlestickData.reduce((sum, d) => sum + d.sellVolume, 0).toFixed(0)}
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Age
-                    </th>
-                    <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Price
-                    </th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Total BTC
-                    </th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Trader
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trades.map((trade) => (
-                    <tr
-                      key={trade.id}
-                      className="border-b border-border hover:bg-muted/50 transition-colors"
-                    >
-                      {/* Age */}
-                      <td className="py-3 px-4">
-                        <span className="text-sm text-muted-foreground">
-                          {getTimeAgo(trade.time)}
-                        </span>
-                      </td>
-
-                      {/* Type */}
-                      <td className="py-3 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            trade.buy
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {trade.buy ? 'BUY' : 'SELL'}
-                        </span>
-                      </td>
-
-                      {/* Price */}
-                      <td className="py-3 px-4 text-right">
-                        <span className="text-sm font-medium">
-                          {formatPrice(trade.price)}
-                        </span>
-                      </td>
-
-                      {/* Amount */}
-                      <td className="py-3 px-4 text-right">
-                        <span className="text-sm">
-                          {formatNumber(trade.amount_token)}
-                        </span>
-                      </td>
-
-                      {/* Total BTC */}
-                      <td className="py-3 px-4 text-right">
-                        <span className="text-sm font-medium">
-                          ₿{trade.amount_btc.toFixed(8)}
-                        </span>
-                      </td>
-
-                      {/* Trader */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center space-x-2">
-                          <img
-                            src={trade.user_image || 'https://placehold.co/24x24/f3f4f6/9ca3af?text=U'}
-                            alt={trade.user_username}
-                            className="w-6 h-6 rounded-full bg-gray-100"
-                            onError={(e) => {
-                              e.currentTarget.src = 'https://placehold.co/24x24/f3f4f6/9ca3af?text=U';
-                            }}
-                          />
-                          <span className="text-sm text-foreground">
-                            {trade.user_username || 'Anonymous'}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground">Total Trades</div>
+            <div className="text-sm font-medium">
+              {candlestickData.reduce((sum, d) => sum + d.trades, 0)}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* --- Holders Table --- */}
-      {activeTab === 'holders' && (
-        <div className="mt-6 bg-background border border-border rounded-lg overflow-hidden">
-          {holdersLoading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-accent mx-auto mb-2"></div>
-              <p className="text-muted-foreground text-sm">Loading holders...</p>
-            </div>
-          ) : holdersError ? (
-            <div className="p-8 text-center">
-              <p className="text-destructive text-sm">Failed to load holders data</p>
-            </div>
-          ) : holders.length === 0 ? (
-            <div className="text-center py-6 sm:py-8 px-2">
-              <p className="text-muted-foreground text-sm sm:text-base">No holders to display</p>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                Holder data will appear here once tokens are distributed
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Balance
-                    </th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Value
-                    </th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Bought
-                    </th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Sold
-                    </th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      P&L
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {holders.map((holder) => (
-                    <tr
-                      key={`${holder.user}-${holder.token}`}
-                      className="border-b border-border hover:bg-muted/50 transition-colors"
-                    >
-                      {/* User */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center space-x-2">
-                          <img
-                            src={holder.user_image || 'https://placehold.co/24x24/f3f4f6/9ca3af?text=U'}
-                            alt={holder.user_username}
-                            className="w-6 h-6 rounded-full bg-gray-100"
-                            onError={(e) => {
-                              e.currentTarget.src = 'https://placehold.co/24x24/f3f4f6/9ca3af?text=U';
-                            }}
-                          />
-                          <span className="text-sm font-medium text-foreground">
-                            {holder.user_username || 'Anonymous'}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Balance */}
-                      <td className="py-3 px-4 text-right">
-                        <span className="text-sm font-medium">
-                          {formatNumber(holder.balance)}
-                        </span>
-                      </td>
-
-                      {/* Value */}
-                      <td className="py-3 px-4 text-right">
-                        <span className="text-sm font-medium">
-                          {formatPrice(holder.fiat_value)}
-                        </span>
-                      </td>
-
-                      {/* Bought (placeholder) */}
-                      <td className="py-3 px-4 text-right">
-                        <span className="text-sm text-muted-foreground">
-                          -
-                        </span>
-                      </td>
-
-                      {/* Sold (placeholder) */}
-                      <td className="py-3 px-4 text-right">
-                        <span className="text-sm text-muted-foreground">
-                          -
-                        </span>
-                      </td>
-
-                      {/* P&L (placeholder) */}
-                      <td className="py-3 px-4 text-right">
-                        <span className="text-sm text-muted-foreground">
-                          -
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* --- Other Tabs Placeholder --- */}
-      {!['trades', 'holders'].includes(activeTab) && (
-        <div className="mt-6 bg-background border border-border rounded-lg p-4">
-          <div className="text-center py-6 sm:py-8 px-2">
-            <p className="text-muted-foreground text-sm sm:text-base">
-              {tabs.find(tab => tab.key === activeTab)?.label} - Coming Soon
-            </p>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-              This feature will be implemented later
-            </p>
           </div>
         </div>
       )}

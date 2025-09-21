@@ -1,22 +1,4 @@
-// src/services/ic-service.ts
-import { Actor, HttpAgent } from '@dfinity/agent';
-import { Principal } from '@dfinity/principal';
-// Try different import patterns - uncomment the one that works for your setup
-
-// Option 1: Direct import from .did.js file
-// import { idlFactory } from '../../../declarations/TFactory/TFactory.did.js';
-
-// Option 2: Import from index file
-// import { idlFactory } from '../../../declarations/TFactory/index.js';
-
-// Option 3: Import from the main declaration (most common)
-import { idlFactory, canisterId } from '../../../declarations/TFactory';
-
-// Option 4: If you have a custom setup
-// import { TFactory } from '../../../declarations/TFactory';
-// const idlFactory = TFactory.idlFactory;
-
-import type { _SERVICE } from '../../../declarations/TFactory/TFactory.did';
+// src/services/tfactory-service.ts
 import type {
   CreateBinaryMarketArgs,
   CreateMultipleChoiceMarketArgs,
@@ -27,94 +9,12 @@ import type {
   MarketInfo,
   MarketId
 } from '../../../declarations/TFactory/TFactory.did';
+import { TFactoryActorService } from '../hooks/useTFactoryActor';
+import { Principal } from '@dfinity/principal';
 
-// Configure your canister ID here
-const CANISTER_ID = process.env.VITE_PREDICTION_MARKET_FACTORY_CANISTER_ID || canisterId || 'uxrrr-q7777-77774-qaaaq-cai';
-
-// Configure network
-const HOST = process.env.NODE_ENV === 'production' 
-  ? 'https://ic0.app' 
-  : 'http://localhost:4943';
-
-// Service state interface
-interface ServiceState {
-  isInitialized: boolean;
-  isInitializing: boolean;
-  error: string | null;
-}
-
-class ICService {
-  private actor: _SERVICE | null = null;
-  private agent: HttpAgent | null = null;
-  private state: ServiceState = {
-    isInitialized: false,
-    isInitializing: false,
-    error: null
-  };
-
-  async initialize(): Promise<void> {
-    if (this.state.isInitialized) {
-      console.log('IC Service already initialized');
-      return;
-    }
-
-    if (this.state.isInitializing) {
-      console.log('IC Service initialization in progress');
-      return;
-    }
-
-    this.state.isInitializing = true;
-    this.state.error = null;
-
-    try {
-      console.log('Initializing IC Service...');
-      console.log('Canister ID:', CANISTER_ID);
-      console.log('Host:', HOST);
-
-      this.agent = new HttpAgent({ 
-        host: HOST,
-        // Only fetch root key in development
-        ...(process.env.NODE_ENV === 'development' && { fetchRootKey: true })
-      });
-
-      // Fetch root key for local development
-      if (process.env.NODE_ENV === 'development') {
-        await this.agent.fetchRootKey();
-        console.log('Root key fetched for local development');
-      }
-
-      this.actor = Actor.createActor<_SERVICE>(idlFactory, {
-        agent: this.agent,
-        canisterId: CANISTER_ID,
-      });
-
-      // Test connection by calling a simple method
-      await this.actor.hasWasm();
-
-      this.state.isInitialized = true;
-      this.state.isInitializing = false;
-      console.log('IC Service initialized successfully');
-    } catch (error) {
-      this.state.isInitializing = false;
-      this.state.error = error instanceof Error ? error.message : 'Unknown initialization error';
-      console.error('Failed to initialize IC Service:', error);
-      throw error;
-    }
-  }
-
-  getState(): ServiceState {
-    return { ...this.state };
-  }
-
-  private ensureInitialized(): _SERVICE {
-    if (!this.state.isInitialized || !this.actor) {
-      throw new Error('IC Service not initialized. Call initialize() first.');
-    }
-    return this.actor;
-  }
-
+export class TFactoryService {
   // Map UI category to canister Category
-  private mapCategory(category: string): Category {
+  private static mapCategory(category: string): Category {
     const categoryMap: Record<string, Category> = {
       'sports': { 'Sports': null },
       'politics': { 'Political': null },
@@ -135,7 +35,7 @@ class ICService {
   }
 
   // Map UI tags to canister Tags
-  private mapTags(tags: string[]): Tag[] {
+  private static mapTags(tags: string[]): Tag[] {
     const tagMap: Record<string, Tag> = {
       'sports': { 'Sports': null },
       'political': { 'Political': null },
@@ -160,7 +60,7 @@ class ICService {
   }
 
   // Convert image URL to ImageData
-  private mapImageData(imageUrl?: string): ImageData {
+  private static mapImageData(imageUrl?: string): ImageData {
     if (!imageUrl) {
       return { 'ImageUrl': '' };
     }
@@ -182,7 +82,7 @@ class ICService {
   }
 
   // Convert date string to nanosecond timestamp
-  private dateToNanoseconds(dateString: string): bigint {
+  private static dateToNanoseconds(dateString: string): bigint {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
       throw new Error(`Invalid date: ${dateString}`);
@@ -191,7 +91,7 @@ class ICService {
   }
 
   // Validate market creation data
-  private validateMarketData(data: {
+  private static validateMarketData(data: {
     title: string;
     description: string;
     category: string;
@@ -226,7 +126,19 @@ class ICService {
     }
   }
 
-  async createBinaryMarket(data: {
+  // Ensure actor is ready before operations
+  private static async ensureActor() {
+    await TFactoryActorService.ensureReady();
+    
+    const actor = TFactoryActorService.getActor();
+    if (!actor) {
+      throw new Error('TFactory actor not available');
+    }
+    
+    return actor;
+  }
+
+  static async createBinaryMarket(data: {
     title: string;
     description: string;
     category: string;
@@ -237,7 +149,7 @@ class ICService {
     tags: string[];
     imageUrl?: string;
   }): Promise<MarketId> {
-    const actor = this.ensureInitialized();
+    const actor = await this.ensureActor();
     this.validateMarketData(data);
 
     console.log('Creating binary market:', data.title);
@@ -254,8 +166,6 @@ class ICService {
       image: this.mapImageData(data.imageUrl),
     };
 
-    console.log('Binary market args:', args);
-
     try {
       const result = await actor.createBinaryMarket(args);
       
@@ -271,7 +181,7 @@ class ICService {
     }
   }
 
-  async createMultipleChoiceMarket(data: {
+  static async createMultipleChoiceMarket(data: {
     title: string;
     description: string;
     category: string;
@@ -283,7 +193,7 @@ class ICService {
     tags: string[];
     imageUrl?: string;
   }): Promise<MarketId> {
-    const actor = this.ensureInitialized();
+    const actor = await this.ensureActor();
     this.validateMarketData(data);
 
     if (!data.outcomes || data.outcomes.length < 2) {
@@ -305,8 +215,6 @@ class ICService {
       image: this.mapImageData(data.imageUrl),
     };
 
-    console.log('Multiple choice market args:', args);
-
     try {
       const result = await actor.createMultipleChoiceMarket(args);
       
@@ -322,7 +230,7 @@ class ICService {
     }
   }
 
-  async createCompoundMarket(data: {
+  static async createCompoundMarket(data: {
     title: string;
     description: string;
     category: string;
@@ -334,7 +242,7 @@ class ICService {
     tags: string[];
     imageUrl?: string;
   }): Promise<MarketId> {
-    const actor = this.ensureInitialized();
+    const actor = await this.ensureActor();
     this.validateMarketData(data);
 
     if (!data.subjects || data.subjects.length < 2) {
@@ -356,8 +264,6 @@ class ICService {
       image: this.mapImageData(data.imageUrl),
     };
 
-    console.log('Compound market args:', args);
-
     try {
       const result = await actor.createCompoundMarket(args);
       
@@ -374,8 +280,8 @@ class ICService {
   }
 
   // Market query methods
-  async getAllMarkets(): Promise<MarketInfo[]> {
-    const actor = this.ensureInitialized();
+  static async getAllMarkets(): Promise<MarketInfo[]> {
+    const actor = await this.ensureActor();
     try {
       const markets = await actor.getAllMarkets();
       console.log(`Retrieved ${markets.length} markets`);
@@ -386,8 +292,8 @@ class ICService {
     }
   }
 
-  async getActiveMarkets(): Promise<MarketInfo[]> {
-    const actor = this.ensureInitialized();
+  static async getActiveMarkets(): Promise<MarketInfo[]> {
+    const actor = await this.ensureActor();
     try {
       const markets = await actor.getActiveMarkets();
       console.log(`Retrieved ${markets.length} active markets`);
@@ -398,8 +304,8 @@ class ICService {
     }
   }
 
-  async getMarketInfo(marketId: MarketId): Promise<MarketInfo | null> {
-    const actor = this.ensureInitialized();
+  static async getMarketInfo(marketId: MarketId): Promise<MarketInfo | null> {
+    const actor = await this.ensureActor();
     try {
       const result = await actor.getMarketInfo(marketId);
       return result.length > 0 ? result[0] : null;
@@ -409,8 +315,8 @@ class ICService {
     }
   }
 
-  async getMarketsByCreator(creator: Principal): Promise<MarketInfo[]> {
-    const actor = this.ensureInitialized();
+  static async getMarketsByCreator(creator: Principal): Promise<MarketInfo[]> {
+    const actor = await this.ensureActor();
     try {
       return await actor.getMarketsByCreator(creator);
     } catch (error) {
@@ -419,8 +325,8 @@ class ICService {
     }
   }
 
-  async getMarketsByCategory(category: string): Promise<MarketInfo[]> {
-    const actor = this.ensureInitialized();
+  static async getMarketsByCategory(category: string): Promise<MarketInfo[]> {
+    const actor = await this.ensureActor();
     try {
       return await actor.getMarketsByCategory(this.mapCategory(category));
     } catch (error) {
@@ -429,8 +335,8 @@ class ICService {
     }
   }
 
-  async getMarketCount(): Promise<bigint> {
-    const actor = this.ensureInitialized();
+  static async getMarketCount(): Promise<bigint> {
+    const actor = await this.ensureActor();
     try {
       return await actor.getMarketCount();
     } catch (error) {
@@ -439,94 +345,8 @@ class ICService {
     }
   }
 
-  async getMarketCountByCategory(): Promise<Array<[Category, bigint]>> {
-    const actor = this.ensureInitialized();
-    try {
-      return await actor.getMarketCountByCategory();
-    } catch (error) {
-      console.error('Error getting market count by category:', error);
-      throw error;
-    }
-  }
-
-  async getMarketCountByType(): Promise<{ binary: bigint, compound: bigint, multipleChoice: bigint }> {
-    const actor = this.ensureInitialized();
-    try {
-      return await actor.getMarketCountByType();
-    } catch (error) {
-      console.error('Error getting market count by type:', error);
-      throw error;
-    }
-  }
-
-  async getExpiredMarkets(): Promise<MarketInfo[]> {
-    const actor = this.ensureInitialized();
-    try {
-      return await actor.getExpiredMarkets();
-    } catch (error) {
-      console.error('Error getting expired markets:', error);
-      throw error;
-    }
-  }
-
-  async getMarketsByTag(tag: string): Promise<MarketInfo[]> {
-    const actor = this.ensureInitialized();
-    try {
-      const tagMap: Record<string, Tag> = {
-        'sports': { 'Sports': null },
-        'political': { 'Political': null },
-        'politics': { 'Political': null },
-        'crypto': { 'Crypto': null },
-        'tech': { 'Technology': null },
-        'technology': { 'Technology': null },
-        'entertainment': { 'Entertainment': null },
-        'ai': { 'AI': null },
-        'runes': { 'Runes': null },
-        'web2': { 'web2': null },
-      };
-      
-      const mappedTag = tagMap[tag.toLowerCase()] || { 'Technology': null };
-      return await actor.getMarketsByTag(mappedTag);
-    } catch (error) {
-      console.error('Error getting markets by tag:', error);
-      throw error;
-    }
-  }
-
-  async getAllTokenMetadata(): Promise<Array<[Principal, any]>> {
-    const actor = this.ensureInitialized();
-    try {
-      return await actor.getAllTokenMetadata();
-    } catch (error) {
-      console.error('Error getting all token metadata:', error);
-      throw error;
-    }
-  }
-
-  async getTokenMetadata(tokenId: Principal): Promise<any | null> {
-    const actor = this.ensureInitialized();
-    try {
-      const result = await actor.getTokenMetadata(tokenId);
-      return result ?? null;
-    } catch (error) {
-      console.error('Error getting token metadata:', error);
-      throw error;
-    }
-  }
-
-  // Factory info methods
-  async getFactoryPrincipal(): Promise<Principal> {
-    const actor = this.ensureInitialized();
-    try {
-      return await actor.getFactoryPrincipal();
-    } catch (error) {
-      console.error('Error getting factory principal:', error);
-      throw error;
-    }
-  }
-
-  async hasWasm(): Promise<boolean> {
-    const actor = this.ensureInitialized();
+  static async hasWasm(): Promise<boolean> {
+    const actor = await this.ensureActor();
     try {
       return await actor.hasWasm();
     } catch (error) {
@@ -535,76 +355,5 @@ class ICService {
     }
   }
 
-  async uploadWasm(wasmBytes: Uint8Array): Promise<void> {
-    const actor = this.ensureInitialized();
-    try {
-      const result = await actor.uploadWasm(Array.from(wasmBytes));
-      
-      if ('err' in result) {
-        throw new Error(`Failed to upload WASM: ${result.err}`);
-      }
-      
-      console.log('WASM uploaded successfully');
-    } catch (error) {
-      console.error('Error uploading WASM:', error);
-      throw error;
-    }
-  }
-
-  // Utility methods
-  async canCreateMarket(requiredCycles: bigint = BigInt(0)): Promise<{
-    currentBalance: bigint;
-    requiredCycles: bigint;
-    canCreate: boolean;
-  }> {
-    const actor = this.ensureInitialized();
-    try {
-      return await actor.canCreateMarket(requiredCycles);
-    } catch (error) {
-      console.error('Error checking if can create market:', error);
-      throw error;
-    }
-  }
-
-  async getCycleBalance(): Promise<bigint> {
-    const actor = this.ensureInitialized();
-    try {
-      return await actor.getCycleBalance();
-    } catch (error) {
-      console.error('Error getting cycle balance:', error);
-      throw error;
-    }
-  }
-
-  async getCreatedCanisters(): Promise<Principal[]> {
-    const actor = this.ensureInitialized();
-    try {
-      return await actor.getCreatedCanisters();
-    } catch (error) {
-      console.error('Error getting created canisters:', error);
-      throw error;
-    }
-  }
-
-  async getCreatedTokens(): Promise<Principal[]> {
-    const actor = this.ensureInitialized();
-    try {
-      return await actor.getCreatedTokens();
-    } catch (error) {
-      console.error('Error getting created tokens:', error);
-      throw error;
-    }
-  }
+  // Add more methods as needed...
 }
-
-// Create singleton instance
-export const icService = new ICService();
-
-// React hook for using IC service
-export const useICService = () => {
-  return {
-    service: icService,
-    initialize: () => icService.initialize(),
-    getState: () => icService.getState()
-  };
-};

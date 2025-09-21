@@ -1,24 +1,84 @@
-import { useOdinAPI } from '../hooks/useOdinAPI';
-import { useAstroApeAPI } from '../hooks/useAstroApeAPI';
-import { useTycheAPI } from '../hooks/useTycheAPI';
+import React, { useState } from 'react';
+import { useOdinAPI, type OdinTokenData, getOdinImageUrl } from '../hooks/useOdinAPI';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TokenCard } from '../components/trading/TokenCard';
 import { Button } from '../components/ui/button';
-import { SettingsModal } from '../components/modals/SettingsModal';
-import { Clock, Star, Search, Filter, MoreVertical, Heart, DollarSign, Settings } from 'lucide-react';
-import { useState } from 'react';
+import { Clock, Star, Search, Filter, MoreVertical, Heart, DollarSign } from 'lucide-react';
+
+// Helper function to categorize Odin tokens based on their properties
+function categorizeOdinToken(token: OdinTokenData): 'newly_created' | 'about_to_graduate' | 'graduated' {
+  // Use bonded status and progress to categorize
+  if (token.bonded) {
+    return 'graduated';
+  } else if (token.progress && token.progress > 0.7) {
+    return 'about_to_graduate';
+  } else {
+    return 'newly_created';
+  }
+}
+
+// Convert OdinTokenData to the format expected by TokenCard
+function convertOdinTokenToTokenCard(token: OdinTokenData) {
+  return {
+    id: token.id,
+    name: token.name,
+    symbol: token.ticker,
+    contractAddress: token.id, // Use token ID as contract address for Odin
+    price: `$${token.price.toFixed(8)}`,
+    marketCap: formatNumber(token.marketcap),
+    volume24h: formatNumber(token.volume_24),
+    change5m: formatPriceChange(token.price, token.price_5m),
+    change1h: formatPriceChange(token.price, token.price_1h),
+    change6h: formatPriceChange(token.price, token.price_6h),
+    change24h: formatPriceChange(token.price, token.price_1d),
+    holders: token.holder_count,
+    liquidity: formatNumber(token.btc_liquidity),
+    age: getTimeAgo(token.created_time),
+    isBundled: token.bonded,
+    isVerified: token.verified,
+    category: categorizeOdinToken(token),
+    avatar: getOdinImageUrl('token', token.id)
+  };
+}
+
+// Utility functions
+function formatNumber(num: number): string {
+  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
+  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
+  if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
+  return num.toFixed(2);
+}
+
+function formatPriceChange(current: number, previous: number): string {
+  if (previous === 0) return "+0.00%";
+  const percentage = ((current - previous) / previous) * 100;
+  const sign = percentage >= 0 ? "+" : "";
+  return `${sign}${percentage.toFixed(2)}%`;
+}
+
+function getTimeAgo(dateString: string): string {
+  const now = new Date();
+  const created = new Date(dateString);
+  const diffMs = now.getTime() - created.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+  if (diffDays > 0) return `${diffDays}d ago`;
+  if (diffHours > 0) return `${diffHours}h ago`;
+  if (diffMinutes > 0) return `${diffMinutes}m ago`;
+  return "Just now";
+}
 
 export default function TrenchesPage() {
   const { t } = useLanguage();
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const { tokens: odinTokens, isLoading: odinLoading } = useOdinAPI();
-  const { tokens: astroapeTokens, isLoading: astroapeLoading } = useAstroApeAPI();
-  const { tokens: tycheTokens, isLoading: tycheLoading } = useTycheAPI();
+  const { tokens: odinTokens, isLoading: odinLoading } = useOdinAPI({ bonded: false }); // Focus on unbonded tokens for trenches
+  
+  const isLoading = odinLoading;
 
-  const [activePreset, setActivePreset] = useState('N1'); // N1 selected by default
-
-  const isLoading = odinLoading || astroapeLoading || tycheLoading;
-  const allTokens = [...odinTokens, ...astroapeTokens, ...tycheTokens];
+  // Convert Odin tokens to compatible format and categorize
+  const convertedOdinTokens = odinTokens.map(convertOdinTokenToTokenCard);
+  const allTokens = convertedOdinTokens;
 
   // Categorize tokens based on their lifecycle
   const newlyCreated = allTokens.filter(token => token.category === 'newly_created');
@@ -124,40 +184,9 @@ export default function TrenchesPage() {
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2">
             <span className="text-sm text-muted-foreground">Presets:</span>
-            <Button
-              variant={activePreset === 'N1' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActivePreset('N1')}
-              data-testid="button-preset-n1"
-            >
-              N1
-            </Button>
-            <Button
-              variant={activePreset === 'N2' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActivePreset('N2')}
-              data-testid="button-preset-n2"
-            >
-              N2
-            </Button>
-            <Button
-              variant={activePreset === 'N3' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActivePreset('N3')}
-              data-testid="button-preset-n3"
-            >
-              N3
-            </Button>
-            {/* New Settings button */}
-            <Button
-                        onClick={() => setShowSettingsModal(true)}
-                        variant="outline"
-                        size="icon"
-                        className="self-start sm:self-auto"
-                        data-testid="button-settings"
-                      >
-                        <Settings className="w-4 h-4" />
-                      </Button>
+            <Button variant="outline" size="sm" data-testid="button-preset-n1">N1</Button>
+            <Button variant="outline" size="sm" data-testid="button-preset-n2">N2</Button>
+            <Button variant="outline" size="sm" data-testid="button-preset-n3">N3</Button>
             <Button variant="ghost" size="icon" className="w-8 h-8" data-testid="button-star-preset">
               <Star className="w-4 h-4" />
             </Button>
@@ -182,15 +211,23 @@ export default function TrenchesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <TokenColumn tokens={newlyCreated} title={t('columns.newlyCreated')} price="0.001" />
-          <TokenColumn tokens={aboutToGraduate} title={t('columns.aboutToGraduate')} price="0.0001" />
-          <TokenColumn tokens={graduated} title={t('columns.graduated')} price="0.0001" />
+          <TokenColumn
+            tokens={newlyCreated}
+            title={t('columns.newlyCreated')}
+            price="0.001"
+          />
+          <TokenColumn
+            tokens={aboutToGraduate}
+            title={t('columns.aboutToGraduate')}
+            price="0.0001"
+          />
+          <TokenColumn
+            tokens={graduated}
+            title={t('columns.graduated')}
+            price="0.0001"
+          />
         </div>
       )}
-      <SettingsModal
-              isOpen={showSettingsModal}
-              onClose={() => setShowSettingsModal(false)}
-            />
     </main>
   );
 }
