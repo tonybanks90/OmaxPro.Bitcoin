@@ -5,8 +5,8 @@ Welcome to **OMAX**, the first advanced **Bitcoin-native DeFi trading platform**
 OMAX unlocks the full potential of Bitcoin DeFi, including memecoins, Runes, experimental tokens, and sophisticated prediction markets powered by ckBTC.
 
 **Watch the demo:**  
-[![OMAX Demo](https://img.youtube.com/vi/NsO1JcFgMpg/0.jpg)](https://youtu.be/NsO1JcFgMpg?si=iObXyJ-LiKPQ2aqu)
-
+[![OMAX Demo](https://img.youtube.com/vi/NsO1JcFgMpg/0.jpg)]([https://youtu.be/NsO1JcFgMpg?si=iObXyJ-LiKPQ2aqu](https://youtu.be/SFPUd7c0TS8?si=9agRLc6OFP0MSeAO))
+![Flow Charts & Sequence diagrams/ Full architecture](https://drive.google.com/file/d/1djfJg8rnbs9Yu2cchP-cj1OBdU_Jxp5r/view?usp=drive_link)
 OMAX enables users to trade assets from **Odin.fun, Tyche.run, AstroApe.fun** seamlessly, plus participate in **Bitcoin prediction markets** with satoshi-level precision, all from a **single interface**.  
 Users sign in with **Bitcoin, Ethereum, Solana, or Google**, and manage their assets using a **secure onchain wallet** powered by **chain-key cryptography**.
 
@@ -44,7 +44,7 @@ Users sign in with **Bitcoin, Ethereum, Solana, or Google**, and manage their as
 
 OMAX is fully **decentralized on ICP** using **Chain Fusion** technology, focused on **Bitcoin DeFi** and **prediction markets**.
 
-### 🏭 TokenFactory Canister
+### 🏭 MarketFactory Canister
 - Creates and manages ICRC-2 token ledgers for prediction market outcomes
 - Handles market metadata with comprehensive validation (titles, descriptions, categories, tags)
 - Supports all market types with creator tracking and resolution frameworks
@@ -67,7 +67,7 @@ OMAX is fully **decentralized on ICP** using **Chain Fusion** technology, focuse
 - Supports multiple sign-in options: Internet Identity, Bitcoin, Ethereum, Solana, Google
 - Unified balance tracking across prediction markets and DeFi positions
 
-### 🔄 Trading Engine Canister
+### 🔄 Trading Engine 
 - Executes trades across Odin.fun, Tyche.run, AstroApe.fun
 - Reads onchain market data via their APIs
 - Supports assisted quick buys, automation triggers, and copy-trading
@@ -154,7 +154,7 @@ multi-trader/ (OMAX root)
 ├── src/
 │   ├── multi-trader-backend/       # Core trading logic (Motoko/Rust)
 │   │   ├── PredictionMarkets/      # Markets, TokenFactory, Vault canisters
-│   │   ├── DeFiAggregator/        # DEX integration and routing
+│   │   ├── RunesTrading/
 │   │   └── WalletManager/         # Address generation and management
 │   ├── omax-pro-frontend/         # Web frontend (React + Vite)
 │  
@@ -166,7 +166,7 @@ multi-trader/ (OMAX root)
 ### 🚀 Quick Start
 
 ```bash
-cd multi-trader/
+cd omaxpro.bitcoin/
 dfx help
 dfx canister --help
 ```
