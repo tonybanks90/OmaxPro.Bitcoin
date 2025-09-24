@@ -56,7 +56,7 @@ dfx start --background
 # Deploy the canister
 dfx deploy
 ```
-
+ 
 ## 🏗 Architecture Overview
 
 ```

@@ -12,21 +12,13 @@
       "main": "src/multi-trader-backend/PredictionMarkets/vault.mo",
       "type": "motoko"
     },
-    "TokenFactory": {
-      "main": "src/multi-trader-backend/PredictionMarkets/MarketFactory.mo",
-      "type": "motoko"
-    },
     "TFactory": {
       "main": "src/multi-trader-backend/PredictionMarkets/TestFactory.mo",
       "type": "motoko"
     },
-    "OmaxRouter": {
-      "main": "src/multi-trader-backend/OmaxRouter/omaxkongroute.mo",
-      "type": "motoko"
-    },
     "omax-pro-frontend": {
       "dependencies": [
-        "WalletTracker"
+        
       ],
       "source": [
         "src/omax-pro-frontend/dist"

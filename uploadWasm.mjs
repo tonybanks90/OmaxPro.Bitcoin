@@ -440,10 +440,10 @@ const testEnhancedMarketCreation = async (tokenFactory) => {
     // Test 1: Binary Market with full metadata
     console.log("1. Creating Binary Market...");
     const binaryResult = await tokenFactory.createBinaryMarket({
-      title: "Will Bitcoin reach $100k by end of 2024?",
-      description: "This market resolves to YES if Bitcoin (BTC) reaches or exceeds $100,000 USD on any major exchange before January 1, 2025.",
+      title: "Will Bitcoin reach $150k by end of 2025?",
+      description: "This market resolves to YES if Bitcoin (BTC) reaches or exceeds $150,000 USD on any major exchange before January 1, 2025.",
       category: { Crypto: null },
-      image: { ImageUrl: "https://example.com/bitcoin-chart.png" },
+      image: { ImageUrl: "https://th.bing.com/th/id/OIP.Xlw-GQRk_XXxbdHWJ8Ws4gHaFj?w=266&h=199&c=7&r=0&o=7&pid=1.7&rm=3" },
       tags: [{ Crypto: null }],
       bettingCloseTime: hoursFromNow(720), // 30 days
       expirationTime: hoursFromNow(2160), // 90 days  
@@ -473,10 +473,10 @@ const testEnhancedMarketCreation = async (tokenFactory) => {
     // Test 2: Multiple Choice Market
     console.log("\n2. Creating Multiple Choice Market...");
     const multipleChoiceResult = await tokenFactory.createMultipleChoiceMarket({
-      title: "Who will win the 2024 US Presidential Election?",
-      description: "This market will resolve to the candidate who wins the 2024 United States Presidential Election.",
+      title: "Who will win the 2027 US Presidential Election?",
+      description: "This market will resolve to the candidate who wins the 2027 United States Presidential Election.",
       category: { Political: null },
-      image: { ImageUrl: "https://example.com/election-2024.png" },
+      image: { ImageUrl: "https://th.bing.com/th/id/OIP.Ude3oaliUSUlXlGzosa7rQHaFy?w=194&h=180&c=7&r=0&o=7&pid=1.7&rm=3" },
       tags: [{ Political: null }],
       outcomes: ["Donald Trump", "Joe Biden", "Other"],
       bettingCloseTime: hoursFromNow(1440), // 60 days
