@@ -1,19 +1,19 @@
 {
   "canisters": {
     "WalletTracker": {
-      "main": "src/multi-trader-backend/WalletTracker/main.mo",
+      "main": "src/multi-trader-backend/RunesTrading/WalletTracker/main.mo",
       "type": "motoko"
     },
     "Markets": {
-      "main": "src/multi-trader-backend/PredictionMarkets/markets.mo",
+      "main": "src/multi-trader-backend/PredictionMarkets/Markets/markets.mo",
       "type": "motoko"
     },
     "Vault": {
-      "main": "src/multi-trader-backend/PredictionMarkets/vault.mo",
+      "main": "src/multi-trader-backend/PredictionMarkets/Vault/vault.mo",
       "type": "motoko"
     },
     "TFactory": {
-      "main": "src/multi-trader-backend/PredictionMarkets/TestFactory.mo",
+      "main": "src/multi-trader-backend/PredictionMarkets/MarketFactory/TestFactory.mo",
       "type": "motoko"
     },
     "omax-pro-frontend": {

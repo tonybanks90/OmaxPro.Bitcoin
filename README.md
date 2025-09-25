@@ -14,8 +14,8 @@
 - **[OMAX YouTube Channel](https://www.youtube.com/@Omax.Bitcoin){:target="_blank"}**
 
 ### **ICRC-151 MTLS Implementation**
-- **[MTLS Test Implementation (Local)](https://github.com/tonybanks90)/OmaxPro.Bitcoin/tree/dev/src/multi-trader-backend/Predict(Test)**
-- **[Multi-Token Ledger Standard - Motoko Version (GitHub)](https://github.com/tonybanks90/Multi-Token-Ledger-Standard-motoko-version){:target="_blank"}**
+- **[MTLS Test Implementation (Local)](https://github.com/tonybanks90)**
+- **[Multi-Token Ledger Standard - Motoko Version (GitHub)](https://github.com/tonybanks90/Multi-Token-Ledger-Standard-motoko-version)**
 
 ---
 
