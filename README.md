@@ -3,10 +3,10 @@
 ## 📖 **Important Documentation Links**
 
 ### **Core Documentation**
-- **[Factory Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/FactoryDOC.md)**
-- **[Market Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/MarketDOC.md)**
-- **[Resolver Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/ResolverDOC.md)**
-- **[Vault Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/VaultDOC.md)**
+- **[Factory Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/blob/dev/FactoryDOC.md)**
+- **[Market Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/blob/dev/MarketDOC.md)**
+- **[Resolver Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/blob/dev/ResolverDOC.md)**
+- **[Vault Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/blob/dev/VaultDOC.md)**
 - **[Technical Diagrams & FlowCharts](https://drive.google.com/drive/folders/1rdkEPO3itqNCUCrYQsVdlBKKW6tHZXAb?usp=sharing){:target="_blank"}**
 - **[📚 Documentation Hub](https://omaxpro.gitbook.io/omaxpro-docs/){:target="_blank"}**
 
@@ -14,7 +14,7 @@
 - **[OMAX YouTube Channel](https://www.youtube.com/@Omax.Bitcoin){:target="_blank"}**
 
 ### **ICRC-151 MTLS Implementation**
-- **[MTLS Test Implementation (Local)](/mnt/c/Users/user/OmaxPro.Bitcoin/src/multi-trader-backend/Predict(Test))**
+- **[MTLS Test Implementation (Local)](/mnt/c/Users/user/OmaxPro.Bitcoin/tree/dev/src/multi-trader-backend/Predict(Test))**
 - **[Multi-Token Ledger Standard - Motoko Version (GitHub)](https://github.com/tonybanks90/Multi-Token-Ledger-Standard-motoko-version){:target="_blank"}**
 
 ---
