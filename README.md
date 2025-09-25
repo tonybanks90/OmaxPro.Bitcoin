@@ -1,4 +1,19 @@
 # 🧠 OMAX – Bitcoin DeFi Trading Hub & Prediction Markets
+
+## 📖 **Important Documentation Links**
+
+### **Core Documentation**
+- **[Factory Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/FactoryDOC.md)**
+- **[Market Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/MarketDOC.md)**
+- **[Resolver Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/ResolverDOC.md)**
+- **[Vault Documentation](/mnt/c/Users/user/OmaxPro.Bitcoin/VaultDOC.md)**
+
+### **ICRC-151 MTLS Implementation**
+- **[MTLS Test Implementation (Local)](/mnt/c/Users/user/OmaxPro.Bitcoin/src/multi-trader-backend/Predict(Test))**
+- **[Multi-Token Ledger Standard - Motoko Version (GitHub)](https://github.com/tonybanks90/Multi-Token-Ledger-Standard-motoko-version)**
+
+---
+
 ![OMAX Preview](./src/assets/OMAX.png)
 
 Welcome to **OMAX**, the first advanced **Bitcoin-native DeFi trading platform** with integrated **prediction markets**.  
@@ -152,15 +167,17 @@ OMAX Pro is initialized using the Internet Computer SDK (`dfx`) with full suppor
 ```bash
 multi-trader/ (OMAX root)
 ├── src/
-│   ├── multi-trader-backend/       # Core trading logic (Motoko/Rust)
-│   │   ├── PredictionMarkets/      # Markets, TokenFactory, Vault canisters
-│   │   ├── RunesTrading/
-│   │   └── WalletManager/         # Address generation and management
-│   ├── omax-pro-frontend/         # Web frontend (React + Vite)
+│   ├── multi-trader-backend/       # Core backend canisters
+│   │   ├── KongRouter/             # Kong DEX integration
+│   │   ├── Predict(testMTLS)/      # ICRC-151 MTLS test implementation
+│   │   ├── PredictionMarkets/      # Main prediction markets logic
+│   │   ├── RunesTrading/           # Bitcoin Runes trading functionality
+│   │   └── Wallet/                 # Wallet management & address generation
+│   ├── omax-pro-frontend/          # Web frontend (React + Vite)
 │  
-├── dfx.json                       # DFX configuration
-├── package.json                   # NPM metadata
-└── README.md                      # You're here!
+├── dfx.json                        # DFX configuration
+├── package.json                    # NPM metadata
+└── README.md                       # You're here!
 ```
 
 ### 🚀 Quick Start
