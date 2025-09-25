@@ -14,6 +14,8 @@ const translations = {
     'nav.trending': 'Trending',
     'nav.walletTracker': 'Wallet Tracker',
     'nav.monitor': 'Monitor',
+    'nav.discovery': 'Discovery',
+    'nav.PredictionMarkets': 'Prediction Markets',
     'nav.trenches': 'Trenches',
     'nav.holdings': 'Holdings',
     'nav.earn': 'Earn',
@@ -57,6 +59,8 @@ const translations = {
   zh: {
     'brand.name': 'Omax',
     'nav.trending': '趋势',
+    'nav.discovery': '发现',
+    'nav.PredictionMarkets': '预测市场',
     'nav.walletTracker': '钱包追踪',
     'nav.monitor': '监控',
     'nav.trenches': '战壕',

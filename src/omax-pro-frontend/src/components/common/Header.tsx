@@ -34,6 +34,17 @@ export function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-6">
+               <Link
+    href="/discovery"
+    className={`font-medium transition-colors ${
+      isActive('/discovery')
+        ? 'text-accent'
+        : 'text-muted-foreground hover:text-accent'
+    }`}
+    data-testid="link-discovery"
+  >
+    {t('nav.discovery')}
+  </Link>
               <Link
     href="/prediction-markets"
     className={`font-medium transition-colors ${
@@ -56,6 +67,7 @@ export function Header() {
   >
     {t('nav.trending')}
   </Link>
+ 
   <Link
     href="/trenches"
     className={`font-medium transition-colors ${

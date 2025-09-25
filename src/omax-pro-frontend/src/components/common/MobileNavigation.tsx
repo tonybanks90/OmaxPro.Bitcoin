@@ -41,6 +41,7 @@ export function MobileNavigation() {
 
   const mainMenuItems = [
     { path: '/trending', label: 'Trending', icon: TrendingUp },
+    { path: '/discovery', label: 'Discovery', icon: Compass },
     { path: '/prediction-markets', label: 'Prediction', icon: TrendingUp },
     { path: '/holdings', label: 'Holdings', icon: BarChart3 },
     { path: '/wallet', label: 'Wallet Tracker', icon: Eye },
@@ -204,15 +205,17 @@ export function MobileNavigation() {
             </a>
           </Link>
 
-          <ProfileMenu>
-            <button
-              className="flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-              data-testid="nav-profile"
+          <Link href="/discovery">
+            <a
+              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
+                isActive('/discovery') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+              }`}
+              data-testid="nav-discovery"
             >
-              <UserCircle className="w-5 h-5" />
-              <span className="text-xs">Profile</span>
-            </button>
-          </ProfileMenu>
+              <Compass className="w-5 h-5" />
+              <span className="text-xs">Discover</span>
+            </a>
+          </Link>
         </div>
       </nav>
     </>

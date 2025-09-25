@@ -25,6 +25,12 @@ import CKBoostWallet from "./components/modals/CKBoostWallet";
 import CreatePredictionPage from "./pages/CrearePredictionPage";
 import PredictionMarketsPage from "./pages/PredictionMarketsPage";
 import PredictionMarketDetailPage from "./pages/PredictionMarketDetailPage";
+import DiscoveryPage from "./pages/DiscoveryPage";
+import DiscoveryCryptoPage from "./pages/DiscoveryCryptoPage";
+import DiscoveryStocksPage from "./pages/DiscoveryStocksPage";
+import DiscoverySportsPage from "./pages/DiscoverySportsPage";
+import DiscoveryWeatherPage from "./pages/DiscoveryWeatherPage";
+import DiscoverySearchPage from "./pages/DiscoverySearchPage";
 
 
 function Router() {
@@ -45,6 +51,13 @@ function Router() {
         <Route path="/holdings" component={HoldingsPage} />
         <Route path="/wallet-manager" component={WalletManagerPage} />
         <Route path="/sniper" component={SniperPage} />
+        <Route path="/discovery" component={DiscoveryPage} />
+        <Route path="/discovery/crypto" component={DiscoveryCryptoPage} />
+        <Route path="/discovery/stocks" component={DiscoveryStocksPage} />
+        <Route path="/discovery/sports" component={DiscoverySportsPage} />
+        <Route path="/discovery/weather" component={DiscoveryWeatherPage} />
+        <Route path="/discovery/search" component={DiscoverySearchPage} />
+        <Route path="/discovery/:category/:id" component={ComingSoonPage} />
         <Route path="/coming-soon" component={ComingSoonPage} />
         <Route component={NotFound} />
       </Switch>

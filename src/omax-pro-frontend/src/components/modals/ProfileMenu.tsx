@@ -62,13 +62,18 @@ export function ProfileMenu({ children }: ProfileMenuProps) {
         </DropdownMenuItem>
         
         <DropdownMenuItem asChild>
-          <Link href="/coming-soon" data-testid="menu-documentation">
-            <div className="flex items-center cursor-pointer w-full">
-              <FileText className="mr-2 h-4 w-4" />
-              <span>Documentation</span>
-            </div>
-          </Link>
-        </DropdownMenuItem>
+  <a
+    href="https://omaxpro.gitbook.io/omaxpro-docs"
+    target="_blank"
+    rel="noopener noreferrer"
+    data-testid="menu-documentation"
+    className="flex items-center cursor-pointer w-full"
+  >
+    <FileText className="mr-2 h-4 w-4" />
+    <span>Documentation</span>
+  </a>
+</DropdownMenuItem>
+
         
         <DropdownMenuSeparator />
         

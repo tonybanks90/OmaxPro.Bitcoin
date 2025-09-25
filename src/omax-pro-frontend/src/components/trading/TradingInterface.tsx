@@ -97,7 +97,7 @@ export function TradingInterface({ tokenSymbol }: TradingInterfaceProps) {
                 <Input type="number" placeholder="0.5" className="mt-1" data-testid="input-slippage" />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">Gas Price (Gwei)</label>
+                <label className="text-sm text-muted-foreground">Gas Price (Sats)</label>
                 <Input type="number" placeholder="Auto" className="mt-1" data-testid="input-gas-price" />
               </div>
             </div>
