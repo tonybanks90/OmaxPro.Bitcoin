@@ -7,14 +7,14 @@
 - **[Market Documentation](https://github.com/tonybanks90/OmaxPro.Bitcoin/blob/dev/MarketDOC.md)**
 - **[Resolver Documentation](https://github.com/tonybanks90/OmaxPro.Bitcoin/blob/dev/ResolverDOC.md)**
 - **[Vault Documentation](https://github.com/tonybanks90/OmaxPro.Bitcoin/blob/dev/VaultDOC.md)**
-- **[Technical Diagrams & FlowCharts](https://drive.google.com/drive/folders/1rdkEPO3itqNCUCrYQsVdlBKKW6tHZXAb?usp=sharing){:target="_blank"}**
-- **[📚 Documentation Hub](https://omaxpro.gitbook.io/omaxpro-docs/){:target="_blank"}**
+- **[Technical Diagrams & FlowCharts](https://drive.google.com/drive/folders/1rdkEPO3itqNCUCrYQsVdlBKKW6tHZXAb?usp=sharing)**
+- **[📚 Documentation Hub](https://omaxpro.gitbook.io/omaxpro-docs/)**
 
 ### **🎬 Platform Demo**
-- **[OMAX YouTube Channel](https://www.youtube.com/@Omax.Bitcoin){:target="_blank"}**
+- **[OMAX YouTube Channel](https://www.youtube.com/@Omax.Bitcoin)
 
 ### **ICRC-151 MTLS Implementation**
-- **[MTLS Test Implementation (Local)](https://github.com/tonybanks90)**
+- **[MTLS Test Implementation (Local)](https://github.com/tonybanks90//OmaxPro.Bitcoin/tree/dev/src/multi-trader-backend/Predict(Test))**
 - **[Multi-Token Ledger Standard - Motoko Version (GitHub)](https://github.com/tonybanks90/Multi-Token-Ledger-Standard-motoko-version)**
 
 ---
