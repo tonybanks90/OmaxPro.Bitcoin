@@ -5,7 +5,7 @@
       "type": "motoko"
     },
     "Markets": {
-      "main": "src/multi-trader-backend/PredictionMarkets/Markets/markets.mo",
+      "main": "src/multi-trader-backend/PredictionMarkets/Market/markets.mo",
       "type": "motoko"
     },
     "Vault": {
