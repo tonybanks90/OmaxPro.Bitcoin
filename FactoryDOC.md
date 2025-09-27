@@ -63,23 +63,23 @@ MarketFactory is a canister that dynamically creates ICRC-1/ICRC-2 compliant tok
 sh -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"
 
 # Start local replica
-dfx start --background
+dfx start --background --clean
 ```
 
 ### Basic Setup
 
 ```bash
 # Deploy the factory
-dfx deploy market_factory
+dfx deploy Markets
 
 # Set admin (first time only)
-dfx canister call market_factory setAdmin '(principal "YOUR_PRINCIPAL")'
+dfx canister call Markets setAdmin '(principal "YOUR_PRINCIPAL")'
 
 # Upload ICRC-1/ICRC-2 WASM module
 dfx canister call market_factory uploadWasm '(blob "WASM_BYTES")'
 
 # Set markets canister
-dfx canister call market_factory setMarketsCanister '(principal "MARKETS_CANISTER_ID")'
+dfx canister call Markets setMarketsCanister '(principal "MARKETS_CANISTER_ID")'
 ```
 
 ### Create Your First Market
@@ -165,27 +165,27 @@ dfx canister install market_factory --wasm .dfx/local/canisters/market_factory/m
 
 1. **Set Admin**
 ```motoko
-dfx canister call market_factory setAdmin '(principal "YOUR_ADMIN_PRINCIPAL")'
+dfx canister call Markets setAdmin '(principal "YOUR_ADMIN_PRINCIPAL")'
 ```
 
 2. **Upload WASM Module**
 ```motoko
-dfx canister call market_factory uploadWasm '(blob "ICRC_LEDGER_WASM")'
+dfx canister call Markets uploadWasm '(blob "ICRC_LEDGER_WASM")'
 ```
 
 3. **Set Markets Canister**
 ```motoko
-dfx canister call market_factory setMarketsCanister '(principal "MARKETS_CANISTER_ID")'
+dfx canister call Markets setMarketsCanister '(principal "MARKETS_CANISTER_ID")'
 ```
 
 4. **Configure Network** (Optional, defaults to testnet)
 ```motoko
-dfx canister call market_factory setNetwork '(true)' // true for mainnet
+dfx canister call Markets setNetwork '(true)' // true for mainnet
 ```
 
 5. **Add Cycles**
 ```motoko
-dfx canister deposit-cycles 100000000000000 market_factory
+dfx canister deposit-cycles 100000000000000 Markets
 ```
 
 ### Environment Variables
