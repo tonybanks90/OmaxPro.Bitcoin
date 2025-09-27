@@ -207,10 +207,10 @@ Once the job completes, your application will be available at `http://localhost:
 
 ```bash
 # Upload ICRC-2 ledger WASM for token creation
-node scripts/upload-wasm.js
+node uploadWasm.mjs
 
 # Create test markets
-dfx canister call TokenFactory createBinaryMarket '(record {
+dfx canister call TFactory createBinaryMarket '(record {
   title = "Will Bitcoin reach $100k by 2024?";
   description = "Market resolves YES if BTC reaches $100k";
   category = variant { Crypto };
@@ -235,7 +235,8 @@ For frontend development:
 
 ```bash
 cd src/
-npm start
+cd omax-pro-frontend/
+npm run dev
 ```
 
 Which will start a server at `http://localhost:8080`, proxying API requests to the replica at port 4943.
