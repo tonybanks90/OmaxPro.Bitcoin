@@ -1,0 +1,42 @@
+{
+  "canisters": {
+    "WalletTracker": {
+      "main": "src/multi-trader-backend/RunesTrading/WalletTracker/main.mo",
+      "type": "motoko"
+    },
+    "Markets": {
+      "main": "src/multi-trader-backend/PredictionMarkets/Market/markets.mo",
+      "type": "motoko"
+    },
+    "Vault": {
+      "main": "src/multi-trader-backend/PredictionMarkets/Vault/vault.mo",
+      "type": "motoko"
+    },
+    "TFactory": {
+      "main": "src/multi-trader-backend/PredictionMarkets/MarketFactory/TestFactory.mo",
+      "type": "motoko"
+    },
+    "MarketFactory": {
+      "main": "src/multi-trader-backend/PredictionMarkets/MarketFactory/MarketFactory.mo",
+      "type": "motoko"
+    },
+    "omax-pro-frontend": {
+      "dependencies": [
+        
+      ],
+      "source": [
+        "src/omax-pro-frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "omax-pro-frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": "mops sources"
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
