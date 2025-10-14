@@ -9,7 +9,7 @@ import { promisify } from "util";
 global.fetch = fetch;
 
 // === CONFIGURATION ===
-const canisterId = "vg3po-ix777-77774-qaafa-cai"; // your TokenFactory canister
+const canisterId = "uzt4z-lp777-77774-qaabq-cai"; // your TokenFactory canister
 const wasmFilePath = "/mnt/c/Users/user/OmaxPro.Bitcoin/icrc1_ledger.wasm.gz";
 
 // Try multiple endpoints in order of preference

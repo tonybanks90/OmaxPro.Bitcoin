@@ -1,4 +1,4 @@
-// Updated WalletService to work with the simplified useWalletActor hook
+// Updated WalletService with better error handling
 import { Principal } from '@dfinity/principal';
 import type { _SERVICE } from '../hooks/useWalletActor';
 
@@ -13,6 +13,7 @@ let globalIsAuthenticated = false;
 
 // Function to set the global actor reference
 export const setGlobalActor = (actor: _SERVICE | null, isAuthenticated: boolean) => {
+  console.log('🔄 Setting global actor:', { hasActor: !!actor, isAuthenticated });
   globalActor = actor;
   globalIsAuthenticated = isAuthenticated;
 };
@@ -23,6 +24,11 @@ export class WalletService {
 
   // Get the current actor instance
   private static getActor(): _SERVICE {
+    console.log('🔍 Getting actor...', { 
+      hasGlobalActor: !!globalActor, 
+      globalIsAuthenticated 
+    });
+
     if (!globalActor) {
       throw new Error('Wallet actor not available. Please ensure you are authenticated.');
     }
@@ -41,11 +47,14 @@ export class WalletService {
     
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        return await operation();
+        console.log(`📞 Calling ${operationName} (attempt ${attempt}/${this.maxRetries})...`);
+        const result = await operation();
+        console.log(`✅ ${operationName} succeeded`);
+        return result;
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         lastError = new Error(errorMessage);
-        console.error(`${operationName} attempt ${attempt} failed:`, errorMessage);
+        console.error(`❌ ${operationName} attempt ${attempt} failed:`, errorMessage);
         
         // Handle signature verification errors specifically
         if (errorMessage?.includes('signature') || 
@@ -53,7 +62,7 @@ export class WalletService {
             errorMessage?.includes('delegation')) {
           
           if (attempt < this.maxRetries) {
-            console.log(`Retrying ${operationName} due to signature error (${attempt}/${this.maxRetries})`);
+            console.log(`🔄 Retrying ${operationName} due to signature error (${attempt}/${this.maxRetries})`);
             
             const delay = this.retryDelay * Math.pow(2, attempt - 1);
             await new Promise(resolve => setTimeout(resolve, delay));
@@ -63,7 +72,12 @@ export class WalletService {
           }
         }
         
-        // For non-signature errors, don't retry as aggressively
+        // For "actor not available" errors, don't retry
+        if (errorMessage?.includes('not available') || errorMessage?.includes('Not authenticated')) {
+          throw lastError;
+        }
+        
+        // For non-signature errors, retry once
         if (attempt < 2) {
           await new Promise(resolve => setTimeout(resolve, this.retryDelay));
           continue;
@@ -138,8 +152,9 @@ export class WalletService {
         throw new Error('Invalid wallet name');
       }
       
+      console.log('📝 Adding wallet to canister:', { address: trimmedAddress, name: trimmedName });
       await actor.addWalletEntry(principal, trimmedAddress, trimmedName);
-      console.log(`Successfully added wallet: ${trimmedName} (${trimmedAddress})`);
+      console.log(`✅ Successfully added wallet: ${trimmedName} (${trimmedAddress})`);
     }, 'addWallet');
   }
 
@@ -456,6 +471,8 @@ export class WalletService {
       // Check if actor is available
       const isReady = globalActor !== null;
       const isAuthenticated = globalIsAuthenticated;
+      
+      console.log('🏥 Health check:', { isReady, isAuthenticated });
       
       if (!isReady || !isAuthenticated) {
         return {

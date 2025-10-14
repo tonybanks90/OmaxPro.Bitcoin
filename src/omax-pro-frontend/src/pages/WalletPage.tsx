@@ -1,4 +1,4 @@
-// pages/WalletPage.tsx - Complete final version
+// pages/WalletPage.tsx - FIXED AUTHENTICATION FLOW
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -13,8 +13,9 @@ import { useAuth } from '../auth/AuthProvider';
 
 // Import your fixed actor hook and services
 import { useWalletActor } from '../hooks/useWalletActor';
-import { useUserWallets, useAddWallet, useRemoveWallet, useUpdateWalletName, useWalletCount } from '../hooks/useWalletQueries';
+import { useUserWallets, useAddWallet, useRemoveWallet, useUpdateWalletName, useWalletCount, useWalletActorSync } from '../hooks/useWalletQueries';
 import type { WalletEntry } from '../services/walletService';
+
 
 export default function WalletPage() {
   const { toast } = useToast();
@@ -37,7 +38,7 @@ export default function WalletPage() {
     logout 
   } = useAuth();
 
-  // Use the simplified wallet actor hook
+  // Use the wallet actor hook
   const {
     actor,
     isInitializing,
@@ -48,10 +49,14 @@ export default function WalletPage() {
     clearAuth
   } = useWalletActor();
 
+  // CRITICAL: Sync actor to global state FIRST
+  useWalletActorSync();
+
   // Authenticate actor when user identity is available
+  // FIXED: Only authenticate once when identity changes
   useEffect(() => {
     if (identity && !actorAuthenticated && !isInitializing) {
-      console.log('Authenticating actor with identity...');
+      console.log('🔐 Authenticating actor with identity...');
       authenticate(identity).catch((error) => {
         console.error('Failed to authenticate actor:', error);
         toast({
@@ -66,13 +71,22 @@ export default function WalletPage() {
   // Clear actor auth when user logs out
   useEffect(() => {
     if (!isAuthenticated && actorAuthenticated) {
-      console.log('Clearing actor authentication...');
+      console.log('🔓 Clearing actor authentication...');
       clearAuth();
     }
   }, [isAuthenticated, actorAuthenticated, clearAuth]);
 
   // Only fetch wallets if user is authenticated and actor is ready
   const shouldFetchData = authReady && isAuthenticated && principalId && actorReady && actorAuthenticated;
+
+  console.log('🎯 WalletPage state:', {
+    authReady,
+    isAuthenticated,
+    hasPrincipalId: !!principalId,
+    actorReady,
+    actorAuthenticated,
+    shouldFetchData
+  });
 
   // Fetch user wallets using the query hook
   const { 
@@ -115,6 +129,15 @@ export default function WalletPage() {
       return;
     }
 
+    if (!actorReady || !actorAuthenticated) {
+      toast({
+        title: "Canister Not Ready",
+        description: "Wallet canister is not ready. Please wait a moment and try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!newWalletAddress.trim()) {
       toast({
         title: "Invalid Address",
@@ -123,6 +146,12 @@ export default function WalletPage() {
       });
       return;
     }
+
+    console.log('🚀 Attempting to add wallet...', {
+      actorReady,
+      actorAuthenticated,
+      principalId
+    });
 
     addWalletMutation.mutate({
       userPrincipal: principalId,
@@ -209,44 +238,6 @@ export default function WalletPage() {
   const formatAmount = (amount: number, decimals: number = 8) => {
     return (amount / Math.pow(10, decimals)).toFixed(6);
   };
-
-  // Show authentication required screen
-  if (authReady && !isAuthenticated) {
-    return (
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-wallet">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Card className="w-full max-w-md">
-            <CardContent className="p-8 text-center">
-              <div className="mb-6">
-                <Wallet className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-2xl font-bold text-foreground mb-2">
-                  Wallet Tracker
-                </h2>
-                <p className="text-muted-foreground">
-                  Sign in with Internet Identity to track your wallet addresses and view trading activity.
-                </p>
-              </div>
-              
-              <Button 
-                onClick={login}
-                className="w-full"
-                size="lg"
-              >
-                <LogIn className="w-5 h-5 mr-2" />
-                Sign in with Internet Identity
-              </Button>
-              
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Secure & Private:</strong> Your wallet addresses are stored securely on the Internet Computer blockchain and only you can access them.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
-    );
-  }
 
   // Show loading while auth or actor is initializing
   if (!authReady || isInitializing) {
@@ -337,7 +328,8 @@ export default function WalletPage() {
                 Signed in as: {principalId?.slice(0, 8)}...{principalId?.slice(-6)}
               </p>
               <p className="text-xs text-green-600">
-                ✅ Connected to wallet canister • Status: {actorAuthenticated ? 'Authenticated' : 'Not Authenticated'}
+                {actorReady ? '✅' : '⏳'} Connected to wallet canister • 
+                Status: {actorAuthenticated ? '✅ Authenticated' : '⏳ Authenticating'}
               </p>
             </div>
           </div>

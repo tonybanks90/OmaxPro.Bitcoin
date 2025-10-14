@@ -1,5 +1,6 @@
+// hooks/useWalletActor.ts - FIXED CONNECTION HANDLING
 import { HttpAgent, Actor, type Identity } from "@dfinity/agent";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Principal } from "@dfinity/principal";
 
 // IDL Factory matching your canister interface
@@ -15,7 +16,6 @@ export const idlFactory = ({ IDL }: { IDL: any }) => {
   });
 };
 
-// Service interface matching your canister
 export interface _SERVICE {
   'addWalletEntry' : (userPrincipal: Principal, address: string, name: string) => Promise<void>,
   'getUserWalletCount' : (userPrincipal: Principal) => Promise<bigint>,
@@ -26,142 +26,160 @@ export interface _SERVICE {
   'updateWalletName' : (userPrincipal: Principal, address: string, newName: string) => Promise<boolean>,
 }
 
-// Enhanced configuration
-const canisterId = "umunu-kh777-77774-qaaca-cai";
+const CANISTER_ID = process.env.REACT_APP_WALLET_CANISTER_ID || "ulvla-h7777-77774-qaacq-cai";
 
-if (!canisterId) {
-  throw new Error("Canister ID not found. Please check your configuration.");
+if (!CANISTER_ID) {
+  console.error("⚠️ Canister ID not configured!");
+  throw new Error("Canister ID not found. Please set REACT_APP_WALLET_CANISTER_ID environment variable.");
 }
 
-// Get host configuration
 const getHost = () => {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' || process.env.REACT_APP_IC_HOST === 'mainnet') {
     return 'https://ic0.app';
   }
-  return 'http://localhost:4943';
+  const replicaPort = process.env.REACT_APP_REPLICA_PORT || '4943';
+  return `http://localhost:${replicaPort}`;
 };
 
-// Create agent with proper configuration
 const createAgent = async (identity?: Identity): Promise<HttpAgent> => {
+  const host = getHost();
+  
   const agent = new HttpAgent({
-    host: getHost(),
+    host,
     identity,
   });
 
-  // Fetch root key for local development
-  if (process.env.NODE_ENV !== 'production') {
+  // IMPORTANT: Fetch root key in local development
+  if (process.env.NODE_ENV !== 'production' && !process.env.REACT_APP_IC_HOST) {
     try {
+      console.log('🔑 Fetching root key for local development...');
       await agent.fetchRootKey();
-      console.log('Root key fetched successfully');
+      console.log('✅ Root key fetched successfully');
     } catch (error) {
-      console.warn('Failed to fetch root key:', error);
-      // Continue anyway for local development
+      console.error("❌ Failed to fetch root key:", error);
+      throw new Error("Failed to fetch root key. Is your local replica running?");
     }
   }
 
   return agent;
 };
 
-// Custom hook for wallet actor
 export function useWalletActor() {
   const [actor, setActor] = useState<_SERVICE | null>(null);
-  const [agent, setAgent] = useState<HttpAgent | null>(null);
-  const [identity, setIdentity] = useState<Identity | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Use refs to track what we've already initialized
+  const initializationState = useRef<{
+    lastIdentity: Identity | null;
+    hasInitialized: boolean;
+  }>({ lastIdentity: null, hasInitialized: false });
 
-  // Initialize agent and actor
   const initializeActor = useCallback(async (userIdentity?: Identity) => {
-    if (isInitializing) return;
+    // Prevent reinitializing if we're already initializing
+    if (isInitializing) {
+      console.log('⏳ Already initializing, skipping...');
+      return;
+    }
 
+    // Prevent redundant initialization with the same identity
+    if (
+      initializationState.current.hasInitialized &&
+      initializationState.current.lastIdentity === userIdentity
+    ) {
+      console.log('✅ Already initialized with this identity, skipping...');
+      return;
+    }
+
+    console.log('🚀 Initializing actor...', { hasIdentity: !!userIdentity });
     setIsInitializing(true);
     setError(null);
 
     try {
-      console.log('Creating agent with identity:', !!userIdentity);
       const newAgent = await createAgent(userIdentity);
       
-      console.log('Creating actor...');
       const newActor = Actor.createActor<_SERVICE>(idlFactory, {
         agent: newAgent,
-        canisterId,
+        canisterId: CANISTER_ID,
       });
 
-      setAgent(newAgent);
+      console.log('✅ Actor created successfully');
+
+      // CRITICAL FIX: Set the actor BEFORE testing it
+      // This way even if the test fails, the actor is available
       setActor(newActor);
-      setIdentity(userIdentity || null);
       setIsAuthenticated(!!userIdentity);
       
-      console.log('Actor initialized successfully');
-      
-      // Test the connection with a simple call if authenticated
+      // Update ref to track successful initialization
+      initializationState.current = {
+        lastIdentity: userIdentity || null,
+        hasInitialized: true,
+      };
+
+      // Test the connection (but don't fail if this doesn't work)
       if (userIdentity) {
         try {
-          // Try to get the principal to verify the connection works
           const principal = userIdentity.getPrincipal();
-          console.log('Identity principal:', principal.toText());
+          console.log('🔍 Testing connection with principal:', principal.toText());
+          const count = await newActor.getUserWalletCount(principal);
+          console.log(`✅ Connection test successful! Wallet count: ${count}`);
+        } catch (testError: unknown) {
+          const errorMsg = testError instanceof Error ? testError.message : String(testError);
+          console.warn("⚠️ Actor connection test failed:", errorMsg);
           
-          // Test with a simple query - just try to get wallet count
-          await newActor.getUserWalletCount(principal);
-          console.log('Actor connection test successful');
-        } catch (testError) {
-          console.warn('Actor connection test failed:', testError);
-          // Don't throw here as the actor might still work for other operations
+          // DON'T throw here - the actor might still work for updates
+          // Query calls might fail in local dev but update calls work
+          if (errorMsg.includes("Canister not found")) {
+            console.error(`❌ Canister ${CANISTER_ID} not found. Please deploy your canister.`);
+            setError(`Canister ${CANISTER_ID} not found or not deployed`);
+          } else {
+            console.log('ℹ️ Query test failed, but actor may still work for updates');
+          }
         }
       }
       
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Failed to initialize actor:', errorMessage);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error("❌ Failed to initialize actor:", errorMessage);
       setError(errorMessage);
       setActor(null);
-      setAgent(null);
-      setIdentity(null);
       setIsAuthenticated(false);
+      
+      // Reset initialization state on error to allow retry
+      initializationState.current = {
+        lastIdentity: null,
+        hasInitialized: false,
+      };
     } finally {
       setIsInitializing(false);
     }
   }, [isInitializing]);
 
-  // Authenticate with identity
   const authenticate = useCallback(async (userIdentity: Identity) => {
-    console.log('Authenticating with identity...');
+    console.log('🔐 Authenticating with identity...');
     await initializeActor(userIdentity);
   }, [initializeActor]);
 
-  // Initialize without identity (anonymous)
-  const initializeAnonymous = useCallback(async () => {
-    console.log('Initializing anonymous actor...');
-    await initializeActor();
-  }, [initializeActor]);
-
-  // Clear authentication
   const clearAuth = useCallback(() => {
+    console.log('🔓 Clearing authentication...');
     setActor(null);
-    setAgent(null);
-    setIdentity(null);
     setIsAuthenticated(false);
     setError(null);
+    initializationState.current = {
+      lastIdentity: null,
+      hasInitialized: false,
+    };
   }, []);
-
-  // Auto-initialize anonymous actor on mount
-  useEffect(() => {
-    if (!actor && !isInitializing && !identity) {
-      initializeAnonymous();
-    }
-  }, [actor, isInitializing, identity, initializeAnonymous]);
 
   return {
     actor,
-    agent,
-    identity,
     isInitializing,
     isAuthenticated,
     isReady: !!actor,
     error,
     authenticate,
-    initializeAnonymous,
     clearAuth,
+    canisterId: CANISTER_ID,
   };
 }

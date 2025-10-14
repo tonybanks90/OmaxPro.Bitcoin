@@ -122,7 +122,6 @@ interface OdinPowerHoldersResponse {
   limit: number;
 }
 
-// New: User Activity Types
 interface OdinUserActivityData {
   id: string;
   user: string;
@@ -150,7 +149,6 @@ interface OdinUserActivityResponse {
   limit: number;
 }
 
-// Wallet Entry Type for canister integration
 interface WalletEntry {
   address: string;
   name: string;
@@ -168,10 +166,30 @@ interface OdinUserTokensResponse {
   limit: number;
 }
 
+// NEW: Historical trades types
+interface OdinHistoricalTrade {
+  trade_id: string;
+  price: string;
+  base_volume: string;
+  target_volume: string;
+  trade_timestamp: string;
+  type: 'buy' | 'sell';
+}
+
+interface OdinHistoricalTradesResponse {
+  buy: OdinHistoricalTrade[];
+  sell: OdinHistoricalTrade[];
+}
+
+// Combined historical trade with buy flag
+export interface CombinedHistoricalTrade extends OdinHistoricalTrade {
+  buy: boolean;
+}
+
 // API Base URL
 const ODIN_API_BASE = "https://api.odin.fun/v1";
 
-// Main tokens fetch function - Updated to support market cap filters
+// Main tokens fetch function
 async function fetchOdinTokens(filters: {
   page?: number;
   limit?: number;
@@ -187,7 +205,6 @@ async function fetchOdinTokens(filters: {
     sort: filters.sort || "marketcap:desc",
   });
 
-  // Add optional filters
   if (filters.bonded !== undefined) {
     searchParams.append('bonded', filters.bonded.toString());
   }
@@ -236,6 +253,31 @@ async function fetchOdinTokenTrades(tokenId: string, page: number = 1, limit: nu
   return response.json();
 }
 
+// NEW: Fetch historical trades with date range
+async function fetchOdinHistoricalTrades(
+  tickerId: string,
+  startTime: Date,
+  endTime: Date,
+  limit: number = 2000
+): Promise<OdinHistoricalTradesResponse> {
+  const searchParams = new URLSearchParams({
+    ticker_id: tickerId,
+    limit: limit.toString(),
+    start_time: startTime.toISOString(),
+    end_time: endTime.toISOString(),
+  });
+
+  const response = await fetch(
+    `${ODIN_API_BASE}/tokens/historical_trades?${searchParams}`
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch historical trades: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 // Token power holders fetch function
 async function fetchOdinTokenPowerHolders(tokenId: string, page: number = 1, limit: number = 50): Promise<OdinPowerHoldersResponse> {
   const searchParams = new URLSearchParams({
@@ -252,7 +294,7 @@ async function fetchOdinTokenPowerHolders(tokenId: string, page: number = 1, lim
   return response.json();
 }
 
-// NEW: User activity fetch function
+// User activity fetch function
 async function fetchOdinUserActivity(userPrincipal: string, page: number = 1, limit: number = 50): Promise<OdinUserActivityResponse> {
   const searchParams = new URLSearchParams({
     page: page.toString(),
@@ -268,6 +310,7 @@ async function fetchOdinUserActivity(userPrincipal: string, page: number = 1, li
   return response.json();
 }
 
+// User tokens fetch function
 async function fetchOdinUserTokens(userPrincipal: string, page: number = 1, limit: number = 100): Promise<OdinUserTokensResponse> {
   const searchParams = new URLSearchParams({
     page: page.toString(),
@@ -283,7 +326,28 @@ async function fetchOdinUserTokens(userPrincipal: string, page: number = 1, limi
   return response.json();
 }
 
-// Updated main hook for tokens list with market cap filters support
+// Bitcoin price fetching
+async function fetchBTCPrice(): Promise<number> {
+  try {
+    const response = await fetch('https://api.coinbase.com/v2/exchange-rates?currency=BTC');
+    if (!response.ok) throw new Error('Coinbase API failed');
+    const data = await response.json();
+    return parseFloat(data.data.rates.USD);
+  } catch {
+    try {
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+      if (!response.ok) throw new Error('CoinGecko API failed');
+      const data = await response.json();
+      return data.bitcoin.usd;
+    } catch {
+      return 114000; // Fallback price
+    }
+  }
+}
+
+// HOOKS
+
+// Main tokens list hook
 export function useOdinAPI(filters: {
   page?: number;
   limit?: number;
@@ -300,7 +364,7 @@ export function useOdinAPI(filters: {
   } = useQuery({
     queryKey: ['odin', 'tokens', filters],
     queryFn: () => fetchOdinTokens(filters),
-    refetchInterval: 10000, // Real-time updates every 10 seconds
+    refetchInterval: 10000,
   });
 
   return {
@@ -314,12 +378,12 @@ export function useOdinAPI(filters: {
   };
 }
 
-// Hook for single token
+// Single token hook
 export function useOdinToken(tokenId: string) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["odin", "token", tokenId],
     queryFn: () => fetchOdinToken(tokenId),
-    refetchInterval: 30000, // 30 seconds
+    refetchInterval: 30000,
     enabled: !!tokenId,
   });
 
@@ -331,12 +395,12 @@ export function useOdinToken(tokenId: string) {
   };
 }
 
-// Hook for token trades
+// Token trades hook (original - for backward compatibility)
 export function useOdinTokenTrades(tokenId: string, page: number = 1, limit: number = 50) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["odin", "trades", tokenId, page, limit],
     queryFn: () => fetchOdinTokenTrades(tokenId, page, limit),
-    refetchInterval: 15000, // 15 seconds
+    refetchInterval: 15000,
     enabled: !!tokenId,
   });
 
@@ -351,12 +415,50 @@ export function useOdinTokenTrades(tokenId: string, page: number = 1, limit: num
   };
 }
 
-// Hook for token power holders
+// NEW: Historical trades hook - Use this for charts!
+export function useOdinHistoricalTrades(
+  ticker: string,
+  tokenId: string,
+  timeframeHours: number = 168
+) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['odin', 'historical_trades', ticker, tokenId, timeframeHours],
+    queryFn: async () => {
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - timeframeHours * 60 * 60 * 1000);
+      
+      const tickerId = `${ticker}_${tokenId}`;
+      
+      return fetchOdinHistoricalTrades(tickerId, startTime, endTime, 2000);
+    },
+    refetchInterval: 30000,
+    enabled: !!ticker && !!tokenId,
+    staleTime: 15000,
+  });
+
+  // Combine buy and sell trades with buy flag
+  const allTrades: CombinedHistoricalTrade[] = [
+    ...(data?.buy || []).map(t => ({ ...t, buy: true })),
+    ...(data?.sell || []).map(t => ({ ...t, buy: false }))
+  ].sort((a, b) => parseInt(a.trade_timestamp) - parseInt(b.trade_timestamp));
+
+  return {
+    trades: allTrades,
+    buyTrades: data?.buy || [],
+    sellTrades: data?.sell || [],
+    totalCount: allTrades.length,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+// Token power holders hook
 export function useOdinTokenPowerHolders(tokenId: string, page: number = 1, limit: number = 50) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["odin", "power_holders", tokenId, page, limit],
     queryFn: () => fetchOdinTokenPowerHolders(tokenId, page, limit),
-    refetchInterval: 30000, // 30 seconds
+    refetchInterval: 30000,
     enabled: !!tokenId,
   });
 
@@ -371,12 +473,12 @@ export function useOdinTokenPowerHolders(tokenId: string, page: number = 1, limi
   };
 }
 
-// NEW: Hook for user activity
+// User activity hook
 export function useOdinUserActivity(userPrincipal: string, page: number = 1, limit: number = 50) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["odin", "user_activity", userPrincipal, page, limit],
     queryFn: () => fetchOdinUserActivity(userPrincipal, page, limit),
-    refetchInterval: 30000, // 30 seconds
+    refetchInterval: 30000,
     enabled: !!userPrincipal,
   });
 
@@ -391,16 +493,12 @@ export function useOdinUserActivity(userPrincipal: string, page: number = 1, lim
   };
 }
 
-// Helper function to get image URLs
-export function getOdinImageUrl(type: 'token' | 'user', id: string): string {
-  return `${ODIN_API_BASE}/${type}/${id}/image`;
-}
-
+// User tokens hook
 export function useOdinUserTokens(userPrincipal: string, page: number = 1, limit: number = 100, options: { enabled?: boolean } = {}) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["odin", "user_tokens", userPrincipal, page, limit],
     queryFn: () => fetchOdinUserTokens(userPrincipal, page, limit),
-    refetchInterval: 30000, // 30 seconds
+    refetchInterval: 30000,
     enabled: !!userPrincipal && (options.enabled !== false),
   });
 
@@ -415,7 +513,25 @@ export function useOdinUserTokens(userPrincipal: string, page: number = 1, limit
   };
 }
 
-// Price conversion utilities
+// Bitcoin price hook
+export function useBTCPrice() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['btc-price-usd'],
+    queryFn: fetchBTCPrice,
+    staleTime: 60000,
+    refetchInterval: 300000,
+    retry: 2,
+  });
+
+  return {
+    btcPriceUSD: data || 114000,
+    isLoading,
+    error
+  };
+}
+
+// PRICE CONVERSION UTILITIES
+
 const SATOSHI_TO_BTC = 0.00000001;
 
 export interface PriceData {
@@ -425,11 +541,9 @@ export interface PriceData {
 }
 
 export interface EnhancedOdinTokenData extends OdinTokenData {
-  // Enhanced price fields with conversions
   priceData: PriceData;
   marketCapData: PriceData;
   volumeData: PriceData;
-  // Formatted strings for display
   priceFormatted: {
     sats: string;
     btc: string;
@@ -447,7 +561,6 @@ export interface EnhancedOdinTokenData extends OdinTokenData {
   };
 }
 
-// Conversion functions based on confirmed Odin API format
 function satoshisToBTC(satoshis: number): number {
   return satoshis * SATOSHI_TO_BTC;
 }
@@ -458,27 +571,26 @@ function satoshisToUSD(satoshis: number, btcPriceUSD: number): number {
 }
 
 function parseOdinTokenPrice(apiValue: number, btcPriceUSD: number): PriceData {
-  const satoshis = apiValue / 1000; // Token price: API Value ÷ 1000 = sats
+  const satoshis = apiValue / 1000;
   const btc = satoshisToBTC(satoshis);
   const usd = satoshisToUSD(satoshis, btcPriceUSD);
   return { satoshis, btc, usd };
 }
 
 function parseOdinMarketCap(apiValue: number, btcPriceUSD: number): PriceData {
-  const satoshis = apiValue / 1000; // Market cap: API Value ÷ 1000 = sats
+  const satoshis = apiValue / 1000;
   const btc = satoshisToBTC(satoshis);
   const usd = satoshisToUSD(satoshis, btcPriceUSD);
   return { satoshis, btc, usd };
 }
 
 function parseOdinVolume(apiValue: number, btcPriceUSD: number): PriceData {
-  const satoshis = apiValue; // Volume: API Value = sats (no division)
+  const satoshis = apiValue;
   const btc = satoshisToBTC(satoshis);
   const usd = satoshisToUSD(satoshis, btcPriceUSD);
   return { satoshis, btc, usd };
 }
 
-// Formatting functions
 function formatSatoshis(satoshis: number): string {
   if (satoshis >= 1e9) return `${(satoshis / 1e9).toFixed(2)}B sats`;
   if (satoshis >= 1e6) return `${(satoshis / 1e6).toFixed(2)}M sats`;
@@ -508,26 +620,6 @@ function formatPriceData(priceData: PriceData) {
   };
 }
 
-// Bitcoin price fetching (simplified)
-async function fetchBTCPrice(): Promise<number> {
-  try {
-    const response = await fetch('https://api.coinbase.com/v2/exchange-rates?currency=BTC');
-    if (!response.ok) throw new Error('Coinbase API failed');
-    const data = await response.json();
-    return parseFloat(data.data.rates.USD);
-  } catch {
-    try {
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
-      if (!response.ok) throw new Error('CoinGecko API failed');
-      const data = await response.json();
-      return data.bitcoin.usd;
-    } catch {
-      return 110000; // Fallback price
-    }
-  }
-}
-
-// Enhanced token data processor
 function enhanceTokenData(token: OdinTokenData, btcPriceUSD: number): EnhancedOdinTokenData {
   const priceData = parseOdinTokenPrice(token.price, btcPriceUSD);
   const marketCapData = parseOdinMarketCap(token.marketcap, btcPriceUSD);
@@ -541,23 +633,6 @@ function enhanceTokenData(token: OdinTokenData, btcPriceUSD: number): EnhancedOd
     priceFormatted: formatPriceData(priceData),
     marketCapFormatted: formatPriceData(marketCapData),
     volumeFormatted: formatPriceData(volumeData)
-  };
-}
-
-// Hook for Bitcoin price
-export function useBTCPrice() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['btc-price-usd'],
-    queryFn: fetchBTCPrice,
-    staleTime: 60000, // 1 minute
-    refetchInterval: 300000, // 5 minutes
-    retry: 2,
-  });
-
-  return {
-    btcPriceUSD: data || 110000,
-    isLoading,
-    error
   };
 }
 
@@ -592,10 +667,35 @@ export function useEnhancedOdinAPI(filters: {
   };
 }
 
-// You'll need to include your existing types and fetchOdinTokens function here
-// Or import them from your existing useOdinAPI file
+// HELPER FUNCTIONS
 
-// Export types for use in other components
+// Get image URLs
+export function getOdinImageUrl(type: 'token' | 'user', id: string): string {
+  return `${ODIN_API_BASE}/${type}/${id}/image`;
+}
+
+// Convert historical trade to standard trade format for backward compatibility
+export function convertHistoricalTradeToStandard(
+  trade: CombinedHistoricalTrade
+): OdinTradeData {
+  return {
+    id: trade.trade_id,
+    user: '',
+    token: '',
+    time: new Date(parseInt(trade.trade_timestamp)).toISOString(),
+    buy: trade.buy,
+    amount_btc: parseFloat(trade.base_volume),
+    amount_token: parseFloat(trade.target_volume),
+    price: parseFloat(trade.price),
+    bonded: false,
+    user_username: '',
+    user_image: '',
+    decimals: null,
+    divisibility: null,
+  };
+}
+
+// Export types
 export type { 
   OdinTokenData, 
   OdinTradeData, 
@@ -607,5 +707,7 @@ export type {
   OdinPowerHoldersResponse,
   OdinUserActivityResponse,
   OdinUserTokensResponse,
+  OdinHistoricalTrade,
+  OdinHistoricalTradesResponse,
   WalletEntry
 };

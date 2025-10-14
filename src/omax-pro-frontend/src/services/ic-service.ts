@@ -29,7 +29,7 @@ import type {
 } from '../../../declarations/TFactory/TFactory.did';
 
 // Configure your canister ID here
-const CANISTER_ID = process.env.VITE_PREDICTION_MARKET_FACTORY_CANISTER_ID || canisterId || 'vg3po-ix777-77774-qaafa-cai';
+const CANISTER_ID = process.env.VITE_PREDICTION_MARKET_FACTORY_CANISTER_ID || canisterId || 'uzt4z-lp777-77774-qaabq-cai';
 
 // Configure network
 const HOST = process.env.NODE_ENV === 'production' 

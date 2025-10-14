@@ -1,4 +1,4 @@
-// Updated useWalletQueries.ts to work with the simplified actor hook
+// Updated useWalletQueries.ts - FLOW FIXED
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useWalletActor } from './useWalletActor';
@@ -13,15 +13,6 @@ export const WALLET_QUERY_KEYS = {
     count: (userPrincipal: string) => ['wallets', userPrincipal, 'count'] as const,
   },
 } as const;
-
-// Custom hook to sync the global actor with the WalletService
-export function useWalletActorSync() {
-  const { actor, isAuthenticated } = useWalletActor();
-  
-  useEffect(() => {
-    setGlobalActor(actor, isAuthenticated);
-  }, [actor, isAuthenticated]);
-}
 
 // Enhanced error retry logic
 const createRetryConfig = () => ({
@@ -39,20 +30,27 @@ const createRetryConfig = () => ({
   },
 });
 
+// Custom hook to sync the global actor with the WalletService
+export function useWalletActorSync() {
+  const { actor, isAuthenticated } = useWalletActor();
+  
+  useEffect(() => {
+    console.log('🔄 Syncing actor state:', { hasActor: !!actor, isAuthenticated });
+    setGlobalActor(actor, isAuthenticated);
+  }, [actor, isAuthenticated]);
+}
+
 // Query hooks
 export function useUserWallets(userPrincipal: string, searchTerm?: string, options?: { enabled?: boolean }) {
   const { isReady, isAuthenticated } = useWalletActor();
-  
-  // Sync the actor with the service
-  useWalletActorSync();
   
   return useQuery({
     queryKey: searchTerm 
       ? WALLET_QUERY_KEYS.wallets.search(userPrincipal, searchTerm)
       : WALLET_QUERY_KEYS.wallets.all(userPrincipal),
     queryFn: async (): Promise<WalletEntry[]> => {
-      if (!isAuthenticated) {
-        throw new Error('Not authenticated. Please connect your wallet first.');
+      if (!isReady || !isAuthenticated) {
+        throw new Error('Wallet actor not ready or not authenticated');
       }
 
       try {
@@ -79,13 +77,11 @@ export function useUserWallets(userPrincipal: string, searchTerm?: string, optio
 export function useWalletCount(userPrincipal: string, options?: { enabled?: boolean }) {
   const { isReady, isAuthenticated } = useWalletActor();
   
-  useWalletActorSync();
-  
   return useQuery({
     queryKey: WALLET_QUERY_KEYS.wallets.count(userPrincipal),
     queryFn: async (): Promise<number> => {
-      if (!isAuthenticated) {
-        throw new Error('Not authenticated. Please connect your wallet first.');
+      if (!isReady || !isAuthenticated) {
+        throw new Error('Wallet actor not ready or not authenticated');
       }
 
       try {
@@ -105,13 +101,11 @@ export function useWalletCount(userPrincipal: string, options?: { enabled?: bool
 export function useWalletEntry(userPrincipal: string, address: string, options?: { enabled?: boolean }) {
   const { isReady, isAuthenticated } = useWalletActor();
   
-  useWalletActorSync();
-  
   return useQuery({
     queryKey: WALLET_QUERY_KEYS.wallets.byAddress(userPrincipal, address),
     queryFn: async (): Promise<string | null> => {
-      if (!isAuthenticated) {
-        throw new Error('Not authenticated. Please connect your wallet first.');
+      if (!isReady || !isAuthenticated) {
+        throw new Error('Wallet actor not ready or not authenticated');
       }
 
       try {
@@ -128,11 +122,9 @@ export function useWalletEntry(userPrincipal: string, address: string, options?:
   });
 }
 
-// Mutation hooks
+// Mutation hooks - FIXED: Don't check isReady at mutation definition time
 export function useAddWallet() {
   const queryClient = useQueryClient();
-  
-  useWalletActorSync();
   
   return useMutation({
     mutationFn: async ({ userPrincipal, address, name }: { 
@@ -140,9 +132,12 @@ export function useAddWallet() {
       address: string; 
       name: string; 
     }) => {
+      // Check happens here, inside the mutation function when it actually runs
+      console.log('🚀 Executing addWallet mutation...');
       return await WalletService.addWallet(userPrincipal, address, name);
     },
     onSuccess: (_, variables) => {
+      console.log('✅ Wallet added successfully');
       queryClient.invalidateQueries({ 
         queryKey: WALLET_QUERY_KEYS.wallets.all(variables.userPrincipal) 
       });
@@ -151,7 +146,7 @@ export function useAddWallet() {
       });
     },
     onError: (error: Error) => {
-      console.error('Add wallet mutation failed:', error.message);
+      console.error('❌ Add wallet mutation failed:', error.message);
     },
   });
 }
@@ -159,16 +154,16 @@ export function useAddWallet() {
 export function useRemoveWallet() {
   const queryClient = useQueryClient();
   
-  useWalletActorSync();
-  
   return useMutation({
     mutationFn: async ({ userPrincipal, address }: { 
       userPrincipal: string; 
       address: string; 
     }) => {
+      console.log('🚀 Executing removeWallet mutation...');
       return await WalletService.removeWallet(userPrincipal, address);
     },
     onSuccess: (_, variables) => {
+      console.log('✅ Wallet removed successfully');
       queryClient.invalidateQueries({ 
         queryKey: WALLET_QUERY_KEYS.wallets.all(variables.userPrincipal) 
       });
@@ -180,7 +175,7 @@ export function useRemoveWallet() {
       });
     },
     onError: (error: Error) => {
-      console.error('Remove wallet mutation failed:', error.message);
+      console.error('❌ Remove wallet mutation failed:', error.message);
     },
   });
 }
@@ -188,17 +183,17 @@ export function useRemoveWallet() {
 export function useUpdateWalletName() {
   const queryClient = useQueryClient();
   
-  useWalletActorSync();
-  
   return useMutation({
     mutationFn: async ({ userPrincipal, address, newName }: { 
       userPrincipal: string; 
       address: string; 
       newName: string; 
     }) => {
+      console.log('🚀 Executing updateWalletName mutation...');
       return await WalletService.updateWalletName(userPrincipal, address, newName);
     },
     onSuccess: (_, variables) => {
+      console.log('✅ Wallet name updated successfully');
       queryClient.invalidateQueries({ 
         queryKey: WALLET_QUERY_KEYS.wallets.all(variables.userPrincipal) 
       });
@@ -207,7 +202,7 @@ export function useUpdateWalletName() {
       });
     },
     onError: (error: Error) => {
-      console.error('Update wallet name mutation failed:', error.message);
+      console.error('❌ Update wallet name mutation failed:', error.message);
     },
   });
 }
@@ -215,8 +210,6 @@ export function useUpdateWalletName() {
 // Batch operations
 export function useBatchAddWallets() {
   const queryClient = useQueryClient();
-  
-  useWalletActorSync();
   
   return useMutation({
     mutationFn: async ({ 
@@ -228,9 +221,11 @@ export function useBatchAddWallets() {
       wallets: WalletEntry[];
       onProgress?: (current: number, total: number, wallet: WalletEntry) => void;
     }) => {
+      console.log('🚀 Executing batchAddWallets mutation...');
       return await WalletService.batchAddWallets(userPrincipal, wallets, onProgress);
     },
     onSuccess: (_, variables) => {
+      console.log('✅ Batch wallet addition completed');
       queryClient.invalidateQueries({ 
         queryKey: WALLET_QUERY_KEYS.wallets.all(variables.userPrincipal) 
       });
@@ -239,21 +234,24 @@ export function useBatchAddWallets() {
       });
     },
     onError: (error: Error) => {
-      console.error('Batch add wallets mutation failed:', error.message);
+      console.error('❌ Batch add wallets mutation failed:', error.message);
     },
   });
 }
 
 // Export service health check
 export function useWalletHealthCheck(userPrincipal: string, options?: { enabled?: boolean }) {
-  useWalletActorSync();
+  const { isReady, isAuthenticated } = useWalletActor();
   
   return useQuery({
     queryKey: ['wallet-health', userPrincipal],
     queryFn: async () => {
+      if (!isReady || !isAuthenticated) {
+        throw new Error('Wallet actor not ready or not authenticated');
+      }
       return await WalletService.healthCheck(userPrincipal);
     },
-    enabled: !!userPrincipal && (options?.enabled !== false),
+    enabled: isReady && isAuthenticated && !!userPrincipal && (options?.enabled !== false),
     staleTime: 10000,
     refetchInterval: 30000,
     retry: false,

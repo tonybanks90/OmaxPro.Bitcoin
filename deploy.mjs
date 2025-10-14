@@ -9,7 +9,7 @@ import { createGzip } from "zlib";
 global.fetch = fetch;
 
 // === CONFIGURATION ===
-const canisterId = "vg3po-ix777-77774-qaafa-cai";
+const canisterId = "uzt4z-lp777-77774-qaabq-cai";
 const wasmFilePath = "/mnt/c/Users/user/OmaxPro.Bitcoin/icrc1_ledger.wasm.gz";
 const identityFilePath = "./omax_identity.pem"; // Local identity file
 
