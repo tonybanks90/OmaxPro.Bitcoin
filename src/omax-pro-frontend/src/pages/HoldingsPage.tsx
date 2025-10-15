@@ -92,7 +92,7 @@ export default function HoldingsPage() {
   // Show authentication required screen
   if (authReady && !isAuthenticated) {
     return (
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-holdings">
+      <main className="mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-holdings">
         <div className="flex items-center justify-center min-h-[60vh]">
           <Card className="w-full max-w-md">
             <CardContent className="p-8 text-center">

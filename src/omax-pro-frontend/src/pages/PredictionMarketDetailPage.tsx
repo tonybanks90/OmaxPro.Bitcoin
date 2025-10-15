@@ -98,7 +98,7 @@ export default function PredictionMarketDetailPage() {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-prediction-detail">
+    <main className="mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-prediction-detail">
       {/* Back Navigation */}
       <div className="mb-6">
         <Link href="/prediction-markets">

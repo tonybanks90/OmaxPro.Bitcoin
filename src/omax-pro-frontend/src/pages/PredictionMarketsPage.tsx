@@ -88,7 +88,7 @@ export default function PredictionMarketsPage() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Page Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-foreground mb-2">

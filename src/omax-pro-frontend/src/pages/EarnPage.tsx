@@ -100,7 +100,7 @@ export default function EarnPage() {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-earn">
+    <main className="mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-earn">
       {/* User Info Banner */}
       <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
         <div className="flex items-center justify-between">
