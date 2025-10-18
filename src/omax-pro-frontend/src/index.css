@@ -1,0 +1,127 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Dark Theme - Default */
+  --background: hsl(240, 20%, 6%);
+  --foreground: hsl(0, 0%, 100%);
+  --card: hsl(240, 15%, 12%);
+  --card-foreground: hsl(0, 0%, 100%);
+  --popover: hsl(240, 15%, 12%);
+  --popover-foreground: hsl(0, 0%, 100%);
+  --primary: hsl(240, 20%, 6%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(240, 15%, 15%);
+  --secondary-foreground: hsl(0, 0%, 100%);
+  --muted: hsl(240, 15%, 15%);
+  --muted-foreground: hsl(0, 0%, 63.9%);
+  --accent: hsl(262, 83%, 58%);
+  --accent-foreground: hsl(0, 0%, 100%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --border: hsl(240, 15%, 20%);
+  --input: hsl(240, 15%, 20%);
+  --ring: hsl(262, 83%, 58%);
+  --surface: hsl(240, 15%, 12%);
+  --surface-light: hsl(240, 15%, 15%);
+  --success: hsl(142, 76%, 36%);
+  --warning: hsl(38, 92%, 50%);
+  
+  --radius: 0.75rem;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+.theme-bitcoin {
+  /* Bitcoin Theme */
+  --background: hsl(0, 0%, 10%);
+  --foreground: hsl(0, 0%, 100%);
+  --card: hsl(0, 0%, 16%);
+  --card-foreground: hsl(0, 0%, 100%);
+  --popover: hsl(0, 0%, 16%);
+  --popover-foreground: hsl(0, 0%, 100%);
+  --primary: hsl(0, 0%, 10%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(0, 0%, 23%);
+  --secondary-foreground: hsl(0, 0%, 100%);
+  --muted: hsl(0, 0%, 23%);
+  --muted-foreground: hsl(0, 0%, 82%);
+  --accent: hsl(33, 100%, 52%);
+  --accent-foreground: hsl(0, 0%, 0%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --border: hsl(0, 0%, 29%);
+  --input: hsl(0, 0%, 29%);
+  --ring: hsl(33, 100%, 52%);
+  --surface: hsl(0, 0%, 16%);
+  --surface-light: hsl(0, 0%, 23%);
+  --success: hsl(142, 76%, 36%);
+  --warning: hsl(45, 100%, 51%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: var(--font-sans);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+}
+
+@layer components {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer utilities {
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    transform: translateY(20px); 
+    opacity: 0; 
+  }
+  to { 
+    transform: translateY(0); 
+    opacity: 1; 
+  }
+}
+
+@keyframes glow {
+  from { 
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); 
+  }
+  to { 
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.6); 
+  }
+}
