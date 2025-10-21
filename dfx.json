@@ -16,10 +16,7 @@
       "main": "src/multi-trader-backend/PredictionMarkets/MarketFactory/TestFactory.mo",
       "type": "motoko"
     },
-    "MarketFactory": {
-      "main": "src/multi-trader-backend/PredictionMarkets/MarketFactory/MarketFactory.mo",
-      "type": "motoko"
-    },
+
     "omax-pro-frontend": {
       "dependencies": [
         

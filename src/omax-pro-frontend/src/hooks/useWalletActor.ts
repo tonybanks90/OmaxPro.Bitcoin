@@ -26,7 +26,7 @@ export interface _SERVICE {
   'updateWalletName' : (userPrincipal: Principal, address: string, newName: string) => Promise<boolean>,
 }
 
-const CANISTER_ID = process.env.REACT_APP_WALLET_CANISTER_ID || "ulvla-h7777-77774-qaacq-cai";
+const CANISTER_ID = process.env.REACT_APP_WALLET_CANISTER_ID || "di5fv-gqaaa-aaaai-atlja-cai";
 
 if (!CANISTER_ID) {
   console.error("⚠️ Canister ID not configured!");

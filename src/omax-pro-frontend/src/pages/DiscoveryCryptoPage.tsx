@@ -1,21 +1,45 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { Skeleton } from "../components/ui/skeleton";
-import { ArrowLeft, Search, TrendingUp, TrendingDown, RefreshCw, Plus } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, RefreshCw, Plus, Bitcoin, BarChart3, Trophy, Cloud } from "lucide-react";
 import { useCryptoData, useRefreshDiscoveryData } from "../hooks/useDiscoveryAPI";
 import { useToast } from "../hooks/use-toast";
+import { CreatePredictionModal } from "../components/modals/CreatePredictionModal";
+import { AssetDetailModal } from "../components/modals/AssetDetailModal";
+import type { CryptoAsset } from "@shared/schema";
+
+const categories = [
+  { id: "crypto", label: "Cryptocurrency", icon: <Bitcoin className="h-4 w-4" />, route: "/discovery/crypto" },
+  { id: "stocks", label: "Stocks", icon: <BarChart3 className="h-4 w-4" />, route: "/discovery/stocks" },
+  { id: "sports", label: "Sports", icon: <Trophy className="h-4 w-4" />, route: "/discovery/sports" },
+  { id: "weather", label: "Weather", icon: <Cloud className="h-4 w-4" />, route: "/discovery/weather" }
+];
 
 export default function DiscoveryCryptoPage() {
+  const [location] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [limit, setLimit] = useState(50);
-  
-  const { data: cryptoAssets = [], isLoading, error } = useCryptoData(limit);
+  const [predictionModalOpen, setPredictionModalOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<CryptoAsset | null>(null);
+
+  const { data: cryptoAssets = [], isLoading, error} = useCryptoData(limit);
   const refreshMutation = useRefreshDiscoveryData();
   const { toast } = useToast();
+
+  const handleCreatePrediction = (asset: CryptoAsset) => {
+    setSelectedAsset(asset);
+    setPredictionModalOpen(true);
+  };
+
+  const handleViewDetails = (asset: CryptoAsset) => {
+    setSelectedAsset(asset);
+    setDetailModalOpen(true);
+  };
 
   const filteredAssets = cryptoAssets.filter(asset =>
     asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -62,20 +86,29 @@ export default function DiscoveryCryptoPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Category Tabs */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        {categories.map((category) => (
+          <Link key={category.id} href={category.route}>
+            <Button
+              variant={location === category.route ? "default" : "outline"}
+              size="sm"
+              className="flex items-center gap-2 whitespace-nowrap"
+              data-testid={`tab-${category.id}`}
+            >
+              {category.icon}
+              {category.label}
+            </Button>
+          </Link>
+        ))}
+      </div>
+
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/discovery">
-          <Button variant="ghost" size="sm" data-testid="button-back">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Discovery
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">Cryptocurrency Discovery</h1>
-          <p className="text-muted-foreground">
-            Explore top cryptocurrencies and create predictions
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Cryptocurrency Discovery</h1>
+        <p className="text-muted-foreground">
+          Top {limit} cryptocurrencies by market cap
+        </p>
       </div>
 
       {/* Search and Controls */}
@@ -185,7 +218,7 @@ export default function DiscoveryCryptoPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Price</span>
@@ -193,7 +226,7 @@ export default function DiscoveryCryptoPage() {
                         ${Number(asset.currentPrice).toLocaleString()}
                       </span>
                     </div>
-                    
+
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">24h Change</span>
                       <span className={`text-sm font-medium ${Number(asset.priceChangePercentage24h) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -201,7 +234,7 @@ export default function DiscoveryCryptoPage() {
                         {Number(asset.priceChangePercentage24h).toFixed(2)}%
                       </span>
                     </div>
-                    
+
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Market Cap</span>
                       <span className="text-sm">
@@ -209,19 +242,25 @@ export default function DiscoveryCryptoPage() {
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="flex gap-2 mt-4">
-                    <Link href={`/discovery/crypto/${asset.id}`} className="flex-1">
-                      <Button variant="outline" size="sm" className="w-full" data-testid={`button-details-${asset.id}`}>
-                        View Details
-                      </Button>
-                    </Link>
-                    <Link href={`/create-prediction?asset=${asset.id}&category=crypto`}>
-                      <Button size="sm" data-testid={`button-predict-${asset.id}`}>
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        Predict
-                      </Button>
-                    </Link>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1" 
+                      onClick={() => handleViewDetails(asset)}
+                      data-testid={`button-details-${asset.id}`}
+                    >
+                      View Details
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleCreatePrediction(asset)}
+                      data-testid={`button-predict-${asset.id}`}
+                    >
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      Predict
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -241,6 +280,32 @@ export default function DiscoveryCryptoPage() {
             Clear Search
           </Button>
         </div>
+      )}
+
+      {/* Detail Modal */}
+      {selectedAsset && (
+        <AssetDetailModal
+          isOpen={detailModalOpen}
+          onClose={() => {
+            setDetailModalOpen(false);
+            setSelectedAsset(null);
+          }}
+          category="crypto"
+          asset={selectedAsset}
+        />
+      )}
+
+      {/* Prediction Modal */}
+      {selectedAsset && (
+        <CreatePredictionModal
+          isOpen={predictionModalOpen}
+          onClose={() => {
+            setPredictionModalOpen(false);
+            setSelectedAsset(null);
+          }}
+          category="crypto"
+          assetData={selectedAsset}
+        />
       )}
     </div>
   );

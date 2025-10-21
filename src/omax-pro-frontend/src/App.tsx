@@ -59,6 +59,15 @@ function Router() {
         <Route path="/discovery/search" component={DiscoverySearchPage} />
         <Route path="/discovery/:category/:id" component={ComingSoonPage} />
         <Route path="/coming-soon" component={ComingSoonPage} />
+        <Route path="/discovery">
+            {() => <Redirect to="/discovery/crypto" />}
+          </Route>
+        <Route path="/discovery/crypto" component={DiscoveryCryptoPage} />
+        <Route path="/discovery/stocks" component={DiscoveryStocksPage} />
+        <Route path="/discovery/sports" component={DiscoverySportsPage} />
+        <Route path="/discovery/weather" component={DiscoveryWeatherPage} />
+        <Route path="/discovery/search" component={DiscoverySearchPage} />
+        <Route path="/discovery/crypto/:id" component={TokenPage} />
         <Route component={NotFound} />
       </Switch>
       <Footer />

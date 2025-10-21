@@ -400,6 +400,16 @@ actor TokenFactory {
     }
   };
 
+
+  public shared({ caller }) func clearWasm() : async Result.Result<Text, Text> {
+  if (not Principal.isController(caller)) {
+    return #err("Only controller can clear WASM");
+  };
+  wasm_module := null;
+  Debug.print("WASM module cleared from stable memory.");
+  #ok("WASM module cleared successfully.")
+};
+
   // ===== CYCLE MANAGEMENT =====
 
   public query func getCycleBalance() : async Nat {

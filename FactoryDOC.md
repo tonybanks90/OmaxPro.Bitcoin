@@ -98,15 +98,15 @@ const approveResult = await ckbtcLedger.icrc2_approve({
 
 // 3. Create binary market
 const marketArgs = {
-    title: "Will Bitcoin reach $100K by 2025?",
-    description: "Market resolves YES if Bitcoin reaches $100,000 USD by Dec 31, 2025",
+    title: "Will Bitcoin reach $150K by 2025?",
+    description: "Market resolves YES if Bitcoin reaches $150,000 USD by Dec 31, 2025",
     category: { Crypto: null },
-    image: { ImageUrl: "https://example.com/btc.png" },
+    image: { ImageUrl: "https://imgs.search.brave.com/a4dGjjVfQMf2L0sdTNsgWVn7up6XtW04enppy72SMKY/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly90NC5m/dGNkbi5uZXQvanBn/LzAxLzU5Lzc4LzY1/LzM2MF9GXzE1OTc4/NjUwNl9EQnEyZXY2/WkxhMDNleTdBTTVR/WXh1YkNsdmdPN3pj/Qi5qcGc" },
     tags: [{ Crypto: null }],
-    bettingCloseTime: 1735689600000000000n, // End of 2025
-    expirationTime: 1735776000000000000n,   // Resolution deadline
-    resolutionLink: "https://coinmarketcap.com",
-    resolutionDescription: "Based on CoinMarketCap closing price"
+    bettingCloseTime: 1764547200000000000, // End of 2025
+    expirationTime: 1767225600000000000,   // Resolution deadline
+    resolutionLink: "https://www.coingecko.com/en/coins/bitcoin",
+    resolutionDescription: "Based on CoinGecko closing price"
 };
 
 const result = await marketFactory.createBinaryMarket(marketArgs);

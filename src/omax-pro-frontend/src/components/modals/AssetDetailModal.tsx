@@ -22,7 +22,7 @@ import {
   Sunset,
   Activity
 } from "lucide-react";
-import type { CryptoAsset, StockAsset, SportsEvent, WeatherData } from "../../shared/sc";
+import type { CryptoAsset, StockAsset, SportsEvent, WeatherData } from "../../shared/schema";
 import { useState } from "react";
 import { CreatePredictionModal } from "./CreatePredictionModal";
 

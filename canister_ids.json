@@ -1,6 +1,15 @@
 {
+  "Markets": {
+    "ic": "fnw6k-hqaaa-aaaai-atl7a-cai"
+  },
   "OmaxRouter": {
     "ic": "db6oj-qyaaa-aaaai-atliq-cai"
+  },
+  "TFactory": {
+    "ic": "fevvw-ryaaa-aaaai-atl6q-cai"
+  },
+  "Vault": {
+    "ic": "fve3n-fqaaa-aaaai-atmaq-cai"
   },
   "WalletTracker": {
     "ic": "di5fv-gqaaa-aaaai-atlja-cai"

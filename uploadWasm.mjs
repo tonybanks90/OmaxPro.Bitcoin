@@ -9,12 +9,11 @@ import { promisify } from "util";
 global.fetch = fetch;
 
 // === CONFIGURATION ===
-const canisterId = "uzt4z-lp777-77774-qaabq-cai"; // your TokenFactory canister
+const canisterId = "fevvw-ryaaa-aaaai-atl6q-cai"; // your TokenFactory canister
 const wasmFilePath = "/mnt/c/Users/user/OmaxPro.Bitcoin/icrc1_ledger.wasm.gz";
 
 // Try multiple endpoints in order of preference
 const endpoints = [
-  "http://127.0.0.1:4943", // Local replica (if running)
   "https://ic0.app", // Primary IC boundary node
   "https://icp0.io",  // Alternative boundary node
   "http://127.0.0.1:4943", // Local replica (if running)
@@ -439,18 +438,21 @@ const testEnhancedMarketCreation = async (tokenFactory) => {
     
     
     // Test 1: Binary Market with full metadata
-    console.log("1. Creating Binary Market...");
-    const binaryResult = await tokenFactory.createBinaryMarket({
-      title: "Will Bitcoin reach $150k by end of 2025?",
-      description: "This market resolves to YES if Bitcoin (BTC) reaches or exceeds $150,000 USD on any major exchange before January 1, 2025.",
-      category: { Crypto: null },
-      image: { ImageUrl: "https://th.bing.com/th/id/OIP.Xlw-GQRk_XXxbdHWJ8Ws4gHaFj?w=266&h=199&c=7&r=0&o=7&pid=1.7&rm=3" },
-      tags: [{ Crypto: null }],
-      bettingCloseTime: hoursFromNow(720), // 30 days
-      expirationTime: hoursFromNow(2160), // 90 days  
-      resolutionLink: "https://coinmarketcap.com/currencies/bitcoin/",
-      resolutionDescription: "Market resolves based on CoinMarketCap price data"
-    });
+    const marketArgs = {
+    title: "Will Bitcoin reach $150K by 2025?",
+    description: "Market resolves YES if Bitcoin reaches $150,000 USD by Dec 31, 2025",
+    category: { Crypto: null },
+    image: { ImageUrl: "https://imgs.search.brave.com/a4dGjjVfQMf2L0sdTNsgWVn7up6XtW04enppy72SMKY/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly90NC5m/dGNkbi5uZXQvanBn/LzAxLzU5Lzc4LzY1/LzM2MF9GXzE1OTc4/NjUwNl9EQnEyZXY2/WkxhMDNleTdBTTVR/WXh1YkNsdmdPN3pj/Qi5qcGc" },
+    tags: [{ Crypto: null }],
+    bettingCloseTime: 1764547200000000000, // End of 2025
+    expirationTime: 1767225600000000000,   // Resolution deadline
+    resolutionLink: "https://www.coingecko.com/en/coins/bitcoin",
+    resolutionDescription: "Based on CoinGecko closing price",
+    liquidityParameter: 2,
+    totalSupply: 21000000
+};
+
+    const binaryResult = await tokenFactory.createBinaryMarket(marketArgs);
 
     if ("ok" in binaryResult) {
       const marketId = binaryResult.ok;
@@ -472,7 +474,7 @@ const testEnhancedMarketCreation = async (tokenFactory) => {
     }
 
     // Test 2: Multiple Choice Market
-    console.log("\n2. Creating Multiple Choice Market...");
+    /**console.log("\n2. Creating Multiple Choice Market...");
     const multipleChoiceResult = await tokenFactory.createMultipleChoiceMarket({
       title: "Who will win the 2027 US Presidential Election?",
       description: "This market will resolve to the candidate who wins the 2027 United States Presidential Election.",
@@ -491,7 +493,7 @@ const testEnhancedMarketCreation = async (tokenFactory) => {
       console.log(`   Multiple choice market created! ID: ${marketId}`);
     } else {
       console.error("   Multiple choice market creation failed:", multipleChoiceResult.err);
-    }
+    } 
 
     // Test 3: Legacy market creation (backward compatibility)
     console.log("\n3. Testing legacy market creation...");
@@ -504,7 +506,7 @@ const testEnhancedMarketCreation = async (tokenFactory) => {
       console.log(`   Legacy market created! ID: ${marketId}`);
     } else {
       console.error("   Legacy market creation failed:", legacyResult.err);
-    }
+    } **/
 
     // Show updated statistics
     console.log("\n4. Updated Factory Statistics:");
