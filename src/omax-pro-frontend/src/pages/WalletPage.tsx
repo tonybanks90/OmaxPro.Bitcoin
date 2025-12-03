@@ -1,21 +1,22 @@
-// pages/WalletPage.tsx - FIXED AUTHENTICATION FLOW
-import React, { useState, useEffect } from 'react';
+// pages/WalletPage.tsx - Refactored to use actor directly
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { SettingsModal } from '../components/modals/SettingsModal';
 import { FilterModal } from '../components/modals/FilterModal';
-import { Plus, Download, Upload, Search, Wallet, Activity, Eye, Trash2, Edit3, AlertCircle, LogIn, User, Settings, Filter } from 'lucide-react';
+import { Plus, Download, Upload, Search, Wallet, Activity, Eye, Trash2, Edit3, AlertCircle, User, Settings, Filter } from 'lucide-react';
 import { useOdinUserActivity, getOdinImageUrl } from '../hooks/useOdinAPI';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { useToast } from '../hooks/use-toast';
 import { useAuth } from '../auth/AuthProvider';
+import { useWallet } from '../auth/WalletActorProvider';
+import { Principal } from '@dfinity/principal';
 
-// Import your fixed actor hook and services
-import { useWalletActor } from '../hooks/useWalletActor';
-import { useUserWallets, useAddWallet, useRemoveWallet, useUpdateWalletName, useWalletCount, useWalletActorSync } from '../hooks/useWalletQueries';
-import type { WalletEntry } from '../services/walletService';
-
+interface WalletEntry {
+  address: string;
+  name: string;
+}
 
 export default function WalletPage() {
   const { toast } = useToast();
@@ -28,13 +29,21 @@ export default function WalletPage() {
   const [newWalletName, setNewWalletName] = useState('');
   const [editingWallet, setEditingWallet] = useState<WalletEntry | null>(null);
 
+  const [wallets, setWallets] = useState<WalletEntry[]>([]);
+  const [walletCount, setWalletCount] = useState<number>(0);
+  const [isLoadingWallets, setIsLoadingWallets] = useState(false);
+  const [walletsError, setWalletsError] = useState<string | null>(null);
+
+  const [isAddingWallet, setIsAddingWallet] = useState(false);
+  const [isRemovingWallet, setIsRemovingWallet] = useState(false);
+  const [isUpdatingWallet, setIsUpdatingWallet] = useState(false);
+
   // Authentication hook
   const { 
     isReady: authReady, 
     isAuthenticated, 
     identity, 
     principalId, 
-    login, 
     logout 
   } = useAuth();
 
@@ -47,13 +56,13 @@ export default function WalletPage() {
     error: actorError,
     authenticate,
     clearAuth
-  } = useWalletActor();
+  } = useWallet();
+  
+  console.log('WalletPage: Auth State', { authReady, isAuthenticated, principalId });
+  console.log('WalletPage: Actor State', { actor: !!actor, isInitializing, actorAuthenticated, actorReady, actorError });
 
-  // CRITICAL: Sync actor to global state FIRST
-  useWalletActorSync();
 
   // Authenticate actor when user identity is available
-  // FIXED: Only authenticate once when identity changes
   useEffect(() => {
     if (identity && !actorAuthenticated && !isInitializing) {
       console.log('🔐 Authenticating actor with identity...');
@@ -75,36 +84,55 @@ export default function WalletPage() {
       clearAuth();
     }
   }, [isAuthenticated, actorAuthenticated, clearAuth]);
-
-  // Only fetch wallets if user is authenticated and actor is ready
+  
   const shouldFetchData = authReady && isAuthenticated && principalId && actorReady && actorAuthenticated;
 
-  console.log('🎯 WalletPage state:', {
-    authReady,
-    isAuthenticated,
-    hasPrincipalId: !!principalId,
-    actorReady,
-    actorAuthenticated,
-    shouldFetchData
-  });
+  const fetchWallets = useCallback(async () => {
+    console.log('fetchWallets: Checking conditions...', { shouldFetchData, actor: !!actor });
+    if (!shouldFetchData || !actor) return; 
+    
+    console.log(`fetchWallets: Fetching for principal: ${principalId}`);
+    setIsLoadingWallets(true);
+    setWalletsError(null);
+    try {
+      const principal = Principal.fromText(principalId!); // Use ! because shouldFetchData ensures principalId is not null
+      let result;
+      if (searchWallet.trim()) {
+        console.log(`fetchWallets: Searching for term: "${searchWallet.trim()}"`);
+        result = await actor.searchUserWallets(principal, searchWallet.trim());
+      } else {
+        console.log('fetchWallets: Getting all user wallets.');
+        result = await actor.getUserWallets(principal);
+      }
+      const count = await actor.getUserWalletCount(principal);
+      
+      console.log('fetchWallets: Raw result from actor:', result);
+      console.log('fetchWallets: Raw count from actor:', count);
 
-  // Fetch user wallets using the query hook
-  const { 
-    data: wallets = [], 
-    isLoading: walletsLoading, 
-    error: walletsError,
-    refetch: refetchWallets
-  } = useUserWallets(
-    principalId || '', 
-    searchWallet.trim() || undefined,
-    { enabled: shouldFetchData }
-  );
+      const mappedWallets = result.map(([address, name]) => ({ address, name }));
+      setWallets(mappedWallets);
+      setWalletCount(Number(count));
+      
+      console.log('fetchWallets: Successfully fetched and set state.', { wallets: mappedWallets, count: Number(count) });
 
-  // Fetch wallet count
-  const { data: walletCount = 0 } = useWalletCount(
-    principalId || '',
-    { enabled: shouldFetchData }
-  );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      setWalletsError(errorMessage);
+      console.error('fetchWallets: Error fetching wallets:', error);
+      toast({
+        title: "Failed to Fetch Wallets",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingWallets(false);
+    }
+  }, [shouldFetchData, actor, principalId, searchWallet, toast]);
+
+  useEffect(() => {
+    console.log('useEffect[fetchWallets]: Triggered.');
+    fetchWallets();
+  }, [fetchWallets]);
 
   // Fetch activity for selected wallet (external API)
   const { 
@@ -113,32 +141,21 @@ export default function WalletPage() {
     error: activityError 
   } = useOdinUserActivity(selectedWallet || '', 1, 50);
 
-  // Mutation hooks
-  const addWalletMutation = useAddWallet();
-  const removeWalletMutation = useRemoveWallet();
-  const updateWalletMutation = useUpdateWalletName();
-
   // Event handlers
-  const handleAddWallet = () => {
-    if (!principalId) {
+  const handleAddWallet = async () => {
+    console.log('handleAddWallet: Attempting to add wallet...', { newWalletAddress, newWalletName });
+    if (!principalId || !actor) {
+      console.warn('handleAddWallet: Aborted. Principal or actor not available.');
       toast({
-        title: "Not Authenticated",
-        description: "Please sign in to add wallets",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!actorReady || !actorAuthenticated) {
-      toast({
-        title: "Canister Not Ready",
-        description: "Wallet canister is not ready. Please wait a moment and try again.",
+        title: "Not Ready",
+        description: "Please sign in and wait for the wallet canister to be ready.",
         variant: "destructive"
       });
       return;
     }
 
     if (!newWalletAddress.trim()) {
+      console.warn('handleAddWallet: Aborted. Wallet address is empty.');
       toast({
         title: "Invalid Address",
         description: "Please enter a valid wallet address",
@@ -147,87 +164,107 @@ export default function WalletPage() {
       return;
     }
 
-    console.log('🚀 Attempting to add wallet...', {
-      actorReady,
-      actorAuthenticated,
-      principalId
-    });
-
-    addWalletMutation.mutate({
-      userPrincipal: principalId,
-      address: newWalletAddress.trim(),
-      name: newWalletName.trim() || `Wallet ${wallets.length + 1}`
-    }, {
-      onSuccess: () => {
-        setShowAddWalletModal(false);
-        setNewWalletAddress('');
-        setNewWalletName('');
-        toast({
-          title: "Wallet Added",
-          description: "Wallet has been successfully added to your tracking list",
-        });
-      },
-      onError: (error) => {
-        toast({
-          title: "Failed to Add Wallet",
-          description: error.message,
-          variant: "destructive"
-        });
-      }
-    });
-  };
-
-  const handleRemoveWallet = (address: string) => {
-    if (!principalId) return;
-
-    if (confirm('Are you sure you want to remove this wallet?')) {
-      removeWalletMutation.mutate({
-        userPrincipal: principalId,
-        address
-      }, {
-        onSuccess: () => {
-          if (selectedWallet === address) {
-            setSelectedWallet(null);
-          }
-          toast({
-            title: "Wallet Removed",
-            description: "Wallet has been successfully removed from tracking",
-          });
-        },
-        onError: (error) => {
-          toast({
-            title: "Failed to Remove Wallet",
-            description: error.message,
-            variant: "destructive"
-          });
-        }
+    setIsAddingWallet(true);
+    try {
+      const principal = Principal.fromText(principalId);
+      const address = newWalletAddress.trim();
+      const name = newWalletName.trim() || `Wallet ${wallets.length + 1}`;
+      console.log('handleAddWallet: Calling actor.addWalletEntry with:', { principal: principal.toText(), address, name });
+      await actor.addWalletEntry(principal, address, name);
+      
+      console.log('handleAddWallet: Successfully added wallet.');
+      setShowAddWalletModal(false);
+      setNewWalletAddress('');
+      setNewWalletName('');
+      toast({
+        title: "Wallet Added",
+        description: "Wallet has been successfully added to your tracking list",
       });
+      fetchWallets(); // Refetch wallets
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      console.error('handleAddWallet: Error adding wallet:', error);
+      toast({
+        title: "Failed to Add Wallet",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsAddingWallet(false);
     }
   };
 
-  const handleUpdateWalletName = (address: string, newName: string) => {
-    if (!principalId || !newName.trim()) return;
+  const handleRemoveWallet = async (address: string) => {
+    console.log(`handleRemoveWallet: Attempting to remove wallet: ${address}`);
+    if (!principalId || !actor) {
+      console.warn('handleRemoveWallet: Aborted. Principal or actor not available.');
+      return;
+    }
 
-    updateWalletMutation.mutate({
-      userPrincipal: principalId,
-      address,
-      newName: newName.trim()
-    }, {
-      onSuccess: () => {
-        setEditingWallet(null);
+    if (confirm('Are you sure you want to remove this wallet?')) {
+      setIsRemovingWallet(true);
+      try {
+        const principal = Principal.fromText(principalId);
+        console.log('handleRemoveWallet: Calling actor.removeWalletEntry with:', { principal: principal.toText(), address });
+        await actor.removeWalletEntry(principal, address);
+        
+        console.log('handleRemoveWallet: Successfully removed wallet.');
+        if (selectedWallet === address) {
+          setSelectedWallet(null);
+        }
         toast({
-          title: "Wallet Updated",
-          description: "Wallet name has been successfully updated",
+          title: "Wallet Removed",
+          description: "Wallet has been successfully removed from tracking",
         });
-      },
-      onError: (error) => {
+        fetchWallets(); // Refetch wallets
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+        console.error('handleRemoveWallet: Error removing wallet:', error);
         toast({
-          title: "Failed to Update Wallet",
-          description: error.message,
+          title: "Failed to Remove Wallet",
+          description: errorMessage,
           variant: "destructive"
         });
+      } finally {
+        setIsRemovingWallet(false);
       }
-    });
+    } else {
+      console.log('handleRemoveWallet: User canceled removal.');
+    }
+  };
+
+  const handleUpdateWalletName = async (address: string, newName: string) => {
+    console.log(`handleUpdateWalletName: Attempting to update wallet: ${address} to name: "${newName}"`);
+    if (!principalId || !newName.trim() || !actor) {
+      console.warn('handleUpdateWalletName: Aborted. Principal, new name, or actor not available.');
+      return;
+    }
+
+    setIsUpdatingWallet(true);
+    try {
+      const principal = Principal.fromText(principalId);
+      const name = newName.trim();
+      console.log('handleUpdateWalletName: Calling actor.updateWalletName with:', { principal: principal.toText(), address, newName: name });
+      await actor.updateWalletName(principal, address, name);
+      
+      console.log('handleUpdateWalletName: Successfully updated wallet name.');
+      setEditingWallet(null);
+      toast({
+        title: "Wallet Updated",
+        description: "Wallet name has been successfully updated",
+      });
+      fetchWallets(); // Refetch wallets
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      console.error('handleUpdateWalletName: Error updating wallet name:', error);
+      toast({
+        title: "Failed to Update Wallet",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsUpdatingWallet(false);
+    }
   };
 
   // Utility functions
@@ -364,11 +401,11 @@ export default function WalletPage() {
                     variant="ghost" 
                     size="icon" 
                     className="h-8 w-8"
-                    onClick={() => refetchWallets()}
-                    disabled={walletsLoading}
+                    onClick={() => fetchWallets()}
+                    disabled={isLoadingWallets}
                     title="Refresh wallets"
                   >
-                    <div className={walletsLoading ? "animate-spin" : ""}>
+                    <div className={isLoadingWallets ? "animate-spin" : ""}>
                       <Activity className="w-4 h-4" />
                     </div>
                   </Button>
@@ -380,10 +417,10 @@ export default function WalletPage() {
                 className="w-full mb-4" 
                 onClick={() => setShowAddWalletModal(true)}
                 data-testid="button-add-wallet"
-                disabled={addWalletMutation.isPending || !shouldFetchData}
+                disabled={isAddingWallet || !shouldFetchData}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                {addWalletMutation.isPending ? 'Adding...' : 'Add Wallet'}
+                {isAddingWallet ? 'Adding...' : 'Add Wallet'}
               </Button>
 
               {/* Search Wallet */}
@@ -402,7 +439,7 @@ export default function WalletPage() {
 
               {/* Wallets List */}
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {walletsLoading ? (
+                {isLoadingWallets ? (
                   <div className="text-center py-4">
                     <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
                     <p className="text-sm text-muted-foreground mt-2">Loading wallets...</p>
@@ -414,7 +451,7 @@ export default function WalletPage() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => refetchWallets()}
+                      onClick={() => fetchWallets()}
                       className="mt-2"
                     >
                       Retry
@@ -424,7 +461,7 @@ export default function WalletPage() {
                   wallets.map((wallet) => (
                     <div
                       key={wallet.address}
-                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${ 
                         selectedWallet === wallet.address
                           ? 'bg-blue-50 border-blue-300'
                           : 'bg-background border-border hover:bg-gray-50'
@@ -470,7 +507,7 @@ export default function WalletPage() {
                               e.stopPropagation();
                               setEditingWallet(wallet);
                             }}
-                            disabled={updateWalletMutation.isPending}
+                            disabled={isUpdatingWallet}
                           >
                             <Edit3 className="w-3 h-3" />
                           </Button>
@@ -482,14 +519,14 @@ export default function WalletPage() {
                               e.stopPropagation();
                               handleRemoveWallet(wallet.address);
                             }}
-                            disabled={removeWalletMutation.isPending}
+                            disabled={isRemovingWallet}
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
                     </div>
-                  ))
+                  )) 
                 ) : (
                   <div className="text-center py-8">
                     <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
@@ -620,7 +657,7 @@ export default function WalletPage() {
                             </div>
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ 
                               activity.buy 
                                 ? 'bg-green-100 text-green-800' 
                                 : 'bg-red-100 text-red-800'
@@ -641,7 +678,7 @@ export default function WalletPage() {
                             {formatTime(activity.time)}
                           </td>
                         </tr>
-                      ))
+                      )) 
                     ) : (
                       <tr>
                         <td colSpan={6} className="py-12 text-center">
@@ -694,7 +731,7 @@ export default function WalletPage() {
                   value={newWalletAddress}
                   onChange={(e) => setNewWalletAddress(e.target.value)}
                   data-testid="input-wallet-address"
-                  disabled={addWalletMutation.isPending}
+                  disabled={isAddingWallet}
                 />
                 <Input 
                   placeholder="Wallet name (optional)" 
@@ -702,7 +739,7 @@ export default function WalletPage() {
                   value={newWalletName}
                   onChange={(e) => setNewWalletName(e.target.value)}
                   data-testid="input-wallet-name"
-                  disabled={addWalletMutation.isPending}
+                  disabled={isAddingWallet}
                 />
                 <div className="flex space-x-2">
                   <Button 
@@ -714,17 +751,17 @@ export default function WalletPage() {
                       setNewWalletName('');
                     }}
                     data-testid="button-cancel-add-wallet"
-                    disabled={addWalletMutation.isPending}
+                    disabled={isAddingWallet}
                   >
                     Cancel
                   </Button>
                   <Button 
                     className="flex-1"
                     onClick={handleAddWallet}
-                    disabled={!newWalletAddress.trim() || addWalletMutation.isPending}
+                    disabled={!newWalletAddress.trim() || isAddingWallet}
                     data-testid="button-confirm-add-wallet"
                   >
-                    {addWalletMutation.isPending ? (
+                    {isAddingWallet ? (
                       <>
                         <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
                         Adding...

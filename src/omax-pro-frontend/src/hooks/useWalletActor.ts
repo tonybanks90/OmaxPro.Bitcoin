@@ -1,5 +1,5 @@
 // hooks/useWalletActor.ts - FIXED CONNECTION HANDLING
-import { HttpAgent, Actor, type Identity } from "@dfinity/agent";
+import { HttpAgent, Actor, type Identity, AnonymousIdentity } from "@dfinity/agent";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Principal } from "@dfinity/principal";
 
@@ -26,7 +26,7 @@ export interface _SERVICE {
   'updateWalletName' : (userPrincipal: Principal, address: string, newName: string) => Promise<boolean>,
 }
 
-const CANISTER_ID = process.env.REACT_APP_WALLET_CANISTER_ID || "di5fv-gqaaa-aaaai-atlja-cai";
+const CANISTER_ID = process.env.REACT_APP_WALLET_CANISTER_ID || "uxrrr-q7777-77774-qaaaq-cai";
 
 if (!CANISTER_ID) {
   console.error("⚠️ Canister ID not configured!");
@@ -37,20 +37,28 @@ const getHost = () => {
   if (process.env.NODE_ENV === 'production' || process.env.REACT_APP_IC_HOST === 'mainnet') {
     return 'https://ic0.app';
   }
-  const replicaPort = process.env.REACT_APP_REPLICA_PORT || '4943';
+  const replicaPort = process.env.REACT_APP_REPLICA_PORT || '5173';
   return `http://localhost:${replicaPort}`;
 };
 
 const createAgent = async (identity?: Identity): Promise<HttpAgent> => {
   const host = getHost();
-  
+  const isLocalDevelopment = process.env.NODE_ENV !== 'production' && !process.env.REACT_APP_IC_HOST;
+
+  // Use AnonymousIdentity for local development to avoid delegation verification issues
+  // but only if an identity (from II) is provided.
+  // If no identity is provided (e.g., initial load), still use the anonymous agent.
+  const agentIdentity = (identity && isLocalDevelopment)
+    ? new AnonymousIdentity() // Use anonymous identity for local dev to bypass delegation
+    : identity; // Otherwise, use the provided identity (for production or if no identity is given)
+
   const agent = new HttpAgent({
     host,
-    identity,
+    identity: agentIdentity, // Use the determined identity
   });
 
   // IMPORTANT: Fetch root key in local development
-  if (process.env.NODE_ENV !== 'production' && !process.env.REACT_APP_IC_HOST) {
+  if (isLocalDevelopment) { // Simplified condition
     try {
       console.log('🔑 Fetching root key for local development...');
       await agent.fetchRootKey();
