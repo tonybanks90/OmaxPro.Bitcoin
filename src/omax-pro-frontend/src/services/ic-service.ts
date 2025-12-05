@@ -29,11 +29,11 @@ import type {
 } from '../../../declarations/TFactory/TFactory.did';
 
 // Configure your canister ID here
-const CANISTER_ID = process.env.VITE_PREDICTION_MARKET_FACTORY_CANISTER_ID || canisterId || 'fevvw-ryaaa-aaaai-atl6q-cai';
+const CANISTER_ID = process.env.VITE_PREDICTION_MARKET_FACTORY_CANISTER_ID || canisterId || 'ulvla-h7777-77774-qaacq-cai';
 
 // Configure network
-const HOST = process.env.NODE_ENV === 'production' 
-  ? 'https://ic0.app' 
+const HOST = process.env.NODE_ENV === 'production'
+  ? 'https://ic0.app'
   : 'http://localhost:4943';
 
 // Service state interface
@@ -71,7 +71,7 @@ class ICService {
       console.log('Canister ID:', CANISTER_ID);
       console.log('Host:', HOST);
 
-      this.agent = new HttpAgent({ 
+      this.agent = new HttpAgent({
         host: HOST,
         // Only fetch root key in development
         ...(process.env.NODE_ENV === 'development' && { fetchRootKey: true })
@@ -125,7 +125,7 @@ class ICService {
       'ai': { 'AI': null },
       'runes': { 'Runes': null },
     };
-    
+
     const mapped = categoryMap[category.toLowerCase()];
     if (!mapped) {
       console.warn(`Unknown category: ${category}, defaulting to Technology`);
@@ -148,7 +148,7 @@ class ICService {
       'runes': { 'Runes': null },
       'web2': { 'web2': null },
     };
-    
+
     return tags.map(tag => {
       const mapped = tagMap[tag.toLowerCase()];
       if (!mapped) {
@@ -164,7 +164,7 @@ class ICService {
     if (!imageUrl) {
       return { 'ImageUrl': '' };
     }
-    
+
     // If it's a data URL (base64), convert to blob
     if (imageUrl.startsWith('data:')) {
       try {
@@ -177,7 +177,7 @@ class ICService {
         return { 'ImageUrl': '' };
       }
     }
-    
+
     return { 'ImageUrl': imageUrl };
   }
 
@@ -252,17 +252,20 @@ class ICService {
       resolutionDescription: data.resolutionDescription || '',
       tags: this.mapTags(data.tags),
       image: this.mapImageData(data.imageUrl),
+      resolver: Principal.anonymous(),
+      liquidityParameter: 100.0,
+      totalSupply: BigInt(1_000_000_000),
     };
 
     console.log('Binary market args:', args);
 
     try {
       const result = await actor.createBinaryMarket(args);
-      
+
       if ('err' in result) {
         throw new Error(`Failed to create binary market: ${result.err}`);
       }
-      
+
       console.log('Binary market created with ID:', result.ok.toString());
       return result.ok;
     } catch (error) {
@@ -303,17 +306,20 @@ class ICService {
       outcomes: data.outcomes,
       tags: this.mapTags(data.tags),
       image: this.mapImageData(data.imageUrl),
+      resolver: Principal.anonymous(),
+      liquidityParameter: 100.0,
+      totalSupply: BigInt(1_000_000_000),
     };
 
     console.log('Multiple choice market args:', args);
 
     try {
       const result = await actor.createMultipleChoiceMarket(args);
-      
+
       if ('err' in result) {
         throw new Error(`Failed to create multiple choice market: ${result.err}`);
       }
-      
+
       console.log('Multiple choice market created with ID:', result.ok.toString());
       return result.ok;
     } catch (error) {
@@ -354,17 +360,20 @@ class ICService {
       subjects: data.subjects,
       tags: this.mapTags(data.tags),
       image: this.mapImageData(data.imageUrl),
+      resolver: Principal.anonymous(),
+      liquidityParameter: 100.0,
+      totalSupply: BigInt(1_000_000_000),
     };
 
     console.log('Compound market args:', args);
 
     try {
       const result = await actor.createCompoundMarket(args);
-      
+
       if ('err' in result) {
         throw new Error(`Failed to create compound market: ${result.err}`);
       }
-      
+
       console.log('Compound market created with ID:', result.ok.toString());
       return result.ok;
     } catch (error) {
@@ -402,7 +411,7 @@ class ICService {
     const actor = this.ensureInitialized();
     try {
       const result = await actor.getMarketInfo(marketId);
-      return result.length > 0 ? result[0] : null;
+      return result.length > 0 ? result[0] ?? null : null;
     } catch (error) {
       console.error('Error getting market info:', error);
       throw error;
@@ -484,7 +493,7 @@ class ICService {
         'runes': { 'Runes': null },
         'web2': { 'web2': null },
       };
-      
+
       const mappedTag = tagMap[tag.toLowerCase()] || { 'Technology': null };
       return await actor.getMarketsByTag(mappedTag);
     } catch (error) {
@@ -539,11 +548,11 @@ class ICService {
     const actor = this.ensureInitialized();
     try {
       const result = await actor.uploadWasm(Array.from(wasmBytes));
-      
+
       if ('err' in result) {
         throw new Error(`Failed to upload WASM: ${result.err}`);
       }
-      
+
       console.log('WASM uploaded successfully');
     } catch (error) {
       console.error('Error uploading WASM:', error);

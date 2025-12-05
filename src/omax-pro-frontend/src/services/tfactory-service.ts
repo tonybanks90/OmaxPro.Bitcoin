@@ -25,7 +25,7 @@ export class TFactoryService {
       'ai': { 'AI': null },
       'runes': { 'Runes': null },
     };
-    
+
     const mapped = categoryMap[category.toLowerCase()];
     if (!mapped) {
       console.warn(`Unknown category: ${category}, defaulting to Technology`);
@@ -48,7 +48,7 @@ export class TFactoryService {
       'runes': { 'Runes': null },
       'web2': { 'web2': null },
     };
-    
+
     return tags.map(tag => {
       const mapped = tagMap[tag.toLowerCase()];
       if (!mapped) {
@@ -64,7 +64,7 @@ export class TFactoryService {
     if (!imageUrl) {
       return { 'ImageUrl': '' };
     }
-    
+
     // If it's a data URL (base64), convert to blob
     if (imageUrl.startsWith('data:')) {
       try {
@@ -77,7 +77,7 @@ export class TFactoryService {
         return { 'ImageUrl': '' };
       }
     }
-    
+
     return { 'ImageUrl': imageUrl };
   }
 
@@ -129,12 +129,12 @@ export class TFactoryService {
   // Ensure actor is ready before operations
   private static async ensureActor() {
     await TFactoryActorService.ensureReady();
-    
+
     const actor = TFactoryActorService.getActor();
     if (!actor) {
       throw new Error('TFactory actor not available');
     }
-    
+
     return actor;
   }
 
@@ -164,15 +164,18 @@ export class TFactoryService {
       resolutionDescription: data.resolutionDescription || '',
       tags: this.mapTags(data.tags),
       image: this.mapImageData(data.imageUrl),
+      resolver: Principal.anonymous(),
+      liquidityParameter: 100.0,
+      totalSupply: BigInt(1_000_000_000),
     };
 
     try {
       const result = await actor.createBinaryMarket(args);
-      
+
       if ('err' in result) {
         throw new Error(`Failed to create binary market: ${result.err}`);
       }
-      
+
       console.log('Binary market created with ID:', result.ok.toString());
       return result.ok;
     } catch (error) {
@@ -213,15 +216,18 @@ export class TFactoryService {
       outcomes: data.outcomes,
       tags: this.mapTags(data.tags),
       image: this.mapImageData(data.imageUrl),
+      resolver: Principal.anonymous(),
+      liquidityParameter: 100.0,
+      totalSupply: BigInt(1_000_000_000),
     };
 
     try {
       const result = await actor.createMultipleChoiceMarket(args);
-      
+
       if ('err' in result) {
         throw new Error(`Failed to create multiple choice market: ${result.err}`);
       }
-      
+
       console.log('Multiple choice market created with ID:', result.ok.toString());
       return result.ok;
     } catch (error) {
@@ -262,15 +268,18 @@ export class TFactoryService {
       subjects: data.subjects,
       tags: this.mapTags(data.tags),
       image: this.mapImageData(data.imageUrl),
+      resolver: Principal.anonymous(),
+      liquidityParameter: 100.0,
+      totalSupply: BigInt(1_000_000_000),
     };
 
     try {
       const result = await actor.createCompoundMarket(args);
-      
+
       if ('err' in result) {
         throw new Error(`Failed to create compound market: ${result.err}`);
       }
-      
+
       console.log('Compound market created with ID:', result.ok.toString());
       return result.ok;
     } catch (error) {
@@ -308,7 +317,7 @@ export class TFactoryService {
     const actor = await this.ensureActor();
     try {
       const result = await actor.getMarketInfo(marketId);
-      return result.length > 0 ? result[0] : null;
+      return result.length > 0 ? result[0] ?? null : null;
     } catch (error) {
       console.error('Error getting market info:', error);
       throw error;

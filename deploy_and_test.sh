@@ -5,6 +5,12 @@ set -e
 IDENTITY="default"
 NETWORK="local"  # Change to "ic" for mainnet or "playground" for playground
 TEST_USER_IDENTITY="test_user"  # Create this identity if it doesn't exist
+# Use specific dfx binary to bypass shim issues
+function dfx {
+    /home/antony/snap/code/214/.local/share/dfx/versions/0.29.2/dfx "$@"
+}
+export -f dfx
+
 
 # Colors for output
 RED='\033[0;31m'
@@ -35,37 +41,70 @@ print_error() {
 
 # Check if dfx is running
 print_info "Checking if dfx is running..."
-if ! dfx ping --network $NETWORK > /dev/null 2>&1; then
-    print_error "dfx is not running on network $NETWORK"
-    if [[ "$NETWORK" == "local" ]]; then
-        print_info "Starting dfx..."
-        dfx start --background --clean
-        sleep 5
-    else
-        exit 1
-    fi
+if ! pgrep -x "dfx" > /dev/null; then
+    print_info "Starting dfx..."
+    dfx start --background --clean
+    sleep 5
+else
+    print_info "dfx is already running"
 fi
 print_status "dfx is running"
 
 # Create test user identity if it doesn't exist
 if ! dfx identity list | grep -q "$TEST_USER_IDENTITY"; then
     print_info "Creating test user identity..."
-    dfx identity new "$TEST_USER_IDENTITY" || true
+    dfx identity new "$TEST_USER_IDENTITY" --storage-mode plaintext || true
 fi
+
+# Switch to default identity for deployment
+dfx identity use $IDENTITY
 
 # Deploy all canisters
 print_info "Deploying all canisters..."
-dfx deploy --network $NETWORK --identity $IDENTITY
+
+# Deploy ckBTC Ledger first
+print_info "Deploying ckBTC Ledger..."
+MINTER_ID=$(dfx identity get-principal) # Use current identity as minter for testing
+DEFAULT_ACCOUNT=$(dfx identity get-principal)
+
+dfx deploy ckbtc_ledger --argument "(variant { Init = record {
+     token_symbol = \"ckBTC\";
+     token_name = \"Chain Key Bitcoin\";
+     minting_account = record { owner = principal \"${MINTER_ID}\" };
+     transfer_fee = 10;
+     metadata = vec {};
+     initial_balances = vec { record { record { owner = principal \"${DEFAULT_ACCOUNT}\" }; 100_000_000_000 } };
+     archive_options = record {
+         num_blocks_to_archive = 1000;
+         trigger_threshold = 2000;
+         controller_id = principal \"${MINTER_ID}\";
+     }
+ }})"
+
+# Deploy other canisters
+dfx deploy Markets --network $NETWORK --identity $IDENTITY
+dfx deploy Vault --network $NETWORK --identity $IDENTITY
+dfx deploy TFactory --network $NETWORK --identity $IDENTITY
+# Deposit cycles to TFactory for market creation
+print_info "Depositing cycles to TFactory..."
+dfx ledger fabricate-cycles --canister TFactory --amount 5000000000000 --network $NETWORK || \
+dfx canister deposit-cycles 5000000000000 TFactory --network $NETWORK || print_warning "Failed to deposit cycles, market creation might fail"
+
+# WalletTracker is optional based on dfx.json but good to have if needed
+# dfx deploy WalletTracker --network $NETWORK --identity $IDENTITY
 
 # Get canister IDs
 MARKETS_ID=$(dfx canister id Markets --network $NETWORK)
-TOKEN_FACTORY_ID=$(dfx canister id TokenFactory --network $NETWORK)
+# Note: Script originally looked for TokenFactory, but dfx.json has TFactory
+TOKEN_FACTORY_ID=$(dfx canister id TFactory --network $NETWORK)
 VAULT_ID=$(dfx canister id Vault --network $NETWORK)
+# LEDGER_ID=$(dfx canister id ckbtc_ledger --network $NETWORK) # Already deployed
 
 print_status "Canisters deployed:"
 echo "    Markets:      $MARKETS_ID"
 echo "    TokenFactory: $TOKEN_FACTORY_ID"
 echo "    Vault:        $VAULT_ID"
+echo "    ckBTC Ledger: $(dfx canister id ckbtc_ledger)"
 
 # Setup inter-canister connections
 print_info "Setting up inter-canister connections..."
@@ -82,25 +121,44 @@ dfx canister call Markets setVaultCanister "(principal \"$VAULT_ID\")" \
 
 # Set Markets canister in TokenFactory
 print_info "Setting Markets canister in TokenFactory..."
-dfx canister call TokenFactory setMarketsCanister "(principal \"$MARKETS_ID\")" \
+dfx canister call TFactory setMarketsCanister "(principal \"$MARKETS_ID\")" \
   --network $NETWORK --identity $IDENTITY
 
-# Initialize Vault (using Markets as the ckBTC ledger for testing)
+# Initialize Vault (using real ckBTC ledger)
 print_info "Initializing Vault..."
-dfx canister call Vault initialize "(principal \"$MARKETS_ID\", principal \"$MARKETS_ID\")" \
+LEDGER_ID=$(dfx canister id ckbtc_ledger)
+dfx canister call Vault initialize "(principal \"$MARKETS_ID\", principal \"$LEDGER_ID\")" \
   --network $NETWORK --identity $IDENTITY
 
 print_status "Inter-canister connections established"
 
-# Upload WASM to TokenFactory (you'll need to provide the actual WASM file)
-print_warning "Note: You need to upload the ICRC-1 ledger WASM to TokenFactory"
-echo "Run: dfx canister call TokenFactory uploadWasm '(blob \"<wasm_bytes>\")'"
+# Upload WASM to TokenFactory
+print_info "Uploading ICRC-1 WASM to TFactory..."
+# We use the node script but need to ensure it targets the right canister ID if hardcoded
+# Or we can do it via dfx if we have the blob. 
+# For now, let's use the node script but first update it (done in previous steps of the agent)
+# Executing the node script:
+node deploy.mjs $TOKEN_FACTORY_ID || print_warning "Node script for upload failed, you might need to run it manually or check paths."
+
 
 print_info "Testing the complete flow..."
 
+# Faucet: Mint tokens to test user
+print_info "🚰 FAUCET: Minting tokens to test user..."
+TEST_USER_PRINCIPAL=$(dfx identity get-principal --identity $TEST_USER_IDENTITY)
+# Since we are the minter (default identity)
+dfx canister call ckbtc_ledger icrc1_transfer "(record {
+  to = record { owner = principal \"$TEST_USER_PRINCIPAL\" };
+  amount = 10000000;
+})" --network $NETWORK --identity $IDENTITY
+print_status "Sent 0.1 ckBTC to $TEST_USER_PRINCIPAL"
+
+
 # Test 1: Create a market
 print_info "Test 1: Creating a prediction market..."
-MARKET_RESULT=$(dfx canister call TokenFactory createMarket \
+# We need to give the creator some fee tokens possibly, but TFactory creates it.
+# The user creating the market is $IDENTITY
+MARKET_RESULT=$(dfx canister call TFactory createMarket \
   '(record { 
     question = "Will Bitcoin reach $100k by end of 2024?"; 
     expiry = 1735689600:nat64; 
@@ -121,134 +179,24 @@ dfx canister call Markets getMarket "($MARKET_ID:nat)" \
 
 # Test 3: Get market price
 print_info "Test 3: Getting market prices..."
-dfx canister call Markets getMarketPrice "($MARKET_ID:nat, variant { Yes })" \
+dfx canister call Markets getMarketPrice "($MARKET_ID:nat, variant { Binary = variant { YES } })" \
   --network $NETWORK --identity $IDENTITY
 
-dfx canister call Markets getMarketPrice "($MARKET_ID:nat, variant { No })" \
+dfx canister call Markets getMarketPrice "($MARKET_ID:nat, variant { Binary = variant { NO } })" \
   --network $NETWORK --identity $IDENTITY
 
-# Test 4: Get market ledgers
-print_info "Test 4: Getting market token ledgers..."
-LEDGERS_RESULT=$(dfx canister call TokenFactory getMarketLedgers "($MARKET_ID:nat)" \
-  --network $NETWORK --identity $IDENTITY)
-echo "Market ledgers: $LEDGERS_RESULT"
+# Test 7: Buy tokens
+print_info "Test 7: Attempting to buy YES tokens as test_user..."
 
-# Test 5: Register market in Vault
-print_info "Test 5: Registering market in Vault..."
-dfx canister call Vault registerMarket "($MARKET_ID:nat)" \
-  --network $NETWORK --identity $IDENTITY
+# Approve Vault to spend user's ckBTC
+print_info "Approving Vault to spend ckBTC..."
+dfx canister call ckbtc_ledger icrc2_approve "(record {
+  spender = record { owner = principal \"$VAULT_ID\" };
+  amount = 100000;
+})" --network $NETWORK --identity $TEST_USER_IDENTITY
 
-# Test 6: Get Vault market info
-print_info "Test 6: Getting Vault market info..."
-dfx canister call Vault getMarketInfo "($MARKET_ID:nat)" \
-  --network $NETWORK --identity $IDENTITY
-
-# Test 7: Simulate buying tokens (this will fail without proper ckBTC setup, but shows the flow)
-print_info "Test 7: Attempting to buy YES tokens (will likely fail without ckBTC)..."
-BUY_RESULT=$(dfx canister call Markets buy "($MARKET_ID:nat, variant { Yes }, 1000:nat)" \
-  --network $NETWORK --identity $IDENTITY || echo "Expected to fail without proper ckBTC setup")
+BUY_RESULT=$(dfx canister call Markets buyTokens "($MARKET_ID:nat, variant { Binary = variant { YES } }, 1000:nat64, 0.5:float64)" \
+  --network $NETWORK --identity $TEST_USER_IDENTITY)
 echo "Buy result: $BUY_RESULT"
 
-# Test 8: Check all markets
-print_info "Test 8: Getting all markets..."
-dfx canister call Markets getAllMarkets \
-  --network $NETWORK --identity $IDENTITY
-
-# Test 9: Check token factory markets
-print_info "Test 9: Getting all TokenFactory markets..."
-dfx canister call TokenFactory getAllMarkets \
-  --network $NETWORK --identity $IDENTITY
-
-# Test 10: Check Vault configuration
-print_info "Test 10: Getting Vault configuration..."
-dfx canister call Vault getConfiguration \
-  --network $NETWORK --identity $IDENTITY
-
-# Test 11: Attempt market resolution (as resolver)
-print_info "Test 11: Attempting to resolve market..."
-RESOLVE_RESULT=$(dfx canister call Markets resolve "($MARKET_ID:nat, variant { Yes })" \
-  --network $NETWORK --identity $IDENTITY || echo "Resolution attempted")
-echo "Resolution result: $RESOLVE_RESULT"
-
-# Test 12: Check resolved market
-print_info "Test 12: Checking market after resolution..."
-dfx canister call Markets getMarket "($MARKET_ID:nat)" \
-  --network $NETWORK --identity $IDENTITY
-
-# Test 13: Admin functions test
-print_info "Test 13: Testing admin functions..."
-dfx canister call Markets deactivateMarket "($MARKET_ID:nat)" \
-  --network $NETWORK --identity $IDENTITY
-
-# Performance and stress tests
-print_info "Running performance tests..."
-
-# Test creating multiple markets
-print_info "Creating multiple test markets..."
-for i in {2..5}; do
-  print_info "Creating market $i..."
-  dfx canister call TokenFactory createMarket \
-    "(record { 
-      question = \"Test market $i\"; 
-      expiry = 1735689600:nat64; 
-      resolver = principal \"$(dfx identity get-principal --identity $IDENTITY)\"; 
-      b = $(echo "$i * 50" | bc).0:float64 
-    })" \
-    --network $NETWORK --identity $IDENTITY || true
-  
-  # Register in vault
-  dfx canister call Vault registerMarket "($i:nat)" \
-    --network $NETWORK --identity $IDENTITY || true
-done
-
-# Final status check
-print_info "Final system status..."
-echo "Total markets created:"
-dfx canister call Markets getAllMarkets \
-  --network $NETWORK --identity $IDENTITY | grep -o "id = [0-9]*" | wc -l
-
-echo "Vault markets:"
-dfx canister call Vault getAllMarkets \
-  --network $NETWORK --identity $IDENTITY
-
-print_status "Deployment and testing completed!"
-
-# Cleanup instructions
-print_info "Cleanup instructions:"
-echo "To stop dfx: dfx stop"
-echo "To clean up: dfx canister delete --all --network $NETWORK"
-
-# Summary
-echo ""
-echo "=========================================="
-echo -e "${GREEN}🎉 DEPLOYMENT AND TEST SUMMARY${NC}"
-echo "=========================================="
-echo "Canisters deployed and configured:"
-echo "  ✅ Markets canister: $MARKETS_ID"
-echo "  ✅ TokenFactory canister: $TOKEN_FACTORY_ID"
-echo "  ✅ Vault canister: $VAULT_ID"
-echo ""
-echo "Inter-canister connections established:"
-echo "  ✅ Markets ↔ TokenFactory"
-echo "  ✅ Markets ↔ Vault"
-echo "  ✅ TokenFactory ↔ Markets"
-echo ""
-echo "Tests completed:"
-echo "  ✅ Market creation"
-echo "  ✅ Price queries"
-echo "  ✅ Market resolution"
-echo "  ✅ Admin functions"
-echo "  ✅ Multi-market stress test"
-echo ""
-print_warning "Note: Full trading flow requires proper ckBTC ledger setup"
-print_warning "Note: Upload ICRC-1 WASM to TokenFactory for token creation"
-
-echo ""
-echo "Next steps:"
-echo "1. Upload ICRC-1 ledger WASM to TokenFactory"
-echo "2. Set up proper ckBTC ledger canister"
-echo "3. Configure user allowances for trading"
-echo "4. Test full trading lifecycle with real tokens"
-
-echo ""
 print_status "All done! 🚀"

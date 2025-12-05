@@ -19,7 +19,7 @@ import TrieMap "mo:base/TrieMap";
 import Cycles "mo:base/ExperimentalCycles";
 import Float "mo:base/Float";
 
-actor TokenFactory {
+persistent actor TokenFactory {
   // ===== TYPES =====
   
   public type Account = {
@@ -277,8 +277,8 @@ actor TokenFactory {
   // NEW: Markets canister reference
   private stable var marketsCanister : ?Principal = null;
   
-  private var tokenMetadata = HashMap.HashMap<Principal, TokenMetadata>(0, Principal.equal, Principal.hash);
-  private var marketInfo = TrieMap.TrieMap<MarketId, MarketInfo>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
+  private transient var tokenMetadata = HashMap.HashMap<Principal, TokenMetadata>(0, Principal.equal, Principal.hash);
+  private transient var marketInfo = TrieMap.TrieMap<MarketId, MarketInfo>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
 
   // Management canister interface
   private let mgmt = actor "aaaaa-aa" : actor {

@@ -1,7 +1,7 @@
 // Updated useWalletQueries.ts - FLOW FIXED
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { useWalletActor } from './useWalletActor';
+import { useWallet } from '../auth/WalletActorProvider';
 import { WalletService, setGlobalActor, type WalletEntry } from '../services/walletService';
 
 // Query Keys
@@ -30,19 +30,11 @@ const createRetryConfig = () => ({
   },
 });
 
-// Custom hook to sync the global actor with the WalletService
-export function useWalletActorSync() {
-  const { actor, isAuthenticated } = useWalletActor();
-  
-  useEffect(() => {
-    console.log('🔄 Syncing actor state:', { hasActor: !!actor, isAuthenticated });
-    setGlobalActor(actor, isAuthenticated);
-  }, [actor, isAuthenticated]);
-}
+
 
 // Query hooks
 export function useUserWallets(userPrincipal: string, searchTerm?: string, options?: { enabled?: boolean }) {
-  const { isReady, isAuthenticated } = useWalletActor();
+  const { isReady, isAuthenticated } = useWallet();
   
   return useQuery({
     queryKey: searchTerm 
@@ -75,7 +67,7 @@ export function useUserWallets(userPrincipal: string, searchTerm?: string, optio
 }
 
 export function useWalletCount(userPrincipal: string, options?: { enabled?: boolean }) {
-  const { isReady, isAuthenticated } = useWalletActor();
+  const { isReady, isAuthenticated } = useWallet();
   
   return useQuery({
     queryKey: WALLET_QUERY_KEYS.wallets.count(userPrincipal),
@@ -99,7 +91,7 @@ export function useWalletCount(userPrincipal: string, options?: { enabled?: bool
 }
 
 export function useWalletEntry(userPrincipal: string, address: string, options?: { enabled?: boolean }) {
-  const { isReady, isAuthenticated } = useWalletActor();
+  const { isReady, isAuthenticated } = useWallet();
   
   return useQuery({
     queryKey: WALLET_QUERY_KEYS.wallets.byAddress(userPrincipal, address),
@@ -241,7 +233,7 @@ export function useBatchAddWallets() {
 
 // Export service health check
 export function useWalletHealthCheck(userPrincipal: string, options?: { enabled?: boolean }) {
-  const { isReady, isAuthenticated } = useWalletActor();
+  const { isReady, isAuthenticated } = useWallet();
   
   return useQuery({
     queryKey: ['wallet-health', userPrincipal],

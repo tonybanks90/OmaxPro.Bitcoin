@@ -1,5 +1,6 @@
 import { Actor, HttpAgent } from "@dfinity/agent";
 import { Ed25519KeyIdentity } from "@dfinity/identity";
+import { Secp256k1KeyIdentity } from "@dfinity/identity-secp256k1";
 import { readFileSync, existsSync } from "fs";
 import path from "path";
 import fetch from "node-fetch";
@@ -9,8 +10,8 @@ import { createGzip } from "zlib";
 global.fetch = fetch;
 
 // === CONFIGURATION ===
-const canisterId = "uzt4z-lp777-77774-qaabq-cai";
-const wasmFilePath = "/mnt/c/Users/user/OmaxPro.Bitcoin/icrc1_ledger.wasm.gz";
+const canisterId = process.argv[2] || "uzt4z-lp777-77774-qaabq-cai"; // Note: This might need to be dynamic if TFactory ID changes
+const wasmFilePath = "./icrc1_ledger.wasm.gz";
 const identityFilePath = "./omax_identity.pem"; // Local identity file
 
 const endpoints = [
@@ -27,20 +28,32 @@ function loadIdentity() {
     console.log('  dfx identity export omax > omax_identity.pem');
     throw new Error('Identity file not found');
   }
-  
+
   let identityPem = readFileSync(identityFilePath, 'utf8');
-  
+
   // Debug: show first few characters
   console.log('Identity file first 50 chars:', identityPem.substring(0, 50));
   console.log('Identity file length:', identityPem.length);
-  
+
   // Ensure proper line endings (replace \r\n with \n)
   identityPem = identityPem.replace(/\r\n/g, '\n');
-  
+
   // Try different methods to parse the identity
   let identity;
   const errors = [];
-  
+
+  // Method 0: Check for EC Key (Secp256k1)
+  if (identityPem.includes("EC PRIVATE KEY")) {
+    try {
+      identity = Secp256k1KeyIdentity.fromPem(identityPem);
+      console.log('✓ Loaded identity using Secp256k1KeyIdentity');
+      console.log(`Identity principal: ${identity.getPrincipal().toText()}`);
+      return identity;
+    } catch (e) {
+      errors.push('Secp256k1: ' + e.message);
+    }
+  }
+
   // Method 1: fromPem (newer API)
   try {
     identity = Ed25519KeyIdentity.fromPem(identityPem);
@@ -50,7 +63,7 @@ function loadIdentity() {
   } catch (e) {
     errors.push('fromPem: ' + e.message);
   }
-  
+
   // Method 2: fromPEM (older API)
   try {
     identity = Ed25519KeyIdentity.fromPEM(identityPem);
@@ -60,7 +73,7 @@ function loadIdentity() {
   } catch (e) {
     errors.push('fromPEM: ' + e.message);
   }
-  
+
   // Method 3: Try parsing as JSON (in case it's in JSON format)
   try {
     const parsed = JSON.parse(identityPem);
@@ -74,19 +87,19 @@ function loadIdentity() {
   } catch (e) {
     errors.push('JSON: ' + e.message);
   }
-  
+
   console.error('\nFailed to parse identity file. Errors:');
   errors.forEach(err => console.error('  -', err));
   console.log('\nPlease try re-exporting the identity:');
   console.log('  dfx identity export omax > omax_identity.pem');
-  
+
   throw new Error('Could not parse identity file');
 }
 
 // Candid interface
 const idlFactory = ({ IDL }) => {
   const Result_1 = IDL.Variant({ ok: IDL.Text, err: IDL.Text });
-  
+
   return IDL.Service({
     uploadWasm: IDL.Func([IDL.Vec(IDL.Nat8)], [Result_1], []),
     hasWasm: IDL.Func([], [IDL.Bool], ["query"]),
@@ -102,7 +115,7 @@ async function processWasmFile(filePath) {
   console.log(`Reading file: ${filePath}`);
   const fileBuffer = readFileSync(path.resolve(filePath));
   console.log(`File size: ${fileBuffer.length} bytes`);
-  
+
   if (isGzipped(fileBuffer)) {
     console.log("File is gzipped - using as is");
     return new Uint8Array(fileBuffer);
@@ -110,7 +123,7 @@ async function processWasmFile(filePath) {
     console.log("File is not gzipped - compressing...");
     const gzip = createGzip({ level: 9 });
     const chunks = [];
-    
+
     return new Promise((resolve, reject) => {
       gzip.on('data', chunk => chunks.push(chunk));
       gzip.on('end', () => {
@@ -126,7 +139,7 @@ async function processWasmFile(filePath) {
 }
 
 async function createAgent(hostUrl, identity) {
-  const agent = new HttpAgent({ 
+  const agent = new HttpAgent({
     host: hostUrl,
     fetch: fetch,
     identity: identity,
@@ -148,7 +161,7 @@ const uploadWasm = async () => {
   console.log('\n=== Loading Identity ===');
   const identity = loadIdentity();
   console.log('='.repeat(50) + '\n');
-  
+
   let tokenFactory = null;
   let workingEndpoint = null;
 
@@ -160,7 +173,7 @@ const uploadWasm = async () => {
         agent,
         canisterId,
       });
-      
+
       await tokenFactory.hasWasm(); // Test connection
       workingEndpoint = endpoint;
       console.log(`Connected successfully to: ${endpoint}\n`);
@@ -179,7 +192,7 @@ const uploadWasm = async () => {
   try {
     console.log("Checking if WASM is already uploaded...");
     const hasWasm = await tokenFactory.hasWasm();
-    
+
     if (hasWasm) {
       console.log("✓ WASM already uploaded!");
     } else {
@@ -207,7 +220,7 @@ const uploadWasm = async () => {
 
   } catch (error) {
     console.error("\n✗ Operation failed:", error.message);
-    
+
     if (error.message?.includes("Only controller")) {
       console.log("\nThe identity being used is not a controller of the canister.");
       console.log("Current identity principal:", identity.getPrincipal().toText());
@@ -220,9 +233,9 @@ const uploadWasm = async () => {
 const main = async () => {
   console.log("TokenFactory WASM Upload");
   console.log("=".repeat(50));
-  
+
   await uploadWasm();
-  
+
   console.log("\n" + "=".repeat(50));
   console.log("Upload process completed!");
 };

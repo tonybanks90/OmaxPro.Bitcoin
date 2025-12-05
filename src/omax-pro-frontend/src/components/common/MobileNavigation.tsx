@@ -93,15 +93,15 @@ export function MobileNavigation() {
             </h4>
             <div className="grid grid-cols-2 gap-3">
               {mainMenuItems.map(({ path, label, icon: Icon }) => (
-                <Link key={path} href={path}>
-                  <a 
-                    onClick={closeExplore}
-                    className="flex items-center space-x-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
-                    data-testid={`nav-${label.toLowerCase().replace(' ', '-')}`}
-                  >
-                    <Icon className="w-5 h-5 text-accent" />
-                    <span className="text-sm font-medium text-foreground">{label}</span>
-                  </a>
+                <Link
+                  key={label}
+                  href={path}
+                  onClick={closeExplore}
+                  className="flex items-center space-x-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+                  data-testid={`nav-${label.toLowerCase().replace(' ', '-')}`}
+                >
+                  <Icon className="w-5 h-5 text-accent" />
+                  <span className="text-sm font-medium text-foreground">{label}</span>
                 </Link>
               ))}
             </div>
@@ -114,15 +114,15 @@ export function MobileNavigation() {
             </h4>
             <div className="grid grid-cols-2 gap-3">
               {otherMenuItems.map(({ path, label, icon: Icon }) => (
-                <Link key={path} href={path}>
-                  <a 
-                    onClick={closeExplore}
-                    className="flex items-center space-x-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
-                    data-testid={`nav-${label.toLowerCase().replace(' ', '-').replace('&', 'and')}`}
-                  >
-                    <Icon className="w-5 h-5 text-accent" />
-                    <span className="text-sm font-medium text-foreground">{label}</span>
-                  </a>
+                <Link
+                  key={label}
+                  href={path}
+                  onClick={closeExplore}
+                  className="flex items-center space-x-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+                  data-testid={`nav-${label.toLowerCase().replace(' ', '-').replace('&', 'and')}`}
+                >
+                  <Icon className="w-5 h-5 text-accent" />
+                  <span className="text-sm font-medium text-foreground">{label}</span>
                 </Link>
               ))}
             </div>
@@ -158,28 +158,26 @@ export function MobileNavigation() {
       {/* Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-50">
         <div className="flex items-center justify-around h-16">
-          <Link href="/">
-            <a
-              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-                isActive('/') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              data-testid="nav-home"
-            >
-              <Diamond className="w-5 h-5" />
-              <span className="text-xs">Trade</span>
-            </a>
+          <Link
+            href="/"
+            className={`flex flex-col items-center justify-center gap-1 transition-colors ${
+              isActive('/') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            data-testid="nav-home"
+          >
+            <Diamond className="w-5 h-5" />
+            <span className="text-xs">Trade</span>
           </Link>
 
-          <Link href="/prediction-markets">
-            <a
-              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-                isActive('/prediction-markets') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              data-testid="nav-home"
-            >
-              <Diamond className="w-5 h-5" />
-              <span className="text-xs">Predict</span>
-            </a>
+          <Link
+            href="/prediction-markets"
+            className={`flex flex-col items-center justify-center gap-1 transition-colors ${
+              isActive('/prediction-markets') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            data-testid="nav-predict"
+          >
+            <Diamond className="w-5 h-5" />
+            <span className="text-xs">Predict</span>
           </Link>
 
           <button
@@ -193,28 +191,26 @@ export function MobileNavigation() {
             <span className="text-xs">Explore</span>
           </button>
 
-          <Link href="/wallet-manager">
-            <a
-              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-                isActive('/wallet-manager') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              data-testid="nav-wallet"
-            >
-              <Wallet className="w-5 h-5" />
-              <span className="text-xs">Wallet</span>
-            </a>
+          <Link
+            href="/wallet-manager"
+            className={`flex flex-col items-center justify-center gap-1 transition-colors ${
+              isActive('/wallet-manager') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            data-testid="nav-wallet"
+          >
+            <Wallet className="w-5 h-5" />
+            <span className="text-xs">Wallet</span>
           </Link>
 
-          <Link href="/discovery">
-            <a
-              className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-                isActive('/discovery') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              data-testid="nav-discovery"
-            >
-              <Compass className="w-5 h-5" />
-              <span className="text-xs">Discover</span>
-            </a>
+          <Link
+            href="/discovery"
+            className={`flex flex-col items-center justify-center gap-1 transition-colors ${
+              isActive('/discovery') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            data-testid="nav-discovery"
+          >
+            <Compass className="w-5 h-5" />
+            <span className="text-xs">Discover</span>
           </Link>
         </div>
       </nav>

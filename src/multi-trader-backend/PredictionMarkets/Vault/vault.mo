@@ -17,7 +17,7 @@ import Time "mo:base/Time";
 import TrieMap "mo:base/TrieMap";
 import Array "mo:base/Array";
 
-actor Vault {
+persistent actor Vault {
     
     // ===== TYPES =====
     
@@ -132,27 +132,27 @@ actor Vault {
     
     // Market subaccounts storage
     stable var marketAccountsEntries : [(MarketId, [Nat8])] = [];
-    private var marketAccounts : TrieMap.TrieMap<MarketId, [Nat8]> = TrieMap.TrieMap<MarketId, [Nat8]>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
+    private transient var marketAccounts : TrieMap.TrieMap<MarketId, [Nat8]> = TrieMap.TrieMap<MarketId, [Nat8]>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
     
     // Market type tracking
     stable var marketTypesEntries : [(MarketId, MarketType)] = [];
-    private var marketTypes : TrieMap.TrieMap<MarketId, MarketType> = TrieMap.TrieMap<MarketId, MarketType>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
+    private transient var marketTypes : TrieMap.TrieMap<MarketId, MarketType> = TrieMap.TrieMap<MarketId, MarketType>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
     
     // Enhanced market statistics
     stable var marketStatsEntries : [(MarketId, MarketStats)] = [];
-    private var marketStats : TrieMap.TrieMap<MarketId, MarketStats> = TrieMap.TrieMap<MarketId, MarketStats>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
+    private transient var marketStats : TrieMap.TrieMap<MarketId, MarketStats> = TrieMap.TrieMap<MarketId, MarketStats>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
     
     // Active markets tracking
     stable var activeMarketsEntries : [(MarketId, Bool)] = [];
-    private var activeMarkets : TrieMap.TrieMap<MarketId, Bool> = TrieMap.TrieMap<MarketId, Bool>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
+    private transient var activeMarkets : TrieMap.TrieMap<MarketId, Bool> = TrieMap.TrieMap<MarketId, Bool>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
     
     // Market registration timestamps
     stable var registrationTimesEntries : [(MarketId, Nat64)] = [];
-    private var registrationTimes : TrieMap.TrieMap<MarketId, Nat64> = TrieMap.TrieMap<MarketId, Nat64>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
+    private transient var registrationTimes : TrieMap.TrieMap<MarketId, Nat64> = TrieMap.TrieMap<MarketId, Nat64>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
     
     // Market deactivation timestamps
     stable var deactivationTimesEntries : [(MarketId, Nat64)] = [];
-    private var deactivationTimes : TrieMap.TrieMap<MarketId, Nat64> = TrieMap.TrieMap<MarketId, Nat64>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
+    private transient var deactivationTimes : TrieMap.TrieMap<MarketId, Nat64> = TrieMap.TrieMap<MarketId, Nat64>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
     
     // Configuration
     private stable var marketsCanister : ?Principal = null;

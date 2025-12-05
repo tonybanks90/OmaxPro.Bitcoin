@@ -18,11 +18,12 @@ import WalletManagerPage from "./pages/WalletManagerPage";
 import SniperPage from "./pages/SniperPage";
 import NotFound from "./pages/not-found";
 import "./index.css";
+import { WalletActorProvider } from "./auth/WalletActorProvider";
 import { AuthProvider } from "./auth/AuthProvider";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import TestOdin from "./pages/testodin";
 import CKBoostWallet from "./components/modals/CKBoostWallet";
-import CreatePredictionPage from "./pages/CrearePredictionPage";
+import CreatePredictionPage from "./pages/CreatePredictionPage";
 import PredictionMarketsPage from "./pages/PredictionMarketsPage";
 import PredictionMarketDetailPage from "./pages/PredictionMarketDetailPage";
 import DiscoveryPage from "./pages/DiscoveryPage";
@@ -60,8 +61,8 @@ function Router() {
         <Route path="/discovery/:category/:id" component={ComingSoonPage} />
         <Route path="/coming-soon" component={ComingSoonPage} />
         <Route path="/discovery">
-            {() => <Redirect to="/discovery/crypto" />}
-          </Route>
+          {() => <Redirect to="/discovery/crypto" />}
+        </Route>
         <Route path="/discovery/crypto" component={DiscoveryCryptoPage} />
         <Route path="/discovery/stocks" component={DiscoveryStocksPage} />
         <Route path="/discovery/sports" component={DiscoverySportsPage} />
@@ -82,11 +83,13 @@ function App() {
       <ThemeProvider>
         <LanguageProvider>
           <TooltipProvider>
-             <AuthProvider> 
-            <div className="min-h-screen bg-background text-foreground transition-colors">
-              <Toaster />
-              <Router />
-            </div>
+            <AuthProvider>
+              <WalletActorProvider>
+                <div className="min-h-screen bg-background text-foreground transition-colors">
+                  <Toaster />
+                  <Router />
+                </div>
+              </WalletActorProvider>
             </AuthProvider>
           </TooltipProvider>
         </LanguageProvider>
