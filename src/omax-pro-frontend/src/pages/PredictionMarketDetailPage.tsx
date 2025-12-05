@@ -13,6 +13,7 @@ import { Separator } from '../components/ui/separator';
 import { ArrowLeft, Share, Clock, Users, DollarSign, Bitcoin, TrendingUp, Calendar, Info } from 'lucide-react';
 import { Link } from 'wouter';
 import { MarketActivity } from '../components/prediction/MarketActivity';
+import { MarketDebugPanel } from '../components/prediction/MarketDebugPanel';
 
 
 export default function PredictionMarketDetailPage() {
@@ -114,8 +115,8 @@ export default function PredictionMarketDetailPage() {
         <div className="flex flex-col lg:flex-row lg:items-start lg:space-x-6">
           {/* Market Image */}
           <div className="flex-shrink-0 mb-4 lg:mb-0">
-            <img 
-              src={market.image || getPlaceholderImage(market.category)} 
+            <img
+              src={market.image || getPlaceholderImage(market.category)}
               alt={market.title}
               className="w-full lg:w-80 h-48 lg:h-60 object-cover rounded-xl"
               onError={(e) => {
@@ -251,17 +252,17 @@ export default function PredictionMarketDetailPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground text-sm font-medium">Resolution Date</span>
                         <span className="font-semibold text-foreground">
-                          {typeof market.endDate === 'string' 
-                            ? new Date(market.endDate).toLocaleDateString('en-US', { 
-                                year: 'numeric', 
-                                month: 'short', 
-                                day: 'numeric' 
-                              })
-                            : market.endDate.toLocaleDateString('en-US', { 
-                                year: 'numeric', 
-                                month: 'short', 
-                                day: 'numeric' 
-                              })
+                          {typeof market.endDate === 'string'
+                            ? new Date(market.endDate).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })
+                            : market.endDate.toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })
                           }
                         </span>
                       </div>
@@ -299,9 +300,9 @@ export default function PredictionMarketDetailPage() {
                     </h4>
                     <div className="flex flex-wrap gap-3">
                       {market.tags.map((tag, index) => (
-                        <Badge 
-                          key={index} 
-                          variant="secondary" 
+                        <Badge
+                          key={index}
+                          variant="secondary"
                           className="text-sm px-3 py-1.5 font-medium bg-gradient-to-r from-accent/10 to-accent/20 border-accent/30 text-accent hover:from-accent/20 hover:to-accent/30 transition-all duration-200"
                         >
                           #{tag}
@@ -328,6 +329,9 @@ export default function PredictionMarketDetailPage() {
             selectedOption={selectedOption}
             onOptionSelect={setSelectedOption}
           />
+
+          {/* Debug Panel - Development Only */}
+          <MarketDebugPanel marketId={marketId} />
 
           {/* Market Chat - Desktop */}
           <div className="hidden lg:block">
