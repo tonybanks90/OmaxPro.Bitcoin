@@ -196,12 +196,10 @@ persistent actor Markets  {
     // Vault Interface
     public type VaultInterface = actor {
         setupMarketVault: (VaultSetupRequest) -> async (Result.Result<VaultSetupResponse, Text>);
-        pullSatoshisFromVault: (VaultTradingRequest) -> async (Result.Result<(), Text>);
-        paySatoshisFromVault: (VaultTradingRequest) -> async (Result.Result<(), Text>);
-        resolveMarketVault: (VaultResolutionRequest) -> async (Result.Result<(), Text>);
-        processPayouts: (VaultPayoutRequest) -> async (Result.Result<PayoutResult, Text>);
-        getVaultBalance: (Principal) -> async (Result.Result<Nat64, Text>);
-        getVaultStatus: (Nat) -> async (Result.Result<VaultStatus, Text>);
+        pull_ckbtc: (marketId: Nat, user: Principal, amount: Nat) -> async (Result.Result<{ blockIndex: Nat; timestamp: Nat64 }, Text>);
+        pay_ckbtc: (marketId: Nat, user: Principal, amount: Nat) -> async (Result.Result<{ blockIndex: Nat; timestamp: Nat64 }, Text>);
+        get_balance_async: (Nat) -> async (Result.Result<Nat, Text>);
+        registerMarket: (Nat, MarketType) -> async (Result.Result<(), Text>);
     };
     
     public type VaultSetupRequest = {
@@ -670,7 +668,17 @@ private func selectVaultAddress(
                                     tokenIdentifier = tokenIdentifier;
                                 };
                                 
-                                await vaultActor.pullSatoshisFromVault(tradingRequest);
+                                // Pull ckBTC from user to vault
+                                let pullResult = await vaultActor.pull_ckbtc(
+                                    marketId,
+                                    user,
+                                    Nat64.toNat(amount)
+                                );
+                                
+                                switch (pullResult) {
+                                    case (#err(e)) { return #err("Failed to pull ckBTC: " # e) };
+                                    case (#ok(_)) { /* Continue */ };
+                                };
                             };
                         }
                     };
@@ -708,7 +716,17 @@ private func selectVaultAddress(
                                     tokenIdentifier = tokenIdentifier;
                                 };
                                 
-                                await vaultActor.paySatoshisFromVault(tradingRequest);
+                                // Pay ckBTC from vault to user
+                                let payResult = await vaultActor.pay_ckbtc(
+                                    marketId,
+                                    user,
+                                    Nat64.toNat(amount)
+                                );
+                                
+                                switch (payResult) {
+                                    case (#err(e)) { return #err("Failed to pay ckBTC: " # e) };
+                                    case (#ok(_)) { /* Continue */ };
+                                };
                             };
                         }
                     };
