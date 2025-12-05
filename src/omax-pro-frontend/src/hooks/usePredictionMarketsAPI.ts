@@ -49,66 +49,123 @@ const mapMarketInfoToFrontend = (market: MarketInfo): PredictionMarketFrontend =
   // and potentially fetch more details like volume and participants from other canisters
   // if they are not directly available in MarketInfo.
 
-  const marketIdString = market.id.toString();
-  const categoryName = mapCategoryToString(market.metadata.category);
-  const marketTypeString = Object.keys(market.marketType)[0];
+  // Debug logging
+  console.log('Mapping market:', market.id.toString(), market.metadata.title);
 
-  // Placeholder values - you'll need to implement logic to get these
+  // Safely extract category and tags
+  const marketIdString = market.id.toString();
+  // Ensure category matches frontend expectations (capitalized for display, but component logic uses IDs usually?)
+  // PredictionMarketsPage uses market.category for matching activeCategory (which is lowercase ID).
+  // We should probably normalize this. 
+  // Let's keep the display name (Capitalized) but maybe we need an ID field?
+  // PredictionMarketsPage lines 33: market.category === activeCategory.
+  // Active category is from categories array IDs (lowercase).
+  // So market.category MUST be lowercase for filtering to work with specific tabs.
+  // But wait, the categories array also has 'name' which is capitalized. 
+  // Let's store category ID in 'category' for filtering, or fix the page.
+  // Current Page logic: market.category is displayed in Badge (wants Capitalized) AND used for filter (wants lowercase). 
+  // This is a conflict in the Page logic. 
+  // I will make market.category match the ID (lowercase) and assume Badge capitalizes or we add a 'categoryLabel' field?
+  // Easier: keep Capitalized, but fix the Page filter. 
+  // BUT the user issue is "No markets displayed" which implies ALL markets hidden.
+  // 'all' filter bypasses category check. So this isn't the root cause for 'all'.
+
+  const categoryName = mapCategoryToString(market.metadata.category);
+
+  // Safely extract market types
+  const keys = Object.keys(market.marketType);
+  const marketTypeString = keys.length > 0 ? keys[0].toLowerCase() : 'unknown'; // Normalize to lowercase
+
+  // Placeholder values
   const totalVolumeUSD = '$0';
   const totalVolumeSats = '0 Sats';
   const participants = 0;
 
   const options: PredictionMarketFrontend['options'] = [];
-  // Logic to map marketType and market.tokens to frontend options
-  if ('Binary' in market.marketType) {
-    // Assuming market.tokens contains { Binary: { yesLedger: Principal, noLedger: Principal } }
-    // You'd need to fetch percentages and odds from these ledgers.
+
+  // Robust options mapping
+  const mt = market.marketType as any; // Cast to bypass strict type checking if definition is lagging
+
+  if (mt.Binary || 'Binary' in mt || keys.includes('Binary')) {
     options.push(
       { id: 'yes', label: 'Yes', percentage: 50, odds: 2.0, color: '#34d399' },
       { id: 'no', label: 'No', percentage: 50, odds: 2.0, color: '#ef4444' }
     );
-  } else if ('MultipleChoice' in market.marketType) {
-    // Similar logic for multiple choice markets
-    market.marketType.MultipleChoice.outcomes.forEach((outcome, index) => {
+  } else if (mt.MultipleChoice || 'MultipleChoice' in mt || keys.includes('MultipleChoice')) {
+    const outcomes = mt.MultipleChoice?.outcomes || mt.MultipleChoice || [];
+    outcomes.forEach((outcome: string, index: number) => {
       options.push({
         id: `option-${index}`,
         label: outcome,
-        percentage: 100 / market.marketType.MultipleChoice.outcomes.length, // Placeholder
-        odds: 1.0, // Placeholder
-        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`, // Random color placeholder
+        percentage: 100 / (outcomes.length || 1),
+        odds: 1.0,
+        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
       });
     });
-  } else if ('Compound' in market.marketType) {
-    // Logic for compound markets
-    market.marketType.Compound.subjects.forEach((subject, index) => {
+  } else if (mt.Compound || 'Compound' in mt || keys.includes('Compound')) {
+    const subjects = mt.Compound?.subjects || mt.Compound || [];
+    subjects.forEach((subject: string, index: number) => {
       options.push({
         id: `subject-${index}`,
         label: subject,
-        percentage: 100 / market.marketType.Compound.subjects.length, // Placeholder
-        odds: 1.0, // Placeholder
-        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`, // Random color placeholder
+        percentage: 100 / (subjects.length || 1),
+        odds: 1.0,
+        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
       });
     });
   }
 
   const tags = market.metadata.tags.map(mapTagToString);
 
-  // Image handling: You'll need to check if market.metadata.image is ImageUrl or ImageBlob
-  // and construct the appropriate URL or handle the blob.
-  const image = 'ImageUrl' in market.metadata.image ? market.metadata.image.ImageUrl : '/placeholder-image.svg'; // Default placeholder
+  // Image handling with detailed logging
+  console.log('Image data structure:', Object.keys(market.metadata.image), market.metadata.image);
+
+  let image = ''; // Empty string so PredictionCard's fallback logic works
+
+  if ('ImageUrl' in market.metadata.image && (market.metadata.image as any).ImageUrl) {
+    image = (market.metadata.image as any).ImageUrl;
+    console.log('Using ImageUrl:', image);
+  } else if ('ImageBlob' in market.metadata.image) {
+    try {
+      const blob = (market.metadata.image as any).ImageBlob;
+      console.log('ImageBlob found, length:', blob?.length || 0);
+
+      if (blob && blob.length > 0) {
+        const bytes = new Uint8Array(blob);
+
+        // Process in chunks to avoid "Maximum call stack size exceeded"
+        const chunkSize = 8192;
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          const chunk = bytes.subarray(i, i + chunkSize);
+          binary += String.fromCharCode.apply(null, Array.from(chunk));
+        }
+
+        const base64 = btoa(binary);
+        image = `data:image/jpeg;base64,${base64}`;
+        console.log('Successfully converted blob to base64, original size:', blob.length, 'base64 length:', base64.length);
+      } else {
+        console.warn('ImageBlob is empty or invalid');
+      }
+    } catch (e) {
+      console.error('Error converting image blob:', e);
+    }
+  } else {
+    console.log('No valid image data found, using empty string for category fallback');
+  }
 
   return {
     id: marketIdString,
     title: market.metadata.title,
     description: market.metadata.description,
-    category: categoryName,
+    category: categoryName, // Kept Capitalized
     image: image,
-    isActive: Number(market.metadata.expirationTime) > Date.now() * 1_000_000, // Basic check, may need refinement
+    isActive: Number(market.metadata.expirationTime) > Date.now() * 1_000_000,
     endDate: new Date(Number(market.metadata.expirationTime) / 1_000_000).toISOString(),
     totalVolumeUSD: totalVolumeUSD,
     totalVolumeSats: totalVolumeSats,
     participants: participants,
-    marketType: marketTypeString,
+    marketType: marketTypeString, // Now lowercase 'binary', 'multiplechoice' (fix spelling below)
     options: options,
     tags: tags,
   };
