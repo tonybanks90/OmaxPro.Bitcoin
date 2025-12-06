@@ -426,9 +426,9 @@ export function useOdinHistoricalTrades(
     queryFn: async () => {
       const endTime = new Date();
       const startTime = new Date(endTime.getTime() - timeframeHours * 60 * 60 * 1000);
-      
+
       const tickerId = `${ticker}_${tokenId}`;
-      
+
       return fetchOdinHistoricalTrades(tickerId, startTime, endTime, 2000);
     },
     refetchInterval: 30000,
@@ -533,6 +533,7 @@ export function useBTCPrice() {
 // PRICE CONVERSION UTILITIES
 
 const SATOSHI_TO_BTC = 0.00000001;
+const API_SCALE = 1000; // Odin API values are in millisatoshis (divide by 1000 to get satoshis)
 
 export interface PriceData {
   satoshis: number;
@@ -585,7 +586,7 @@ function parseOdinMarketCap(apiValue: number, btcPriceUSD: number): PriceData {
 }
 
 function parseOdinVolume(apiValue: number, btcPriceUSD: number): PriceData {
-  const satoshis = apiValue;
+  const satoshis = apiValue / 1000;
   const btc = satoshisToBTC(satoshis);
   const usd = satoshisToUSD(satoshis, btcPriceUSD);
   return { satoshis, btc, usd };
@@ -620,9 +621,37 @@ function formatPriceData(priceData: PriceData) {
   };
 }
 
+// TRADE AMOUNT UTILITIES
+
+// Format BTC amount for display (from API millisatoshi format)
+export function formatTradeBTC(apiAmountBtc: number, btcPriceUSD?: number) {
+  const satoshis = apiAmountBtc / API_SCALE;
+  const btc = satoshis * SATOSHI_TO_BTC;
+  return {
+    satoshis,
+    btc,
+    usd: btcPriceUSD ? btc * btcPriceUSD : null,
+    formatted: btc >= 0.001 ? `${btc.toFixed(6)} BTC` : `${satoshis.toFixed(2)} sats`
+  };
+}
+
+// Format token amount for display (from API format)
+export function formatTradeTokenAmount(apiAmountToken: number, decimals: number = 3) {
+  // Token amounts use divisibility(8) + decimals(3) = 10^11 scale
+  const divisibility = 8;
+  const scale = Math.pow(10, divisibility + decimals);
+  return apiAmountToken / scale;
+}
+
+// Parse raw API trade amount_btc to satoshis
+export function parseApiAmountBtc(apiValue: number): number {
+  return apiValue / API_SCALE;
+}
+
 function enhanceTokenData(token: OdinTokenData, btcPriceUSD: number): EnhancedOdinTokenData {
   const priceData = parseOdinTokenPrice(token.price, btcPriceUSD);
   const marketCapData = parseOdinMarketCap(token.marketcap, btcPriceUSD);
+  // Use volume_24 for 24-hour volume instead of total volume
   const volumeData = parseOdinVolume(token.volume_24, btcPriceUSD);
 
   return {
@@ -646,7 +675,7 @@ export function useEnhancedOdinAPI(filters: {
   marketcap_max?: number;
 } = {}) {
   const { btcPriceUSD } = useBTCPrice();
-  
+
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['odin', 'enhanced-tokens', filters],
     queryFn: () => fetchOdinTokens(filters),
@@ -675,6 +704,7 @@ export function getOdinImageUrl(type: 'token' | 'user', id: string): string {
 }
 
 // Convert historical trade to standard trade format for backward compatibility
+// Note: Historical trades from the API already have properly formatted values
 export function convertHistoricalTradeToStandard(
   trade: CombinedHistoricalTrade
 ): OdinTradeData {
@@ -684,6 +714,7 @@ export function convertHistoricalTradeToStandard(
     token: '',
     time: new Date(parseInt(trade.trade_timestamp)).toISOString(),
     buy: trade.buy,
+    // base_volume and target_volume from historical API are already in proper format
     amount_btc: parseFloat(trade.base_volume),
     amount_token: parseFloat(trade.target_volume),
     price: parseFloat(trade.price),
@@ -696,14 +727,14 @@ export function convertHistoricalTradeToStandard(
 }
 
 // Export types
-export type { 
-  OdinTokenData, 
-  OdinTradeData, 
-  OdinPowerHolderData, 
+export type {
+  OdinTokenData,
+  OdinTradeData,
+  OdinPowerHolderData,
   OdinUserActivityData,
   OdinUserTokenHolding,
-  OdinTokensResponse, 
-  OdinTradesResponse, 
+  OdinTokensResponse,
+  OdinTradesResponse,
   OdinPowerHoldersResponse,
   OdinUserActivityResponse,
   OdinUserTokensResponse,
