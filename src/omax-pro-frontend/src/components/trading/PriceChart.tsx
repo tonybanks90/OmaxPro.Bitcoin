@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Download, Maximize2, Bitcoin } from 'lucide-react';
 import { useOdinTokenTrades, useBTCPrice, type OdinTradeData } from '../../hooks/useOdinAPI';
-import { 
-  createChart, 
-  ColorType, 
+import {
+  createChart,
+  ColorType,
   LineStyle,
   CandlestickSeries,
   type IChartApi,
@@ -15,6 +15,7 @@ import {
 
 interface PriceChartProps {
   tokenId: string;
+  tokenSymbol?: string;
 }
 
 interface CandleData {
@@ -39,6 +40,7 @@ function parseTradePrice(apiValue: number, btcPriceUSD: number) {
 export function PriceChart({ tokenId }: PriceChartProps) {
   const [timeframe, setTimeframe] = useState('1h');
   const [displayCurrency, setDisplayCurrency] = useState<'usd' | 'btc' | 'sats'>('usd');
+  const [chartReady, setChartReady] = useState(false);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -47,13 +49,13 @@ export function PriceChart({ tokenId }: PriceChartProps) {
   const { trades, isLoading, error } = useOdinTokenTrades(tokenId, 1, 500);
   const { btcPriceUSD, isLoading: btcLoading } = useBTCPrice();
 
-  const timeframes = [
+  const timeframes = useMemo(() => [
     { value: '5m', label: '5m', ms: 5 * 60 * 1000 },
     { value: '15m', label: '15m', ms: 15 * 60 * 1000 },
     { value: '1h', label: '1h', ms: 60 * 60 * 1000 },
     { value: '4h', label: '4h', ms: 4 * 60 * 60 * 1000 },
     { value: '1d', label: '1d', ms: 24 * 60 * 60 * 1000 },
-  ];
+  ], []);
 
   // Debug logging
   useEffect(() => {
@@ -63,9 +65,10 @@ export function PriceChart({ tokenId }: PriceChartProps) {
       isLoading,
       error,
       btcPriceUSD,
-      btcLoading
+      btcLoading,
+      chartReady
     });
-  }, [tokenId, trades, isLoading, error, btcPriceUSD, btcLoading]);
+  }, [tokenId, trades, isLoading, error, btcPriceUSD, btcLoading, chartReady]);
 
   // Process candlestick data
   const candleData = useMemo(() => {
@@ -76,7 +79,7 @@ export function PriceChart({ tokenId }: PriceChartProps) {
 
     console.log('🔄 Processing trades:', trades.length);
 
-    const sortedTrades = [...trades].sort((a, b) => 
+    const sortedTrades = [...trades].sort((a, b) =>
       new Date(a.time).getTime() - new Date(b.time).getTime()
     );
 
@@ -135,40 +138,9 @@ export function PriceChart({ tokenId }: PriceChartProps) {
     return candles;
   }, [trades, timeframe, btcLoading, timeframes]);
 
-  // Calculate totals
-  const totals = useMemo(() => {
-    if (!trades || trades.length === 0) return { volume: 0, trades: 0, buyTrades: 0, sellTrades: 0 };
-
-    const volumeBTC = trades.reduce((sum, t) => sum + (t.amount_btc || 0), 0);
-    const buyTrades = trades.filter(t => t.buy).length;
-    const sellTrades = trades.filter(t => !t.buy).length;
-
-    return {
-      volume: volumeBTC * btcPriceUSD,
-      trades: trades.length,
-      buyTrades,
-      sellTrades
-    };
-  }, [trades, btcPriceUSD]);
-
-  // Initialize chart - only when we have data
-  useEffect(() => {
-    // Wait until we have candle data before creating the chart
-    if (candleData.length === 0) {
-      console.log('⏳ Waiting for candle data before creating chart');
-      return;
-    }
-
-    if (!chartContainerRef.current) {
-      console.log('❌ Chart container ref not available');
-      return;
-    }
-
-    // Don't recreate if chart already exists
-    if (chartRef.current) {
-      console.log('ℹ️ Chart already initialized');
-      return;
-    }
+  // Initialize chart function
+  const initializeChart = useCallback(() => {
+    if (!chartContainerRef.current || chartRef.current) return;
 
     console.log('🎨 Initializing chart...');
 
@@ -206,9 +178,30 @@ export function PriceChart({ tokenId }: PriceChartProps) {
       },
     });
 
-    chartRef.current = chart;
-    console.log('✅ Chart initialized');
+    // Add series immediately
+    const series = chart.addSeries(CandlestickSeries, {
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderVisible: false,
+      wickUpColor: '#10b981',
+      wickDownColor: '#ef4444',
+    });
 
+    chartRef.current = chart;
+    seriesRef.current = series;
+    setChartReady(true);
+    console.log('✅ Chart initialized and series added');
+  }, []);
+
+  // Initialize chart when container is available AND we have data
+  useEffect(() => {
+    if (candleData.length > 0 && chartContainerRef.current && !chartRef.current) {
+      initializeChart();
+    }
+  }, [candleData.length, initializeChart]);
+
+  // Handle resize
+  useEffect(() => {
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
@@ -220,47 +213,32 @@ export function PriceChart({ tokenId }: PriceChartProps) {
     window.addEventListener('resize', handleResize);
 
     return () => {
-      console.log('🧹 Cleaning up chart');
       window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      console.log('🧹 Cleaning up chart');
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;
+        seriesRef.current = null;
       }
     };
-  }, [candleData.length]);
+  }, []);
 
   // Update chart data
   useEffect(() => {
-    if (!chartRef.current) {
-      console.log('❌ Chart ref not available');
-      return;
-    }
-
-    if (candleData.length === 0) {
-      console.log('⚠️ No candle data to display');
+    if (!seriesRef.current || !chartReady || candleData.length === 0) {
+      console.log('⚠️ No candle data to display or series not ready', { chartReady, candleLength: candleData.length });
       return;
     }
 
     console.log('📊 Updating chart with', candleData.length, 'candles');
 
-    // Remove existing series
-    if (seriesRef.current) {
-      chartRef.current.removeSeries(seriesRef.current);
-      seriesRef.current = null;
-    }
-
     try {
-      // Create candlestick series
-      const series = chartRef.current.addSeries(CandlestickSeries, {
-        upColor: '#10b981',
-        downColor: '#ef4444',
-        borderVisible: false,
-        wickUpColor: '#10b981',
-        wickDownColor: '#ef4444',
-      });
-
-      console.log('✅ Series created');
-
       // Prepare data with currency conversion
       const chartData: CandlestickData[] = candleData.map(d => {
         const openData = parseTradePrice(d.open, btcPriceUSD);
@@ -279,19 +257,13 @@ export function PriceChart({ tokenId }: PriceChartProps) {
         return candle;
       });
 
-      console.log('📍 First chart data point:', chartData[0]);
-      console.log('📍 Last chart data point:', chartData[chartData.length - 1]);
-
-      series.setData(chartData);
-      console.log('✅ Data set to series');
-
-      seriesRef.current = series;
-      chartRef.current.timeScale().fitContent();
+      seriesRef.current.setData(chartData);
+      chartRef.current?.timeScale().fitContent();
       console.log('✅ Chart updated successfully');
     } catch (err) {
       console.error('❌ Error updating chart:', err);
     }
-  }, [candleData, displayCurrency, btcPriceUSD]);
+  }, [candleData, displayCurrency, btcPriceUSD, chartReady]);
 
   if (isLoading || btcLoading) {
     return (
@@ -410,8 +382,6 @@ export function PriceChart({ tokenId }: PriceChartProps) {
           <div ref={chartContainerRef} className="w-full" style={{ height: '500px' }} />
         )}
       </div>
-
-     
     </div>
   );
 }
