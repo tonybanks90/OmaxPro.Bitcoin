@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useOdinTokenTrades, useBTCPrice, type OdinTradeData } from '../../hooks/useOdinAPI';
+import { useState } from 'react';
+import { useOdinTokenTrades, useBTCPrice } from '../../hooks/useOdinAPI';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -50,30 +50,35 @@ function parseTradePrice(apiValue: number, btcPriceUSD: number) {
   };
 }
 
-function parseTradeBTCAmount(btcAmount: number, btcPriceUSD: number) {
-  const usd = btcAmount * btcPriceUSD;
-  const satoshis = btcAmount / SATOSHI_TO_BTC;
+function parseTradeBTCAmount(apiAmountBtc: number, btcPriceUSD: number) {
+  // API amount_btc is in millisatoshi format, divide by 1000 to get satoshis
+  const satoshis = apiAmountBtc / 1000;
+  const btc = satoshis * SATOSHI_TO_BTC;
+  const usd = btc * btcPriceUSD;
   return {
-    btc: btcAmount,
+    btc,
     usd,
     satoshis,
     formatted: {
-      btc: `${btcAmount.toFixed(8)} BTC`,
+      btc: btc >= 0.001 ? `${btc.toFixed(6)} BTC` : `${btc.toFixed(8)} BTC`,
       usd: usd < 0.01 ? `$${usd.toFixed(8)}` : usd < 1 ? `$${usd.toFixed(6)}` : `$${usd.toFixed(2)}`,
       sats: `${satoshis.toLocaleString()} sats`
     }
   };
 }
 
-function parseTokenAmount(tokenAmount: number, tokenPrice: number, btcPriceUSD: number) {
+function parseTokenAmount(apiTokenAmount: number, tokenPrice: number, btcPriceUSD: number) {
+  // API amount_token is in scaled format, divide by 1000 for display
+  const tokenAmount = apiTokenAmount / 1000;
+
   // Get the proper price per token
   const priceData = parseTradePrice(tokenPrice, btcPriceUSD);
-  
+
   // Calculate total value of token amount
   const totalValueSats = tokenAmount * priceData.satoshis;
   const totalValueBTC = totalValueSats * SATOSHI_TO_BTC;
   const totalValueUSD = totalValueBTC * btcPriceUSD;
-  
+
   return {
     tokens: tokenAmount,
     valueSats: totalValueSats,
@@ -193,7 +198,7 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
               {totalCount.toLocaleString()}
             </Badge>
           </div>
-          
+
           {/* Desktop Controls */}
           <div className="hidden md:flex items-center gap-2">
             {/* Currency Display Toggle */}
@@ -220,8 +225,8 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
                 Sats
               </Button>
             </div>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => handleSort('time')}
               className="flex items-center gap-1"
@@ -234,8 +239,8 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
                 </span>
               )}
             </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => handleSort('amount_btc')}
               className="flex items-center gap-1"
@@ -248,8 +253,8 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
                 </span>
               )}
             </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => handleSort('price')}
               className="flex items-center gap-1"
@@ -263,7 +268,7 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
             </Button>
           </div>
         </CardTitle>
-        
+
         {/* Mobile Controls - Inside Card Header */}
         <div className="md:hidden mt-4 space-y-3">
           {/* Top Row: Currency Dropdown */}
@@ -289,7 +294,7 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
 
           {/* Bottom Row: Sort Controls */}
           <div className="flex items-center justify-between gap-1">
-            <Button 
+            <Button
               variant={sortField === 'time' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleSort('time')}
@@ -303,7 +308,7 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
                 </span>
               )}
             </Button>
-            <Button 
+            <Button
               variant={sortField === 'amount_btc' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleSort('amount_btc')}
@@ -317,7 +322,7 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
                 </span>
               )}
             </Button>
-            <Button 
+            <Button
               variant={sortField === 'price' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleSort('price')}
@@ -377,7 +382,7 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
                     return (
                       <TableRow key={trade.id} className="hover:bg-muted/50">
                         <TableCell>
-                          <Badge 
+                          <Badge
                             variant={trade.buy ? "default" : "destructive"}
                             className="flex items-center gap-1 w-fit"
                           >
@@ -415,7 +420,7 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
                             </div>
                           </div>
                         </TableCell>
-                        
+
                         {/* Enhanced Trade Amount Column */}
                         <TableCell className="text-right font-mono">
                           <div>
@@ -431,7 +436,7 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
                             </div>
                           </div>
                         </TableCell>
-                        
+
                         {/* Enhanced Token Amount Column */}
                         <TableCell className="text-right font-mono">
                           <div>
@@ -445,7 +450,7 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
                             </div>
                           </div>
                         </TableCell>
-                        
+
                         <TableCell className="text-right font-mono">
                           <div>
                             <div className="font-medium">
@@ -462,7 +467,7 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
                           {formatTime(trade.time)}
                         </TableCell>
                         <TableCell>
-                          <Badge 
+                          <Badge
                             variant={trade.bonded ? "default" : "secondary"}
                             className="text-xs"
                           >
@@ -506,39 +511,7 @@ export function TokenTrades({ tokenId }: TokenTradesProps) {
               </div>
             )}
 
-            {/* Enhanced Trading Summary with proper conversions - Mobile Responsive */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t">
-              <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg">
-                <div className="text-xs sm:text-sm text-muted-foreground">Buy Volume</div>
-                <div className="text-sm sm:text-lg font-bold text-success">
-                  {displayCurrency === 'usd' && `$${(trades.filter(t => t.buy).reduce((sum, t) => sum + t.amount_btc, 0) * btcPriceUSD).toLocaleString()}`}
-                  {displayCurrency === 'btc' && `${trades.filter(t => t.buy).reduce((sum, t) => sum + t.amount_btc, 0).toFixed(6)} BTC`}
-                  {displayCurrency === 'sats' && `${(trades.filter(t => t.buy).reduce((sum, t) => sum + t.amount_btc, 0) / SATOSHI_TO_BTC).toLocaleString()} sats`}
-                </div>
-              </div>
-              <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg">
-                <div className="text-xs sm:text-sm text-muted-foreground">Sell Volume</div>
-                <div className="text-sm sm:text-lg font-bold text-destructive">
-                  {displayCurrency === 'usd' && `$${(trades.filter(t => !t.buy).reduce((sum, t) => sum + t.amount_btc, 0) * btcPriceUSD).toLocaleString()}`}
-                  {displayCurrency === 'btc' && `${trades.filter(t => !t.buy).reduce((sum, t) => sum + t.amount_btc, 0).toFixed(6)} BTC`}
-                  {displayCurrency === 'sats' && `${(trades.filter(t => !t.buy).reduce((sum, t) => sum + t.amount_btc, 0) / SATOSHI_TO_BTC).toLocaleString()} sats`}
-                </div>
-              </div>
-              <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg">
-                <div className="text-xs sm:text-sm text-muted-foreground">Total Trades</div>
-                <div className="text-sm sm:text-lg font-bold">
-                  {trades.length}
-                </div>
-              </div>
-              <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg">
-                <div className="text-xs sm:text-sm text-muted-foreground">Total Volume</div>
-                <div className="text-sm sm:text-lg font-bold">
-                  {displayCurrency === 'usd' && `$${(trades.reduce((sum, t) => sum + t.amount_btc, 0) * btcPriceUSD).toLocaleString()}`}
-                  {displayCurrency === 'btc' && `${trades.reduce((sum, t) => sum + t.amount_btc, 0).toFixed(6)} BTC`}
-                  {displayCurrency === 'sats' && `${(trades.reduce((sum, t) => sum + t.amount_btc, 0) / SATOSHI_TO_BTC).toLocaleString()} sats`}
-                </div>
-              </div>
-            </div>
+
           </div>
         )}
       </CardContent>

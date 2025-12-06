@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { useOdinTokenPowerHolders, useBTCPrice, type OdinPowerHolderData } from '../../hooks/useOdinAPI';
+import { useState } from 'react';
+import { useOdinTokenPowerHolders, useBTCPrice } from '../../hooks/useOdinAPI';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Crown, User, DollarSign, TrendingUp, Bitcoin } from 'lucide-react';
+import { Crown, DollarSign, TrendingUp, Bitcoin } from 'lucide-react';
 
 interface TokenPowerHoldersProps {
   tokenId: string;
@@ -33,9 +33,10 @@ function formatUSD(usd: number): string {
   return `$${usd.toFixed(6)}`;
 }
 
-// Convert fiat value (assuming it's in satoshis based on Odin API format)
+// Convert fiat value from Odin API format (millisatoshis)
 function convertFiatValue(apiValue: number, btcPriceUSD: number) {
-  const satoshis = apiValue;
+  // API values are in millisatoshi format, divide by 1000 to get satoshis
+  const satoshis = apiValue / 1000;
   const btc = satoshis * 0.00000001;
   const usd = btc * btcPriceUSD;
   return {
@@ -153,7 +154,7 @@ export function TokenPowerHolders({ tokenId }: TokenPowerHoldersProps) {
               {totalCount.toLocaleString()}
             </Badge>
           </div>
-          
+
           {/* Desktop Controls */}
           <div className="hidden md:flex items-center gap-2">
             {/* Currency Display Toggle */}
@@ -180,8 +181,8 @@ export function TokenPowerHolders({ tokenId }: TokenPowerHoldersProps) {
                 Sats
               </Button>
             </div>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => handleSort('balance')}
               className="flex items-center gap-1"
@@ -193,8 +194,8 @@ export function TokenPowerHolders({ tokenId }: TokenPowerHoldersProps) {
                 </span>
               )}
             </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => handleSort('fiat_value')}
               className="flex items-center gap-1"
@@ -209,7 +210,7 @@ export function TokenPowerHolders({ tokenId }: TokenPowerHoldersProps) {
             </Button>
           </div>
         </CardTitle>
-        
+
         {/* Mobile Controls - Inside Card Header */}
         <div className="md:hidden mt-4 space-y-3">
           {/* Currency Dropdown + Sort Controls */}
@@ -227,7 +228,7 @@ export function TokenPowerHolders({ tokenId }: TokenPowerHoldersProps) {
 
             {/* Sort Controls */}
             <div className="flex items-center gap-1">
-              <Button 
+              <Button
                 variant={sortField === 'balance' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => handleSort('balance')}
@@ -240,7 +241,7 @@ export function TokenPowerHolders({ tokenId }: TokenPowerHoldersProps) {
                   </span>
                 )}
               </Button>
-              <Button 
+              <Button
                 variant={sortField === 'fiat_value' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => handleSort('fiat_value')}
@@ -266,7 +267,7 @@ export function TokenPowerHolders({ tokenId }: TokenPowerHoldersProps) {
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         {powerHolders.length === 0 ? (
           <div className="flex items-center justify-center py-8">
@@ -406,8 +407,8 @@ export function TokenPowerHolders({ tokenId }: TokenPowerHoldersProps) {
               <div className="text-center p-3 bg-muted/50 rounded-lg">
                 <div className="text-sm text-muted-foreground">Top 10 Holdings</div>
                 <div className="text-lg font-bold">
-                  {sortedHolders.slice(0, 10).reduce((sum, holder) => sum + holder.balance, 0) > 0 ? 
-                    `${((sortedHolders.slice(0, 10).reduce((sum, holder) => sum + holder.balance, 0) / totalBalance) * 100).toFixed(1)}%` : 
+                  {sortedHolders.slice(0, 10).reduce((sum, holder) => sum + holder.balance, 0) > 0 ?
+                    `${((sortedHolders.slice(0, 10).reduce((sum, holder) => sum + holder.balance, 0) / totalBalance) * 100).toFixed(1)}%` :
                     '0%'
                   }
                 </div>
