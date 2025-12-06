@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { ExternalLink, Heart, Share2, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
-import { SwapComponent } from "../components/trading/SwapComponent";
 
 // Price conversion utilities (matching your enhanced API)
 const SATOSHI_TO_BTC = 0.00000001;
@@ -46,7 +45,7 @@ function parseOdinMarketCap(apiValue: number, btcPriceUSD: number): PriceData {
 }
 
 function parseOdinVolume(apiValue: number, btcPriceUSD: number): PriceData {
-  const satoshis = apiValue; // Volume: API Value = sats (no division)
+  const satoshis = apiValue / 1000; // Volume: API Value ÷ 1000 = sats (same as price/marketcap)
   const btc = satoshisToBTC(satoshis);
   const usd = satoshisToUSD(satoshis, btcPriceUSD);
   return { satoshis, btc, usd };
@@ -147,7 +146,7 @@ export default function TokenPage() {
   const currentPrice = parseOdinTokenPrice(token.price, btcPriceUSD);
   const marketCap = parseOdinMarketCap(token.marketcap, btcPriceUSD);
   const volume24h = parseOdinVolume(token.volume_24, btcPriceUSD);
-  
+
   // Historical prices
   const price5m = parseOdinTokenPrice(token.price_5m, btcPriceUSD);
   const price1h = parseOdinTokenPrice(token.price_1h, btcPriceUSD);
@@ -250,11 +249,10 @@ export default function TokenPage() {
                     24h Change
                   </div>
                   <div
-                    className={`text-lg font-bold ${
-                      change24hPercent.startsWith("+")
-                        ? "text-success"
-                        : "text-destructive"
-                    }`}
+                    className={`text-lg font-bold ${change24hPercent.startsWith("+")
+                      ? "text-success"
+                      : "text-destructive"
+                      }`}
                     data-testid="text-token-change-24h"
                   >
                     {change24hPercent}
@@ -381,14 +379,13 @@ export default function TokenPage() {
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">5M</div>
                   <div
-                    className={`text-sm font-medium ${
-                      formatPriceChangePercent(
-                        token.price,
-                        token.price_5m,
-                      ).startsWith("+")
-                        ? "text-success"
-                        : "text-destructive"
-                    }`}
+                    className={`text-sm font-medium ${formatPriceChangePercent(
+                      token.price,
+                      token.price_5m,
+                    ).startsWith("+")
+                      ? "text-success"
+                      : "text-destructive"
+                      }`}
                     data-testid="text-change-5m"
                   >
                     {formatPriceChangePercent(token.price, token.price_5m)}
@@ -397,14 +394,13 @@ export default function TokenPage() {
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">1H</div>
                   <div
-                    className={`text-sm font-medium ${
-                      formatPriceChangePercent(
-                        token.price,
-                        token.price_1h,
-                      ).startsWith("+")
-                        ? "text-success"
-                        : "text-destructive"
-                    }`}
+                    className={`text-sm font-medium ${formatPriceChangePercent(
+                      token.price,
+                      token.price_1h,
+                    ).startsWith("+")
+                      ? "text-success"
+                      : "text-destructive"
+                      }`}
                     data-testid="text-change-1h"
                   >
                     {formatPriceChangePercent(token.price, token.price_1h)}
@@ -413,14 +409,13 @@ export default function TokenPage() {
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">6H</div>
                   <div
-                    className={`text-sm font-medium ${
-                      formatPriceChangePercent(
-                        token.price,
-                        token.price_6h,
-                      ).startsWith("+")
-                        ? "text-success"
-                        : "text-destructive"
-                    }`}
+                    className={`text-sm font-medium ${formatPriceChangePercent(
+                      token.price,
+                      token.price_6h,
+                    ).startsWith("+")
+                      ? "text-success"
+                      : "text-destructive"
+                      }`}
                     data-testid="text-change-6h"
                   >
                     {formatPriceChangePercent(token.price, token.price_6h)}
@@ -429,11 +424,10 @@ export default function TokenPage() {
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">24H</div>
                   <div
-                    className={`text-sm font-medium ${
-                      change24hPercent.startsWith("+")
-                        ? "text-success"
-                        : "text-destructive"
-                    }`}
+                    className={`text-sm font-medium ${change24hPercent.startsWith("+")
+                      ? "text-success"
+                      : "text-destructive"
+                      }`}
                     data-testid="text-change-24h"
                   >
                     {change24hPercent}
@@ -444,8 +438,13 @@ export default function TokenPage() {
           </Card>
 
           {/* Trading Interface */}
-          <TradingInterface tokenSymbol={token.ticker} />
-          
+          <TradingInterface
+            tokenSymbol={token.ticker}
+            tokenId={token.id}
+            tokenPrice={token.price}
+            btcPriceUSD={btcPriceUSD}
+          />
+
 
           {/* Enhanced Token Statistics */}
           <Card>
@@ -535,14 +534,13 @@ export default function TokenPage() {
                       {formatUSD(price5m.usd)}
                     </div>
                     <div
-                      className={`text-xs ${
-                        formatPriceChangePercent(
-                          token.price,
-                          token.price_5m,
-                        ).startsWith("+")
-                          ? "text-success"
-                          : "text-destructive"
-                      }`}
+                      className={`text-xs ${formatPriceChangePercent(
+                        token.price,
+                        token.price_5m,
+                      ).startsWith("+")
+                        ? "text-success"
+                        : "text-destructive"
+                        }`}
                     >
                       {formatPriceChangePercent(token.price, token.price_5m)}
                     </div>
@@ -557,14 +555,13 @@ export default function TokenPage() {
                       {formatUSD(price1h.usd)}
                     </div>
                     <div
-                      className={`text-xs ${
-                        formatPriceChangePercent(
-                          token.price,
-                          token.price_1h,
-                        ).startsWith("+")
-                          ? "text-success"
-                          : "text-destructive"
-                      }`}
+                      className={`text-xs ${formatPriceChangePercent(
+                        token.price,
+                        token.price_1h,
+                      ).startsWith("+")
+                        ? "text-success"
+                        : "text-destructive"
+                        }`}
                     >
                       {formatPriceChangePercent(token.price, token.price_1h)}
                     </div>
@@ -579,14 +576,13 @@ export default function TokenPage() {
                       {formatUSD(price6h.usd)}
                     </div>
                     <div
-                      className={`text-xs ${
-                        formatPriceChangePercent(
-                          token.price,
-                          token.price_6h,
-                        ).startsWith("+")
-                          ? "text-success"
-                          : "text-destructive"
-                      }`}
+                      className={`text-xs ${formatPriceChangePercent(
+                        token.price,
+                        token.price_6h,
+                      ).startsWith("+")
+                        ? "text-success"
+                        : "text-destructive"
+                        }`}
                     >
                       {formatPriceChangePercent(token.price, token.price_6h)}
                     </div>
@@ -601,11 +597,10 @@ export default function TokenPage() {
                       {formatUSD(price1d.usd)}
                     </div>
                     <div
-                      className={`text-xs ${
-                        change24hPercent.startsWith("+")
-                          ? "text-success"
-                          : "text-destructive"
-                      }`}
+                      className={`text-xs ${change24hPercent.startsWith("+")
+                        ? "text-success"
+                        : "text-destructive"
+                        }`}
                     >
                       {change24hPercent}
                     </div>

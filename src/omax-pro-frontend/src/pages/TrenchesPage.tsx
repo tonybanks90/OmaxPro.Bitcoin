@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import { useEnhancedOdinAPI, getOdinImageUrl, type EnhancedOdinTokenData } from '../hooks/useOdinAPI';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TokenCard } from '../components/trading/TokenCard';
@@ -35,13 +34,7 @@ function convertEnhancedTokenToTokenCard(token: EnhancedOdinTokenData, category:
   };
 }
 
-// Utility functions
-function formatNumber(num: number): string {
-  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
-  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
-  if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
-  return num.toFixed(2);
-}
+
 
 function formatPriceChange(current: number, previous: number): string {
   if (previous === 0) return "+0.00%";
@@ -66,24 +59,24 @@ function getTimeAgo(dateString: string): string {
 
 export default function TrenchesPage() {
   const { t } = useLanguage();
-  
+
   // Three separate API calls for the three categories using enhanced hook
   // Graduated tokens - bonded: true
-  const { 
-    tokens: graduatedTokens, 
+  const {
+    tokens: graduatedTokens,
     isLoading: graduatedLoading,
-    btcPriceUSD 
-  } = useEnhancedOdinAPI({ 
+    btcPriceUSD
+  } = useEnhancedOdinAPI({
     bonded: true,
     sort: 'marketcap:desc',
     limit: 50
   });
 
   // About to graduate tokens - bonded: false, higher market cap range
-  const { 
-    tokens: aboutToGraduateTokens, 
-    isLoading: aboutToGraduateLoading 
-  } = useEnhancedOdinAPI({ 
+  const {
+    tokens: aboutToGraduateTokens,
+    isLoading: aboutToGraduateLoading
+  } = useEnhancedOdinAPI({
     bonded: false,
     marketcap_min: 50000000, // 50K sats * 1000 (API format)
     sort: 'marketcap:desc',
@@ -91,26 +84,26 @@ export default function TrenchesPage() {
   });
 
   // Newly created tokens - bonded: false, lower market cap range
-  const { 
-    tokens: newlyCreatedTokens, 
-    isLoading: newlyCreatedLoading 
-  } = useEnhancedOdinAPI({ 
+  const {
+    tokens: newlyCreatedTokens,
+    isLoading: newlyCreatedLoading
+  } = useEnhancedOdinAPI({
     bonded: false,
     marketcap_min: 20000000, // 50K sats * 1000 (API format)
     sort: 'created_time:desc',
     limit: 50
   });
 
-  const isLoading = graduatedLoading || aboutToGraduateLoading || newlyCreatedLoading;
+
 
   // Convert tokens to compatible format with enhanced price data
-  const newlyCreated = newlyCreatedTokens.map(token => 
+  const newlyCreated = newlyCreatedTokens.map(token =>
     convertEnhancedTokenToTokenCard(token, 'newly_created')
   );
-  const aboutToGraduate = aboutToGraduateTokens.map(token => 
+  const aboutToGraduate = aboutToGraduateTokens.map(token =>
     convertEnhancedTokenToTokenCard(token, 'about_to_graduate')
   );
-  const graduated = graduatedTokens.map(token => 
+  const graduated = graduatedTokens.map(token =>
     convertEnhancedTokenToTokenCard(token, 'graduated')
   );
 
@@ -155,16 +148,16 @@ export default function TrenchesPage() {
       <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
         <Search className="w-8 h-8 text-muted-foreground" />
       </div>
-      <h4 className="text-lg font-medium text-foreground mb-2">{t('empty.noCoins')}</h4>
+      <h4 className="text-lg font-medium text-foreground mb-2">{title}: {t('empty.noCoins')}</h4>
       <p className="text-sm text-muted-foreground max-w-xs">
         Show hidden tokens is enabled. There's no coin data to display right now.
       </p>
     </div>
   );
 
-  const TokenColumn = ({ tokens, title, price, loading }: { 
-    tokens: any[]; 
-    title: string; 
+  const TokenColumn = ({ tokens, title, price, loading }: {
+    tokens: any[];
+    title: string;
     price: string;
     loading?: boolean;
   }) => (
