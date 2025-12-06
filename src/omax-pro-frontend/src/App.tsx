@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "./components/ui/toaster";
@@ -21,7 +21,8 @@ import "./index.css";
 import { WalletActorProvider } from "./auth/WalletActorProvider";
 import { AuthProvider } from "./auth/AuthProvider";
 import ComingSoonPage from "./pages/ComingSoonPage";
-import TestOdin from "./pages/testodin";
+import TestOdin from './pages/testodin';
+import OdinDiagnostic from './pages/OdinDiagnostic';
 import CKBoostWallet from "./components/modals/CKBoostWallet";
 import CreatePredictionPage from "./pages/CreatePredictionPage";
 import PredictionMarketsPage from "./pages/PredictionMarketsPage";
@@ -48,6 +49,11 @@ function Router() {
         <Route path="/trenches" component={TrenchesPage} />
         <Route path="/token/:id" component={TokenPage} />
         <Route path="/wallet" component={WalletPage} />
+        <Route path="/testodin" component={TestOdin} />
+        <Route path="/diagnostic" component={OdinDiagnostic} />
+
+
+
         <Route path="/earn" component={EarnPage} />
         <Route path="/holdings" component={HoldingsPage} />
         <Route path="/wallet-manager" component={WalletManagerPage} />
