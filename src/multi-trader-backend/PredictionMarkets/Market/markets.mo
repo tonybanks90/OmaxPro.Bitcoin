@@ -157,10 +157,29 @@ persistent actor Markets  {
         satoshisReceived: Nat64;
     };
     
+    // Transaction History Type
+    public type MarketTransaction = {
+        txId: Nat;
+        marketId: Nat;
+        user: Principal;
+        operation: { #Buy; #Sell };
+        tokenIdentifier: TokenIdentifier;
+        amount: Float;
+        price: Float;
+        cost: Nat;
+        timestamp: Nat64;
+    };
+
+    public type HolderBalance = {
+        user: Principal;
+        balance: Float;
+    };
+
     // ICRC-1 Ledger Interface
     public type ICRC1Interface = actor {
         icrc1_transfer : (TransferArgs) -> async (TransferResult);
-        icrc1_balance_of : (Account) -> async (Nat64);
+        icrc1_balance_of : (Account) -> async (Nat);
+        icrc2_transfer_from : (TransferFromArgs) -> async (TransferFromResult);
     };
     
     public type Account = {
@@ -171,26 +190,53 @@ persistent actor Markets  {
     public type TransferArgs = {
         from_subaccount: ?[Nat8];
         to: Account;
-        amount: Nat64;                     // Changed to Nat64 for precision
-        fee: ?Nat64;                       // Changed to Nat64
+        amount: Nat;
+        fee: ?Nat;
+        memo: ?[Nat8];
+        created_at_time: ?Nat64;
+    };
+    
+    public type TransferFromArgs = {
+        spender_subaccount: ?[Nat8];
+        from: Account;
+        to: Account;
+        amount: Nat;
+        fee: ?Nat;
         memo: ?[Nat8];
         created_at_time: ?Nat64;
     };
     
     public type TransferResult = {
-        #Ok: Nat64;                        // Changed to Nat64
+        #Ok: Nat;
         #Err: TransferError;
     };
     
+    public type TransferFromResult = {
+        #Ok: Nat;
+        #Err: TransferFromError;
+    };
+    
     public type TransferError = {
-        #BadFee: { expected_fee: Nat64 };   // Changed to Nat64
-        #BadBurn: { min_burn_amount: Nat64 }; // Changed to Nat64
-        #InsufficientFunds: { balance: Nat64 }; // Changed to Nat64
+        #BadFee: { expected_fee: Nat };
+        #BadBurn: { min_burn_amount: Nat };
+        #InsufficientFunds: { balance: Nat };
         #TooOld;
         #CreatedInFuture: { ledger_time: Nat64 };
         #TemporarilyUnavailable;
-        #Duplicate: { duplicate_of: Nat64 }; // Changed to Nat64
-        #GenericError: { error_code: Nat64; message: Text }; // Changed to Nat64
+        #Duplicate: { duplicate_of: Nat };
+        #GenericError: { error_code: Nat; message: Text };
+    };
+    
+    public type TransferFromError = {
+        #BadFee: { expected_fee: Nat };
+        #BadBurn: { min_burn_amount: Nat };
+        #InsufficientFunds: { balance: Nat };
+        #InsufficientAllowance: { allowance: Nat };
+        #TooOld;
+        #CreatedInFuture: { ledger_time: Nat64 };
+        #TemporarilyUnavailable;
+        #Duplicate: { duplicate_of: Nat };
+        #GenericError: { error_code: Nat; message: Text };
     };
     
     // Vault Interface
@@ -279,6 +325,16 @@ persistent actor Markets  {
 
 stable var marketsEntries : [(Nat, MarketState)] = [];
 private transient var markets : TrieMap.TrieMap<Nat, MarketState> = TrieMap.TrieMap<Nat, MarketState>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
+
+// Transaction History State
+stable var marketTransactionsEntries : [(Nat, [MarketTransaction])] = [];
+private transient var marketTransactions : TrieMap.TrieMap<Nat, Buffer.Buffer<MarketTransaction>> = TrieMap.TrieMap<Nat, Buffer.Buffer<MarketTransaction>>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
+stable var nextTxId : Nat = 1;
+
+// Holder State (MarketId -> Principal -> Balance)
+stable var marketHoldersEntries : [(Nat, Principal, Float)] = [];
+private transient var marketHolders : TrieMap.TrieMap<Nat, TrieMap.TrieMap<Principal, Float>> = TrieMap.TrieMap<Nat, TrieMap.TrieMap<Principal, Float>>(Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n) });
+
 stable var nextMarketId : Nat = 1;
 
 // Configuration
@@ -677,7 +733,7 @@ private func selectVaultAddress(
                                 
                                 switch (pullResult) {
                                     case (#err(e)) { return #err("Failed to pull ckBTC: " # e) };
-                                    case (#ok(_)) { /* Continue */ };
+                                    case (#ok(_)) { #ok() };
                                 };
                             };
                         }
@@ -725,7 +781,7 @@ private func selectVaultAddress(
                                 
                                 switch (payResult) {
                                     case (#err(e)) { return #err("Failed to pay ckBTC: " # e) };
-                                    case (#ok(_)) { /* Continue */ };
+                                    case (#ok(_)) { #ok() };
                                 };
                             };
                         }
@@ -742,7 +798,7 @@ private func selectVaultAddress(
         let transferArgs : TransferArgs = {
             from_subaccount = null;
             to = { owner = user; subaccount = null };
-            amount = amount;
+            amount = Nat64.toNat(amount);
             fee = ?0;
             memo = null;
             created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
@@ -758,16 +814,17 @@ private func selectVaultAddress(
     
     private func burnTokens(ledgerPrincipal: Principal, user: Principal, amount: Nat64) : async Result.Result<(), Text> {
         let ledger : ICRC1Interface = actor(Principal.toText(ledgerPrincipal));
-        let transferArgs : TransferArgs = {
-            from_subaccount = null;
+        let transferFromArgs : TransferFromArgs = {
+            spender_subaccount = null;
+            from = { owner = user; subaccount = null };
             to = { owner = Principal.fromActor(Markets); subaccount = null };
-            amount = amount;
+            amount = Nat64.toNat(amount);
             fee = ?0;
             memo = null;
             created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
         };
         
-        switch (await ledger.icrc1_transfer(transferArgs)) {
+        switch (await ledger.icrc2_transfer_from(transferFromArgs)) {
             case (#Ok(_)) { #ok() };
             case (#Err(error)) {
                 #err("Failed to burn tokens")
@@ -781,7 +838,7 @@ private func selectVaultAddress(
         
         try {
             let balance = await ledger.icrc1_balance_of(account);
-            #ok(balance)
+            #ok(Nat64.fromNat(balance))
         } catch (error) {
             #err("Failed to get token balance")
         }
@@ -804,6 +861,8 @@ private func selectVaultAddress(
         vaultCanister := ?canister;
         #ok()
     };
+
+
     
     // ===== MARKET REGISTRATION =====
     
@@ -813,13 +872,18 @@ private func selectVaultAddress(
         
         // Validate caller is TokenFactory
         switch (tokenFactoryCanister) {
-            case (null) { return #err("TokenFactory canister not set") };
+            case (null) { 
+                Debug.print("Error: TokenFactory canister not set");
+                return #err("TokenFactory canister not set") 
+            };
             case (?factory) {
-                if (msg.caller != factory) {
+                if (not Principal.equal(msg.caller, factory)) {
                     return #err("Only TokenFactory can register markets");
                 }
             };
         };
+        
+        Debug.print("Registering Binary Market with Vault...");
         
         // Validate arguments
         let baseValidation = validateBaseArgs(args.base);
@@ -1315,6 +1379,46 @@ public shared(msg) func registerCompoundMarketWithVault(
         };
         
         markets.put(market.id, updatedMarket);
+        
+        // Record Transaction
+        let txId = nextTxId;
+        nextTxId += 1;
+        
+        let tx : MarketTransaction = {
+            txId = txId;
+            marketId = market.id;
+            user = caller;
+            operation = #Buy;
+            tokenIdentifier = tokenIdentifier;
+            amount = tokensToReceive;
+            price = newPrice;
+            cost = Nat64.toNat(amountSatoshis); // Ensure type match
+            timestamp = Nat64.fromNat(Int.abs(Time.now()));
+        };
+        
+        let txList = switch(marketTransactions.get(market.id)) {
+            case (null) { 
+                let b = Buffer.Buffer<MarketTransaction>(50);
+                marketTransactions.put(market.id, b);
+                b
+            };
+            case (?b) { b };
+        };
+        txList.add(tx);
+        
+        // Update Holders
+        let userMap = switch(marketHolders.get(market.id)) {
+             case (null) { 
+                 let m = TrieMap.TrieMap<Principal, Float>(Principal.equal, Principal.hash);
+                 marketHolders.put(market.id, m);
+                 m
+             };
+             case (?m) { m };
+        };
+        let currentBal = Option.get(userMap.get(caller), 0.0);
+        userMap.put(caller, currentBal + tokensToReceive);
+        
+        // End Record Logic
         
         #ok({
             tokensReceived = tokensToReceive;
@@ -2053,6 +2157,96 @@ private func getAllCompoundPrices(market : MarketState) : [(Text, Float, Float)]
                 #ok()
             };
         }
+    };
+    
+    // ===== MARKET ACTIVITY QUERIES =====
+    
+    public query func getMarketActivity(marketId: Nat) : async Result.Result<[MarketTransaction], Text> {
+        switch (marketTransactions.get(marketId)) {
+            case (null) { #ok([]) };
+            case (?buffer) {
+                // Return reversed list (newest first)
+                let arr = Buffer.toArray(buffer);
+                let size = arr.size();
+                if (size == 0) {
+                    return #ok([]);
+                };
+                // Safe reverse using Array.tabulate
+                let reversed = Array.tabulate<MarketTransaction>(size, func(i: Nat) : MarketTransaction {
+                    arr[size - 1 - i]
+                });
+                #ok(reversed)
+            };
+        }
+    };
+    
+    public query func getMarketHolders(marketId: Nat) : async Result.Result<[HolderBalance], Text> {
+        switch (marketHolders.get(marketId)) {
+            case (null) { #ok([]) };
+            case (?userMap) {
+                let holders = Buffer.Buffer<HolderBalance>(20);
+                for ((user, bal) in userMap.entries()) {
+                    holders.add({ user = user; balance = bal });
+                };
+                
+                // Sort logic omitted for speed in query, frontend should sort
+                #ok(Buffer.toArray(holders))
+            };
+        }
+    };
+
+    // ===== PERSISTENCE =====
+    
+    system func preupgrade() {
+        // Markets
+        marketsEntries := Iter.toArray(markets.entries());
+        
+        // Transactions
+        // Convert Buffer to Array
+        var tempTxEntries : [(Nat, [MarketTransaction])] = [];
+        for ((k, v) in marketTransactions.entries()) {
+             tempTxEntries := Array.append(tempTxEntries, [(k, Buffer.toArray(v))]);
+        };
+        marketTransactionsEntries := tempTxEntries;
+        
+        // Holders
+        // Flatten to [(Nat, Principal, Float)]
+        var tempHolderEntries : [(Nat, Principal, Float)] = [];
+        for ((mId, pMap) in marketHolders.entries()) {
+            for ((p, bal) in pMap.entries()) {
+                tempHolderEntries := Array.append(tempHolderEntries, [(mId, p, bal)]);
+            };
+        };
+        marketHoldersEntries := tempHolderEntries;
+    };
+
+    system func postupgrade() {
+        // Markets
+        for ((k, v) in marketsEntries.vals()) {
+            markets.put(k, v);
+        };
+        marketsEntries := [];
+        
+        // Transactions
+        for ((k, v) in marketTransactionsEntries.vals()) {
+            let buf = Buffer.fromArray<MarketTransaction>(v);
+            marketTransactions.put(k, buf);
+        };
+        marketTransactionsEntries := [];
+        
+        // Holders
+        for ((mId, p, bal) in marketHoldersEntries.vals()) {
+             let pMap = switch(marketHolders.get(mId)) {
+                 case (null) { 
+                     let m = TrieMap.TrieMap<Principal, Float>(Principal.equal, Principal.hash);
+                     marketHolders.put(mId, m);
+                     m 
+                 };
+                 case (?m) { m };
+             };
+             pMap.put(p, bal);
+        };
+        marketHoldersEntries := [];
     };
 };
    

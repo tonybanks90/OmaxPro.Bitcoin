@@ -12,6 +12,10 @@
       "main": "src/multi-trader-backend/PredictionMarkets/Vault/vault.mo",
       "type": "motoko"
     },
+    "Sniper": {
+      "main": "src/multi-trader-backend/RunesTrading/SnipperTool/snipper.mo",
+      "type": "motoko"
+    },
     "TFactory": {
       "main": "src/multi-trader-backend/PredictionMarkets/MarketFactory/TestFactory.mo",
       "type": "motoko"

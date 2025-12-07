@@ -201,7 +201,7 @@ export default function PredictionMarketDetailPage() {
         {/* Left Column - Chart and Description */}
         <div className="lg:col-span-2 space-y-6">
           {/* Market Chart */}
-          <MarketChart market={market} />
+          <MarketChart marketId={marketId} />
 
           {/* Market Activity */}
           <MarketActivity marketId={marketId} />

@@ -1,6 +1,5 @@
 // src/services/markets-service.ts
 import { MarketsActorService } from '../hooks/useMarketsActor';
-import { Principal } from '@dfinity/principal';
 
 export class MarketsService {
     // Ensure actor is ready before operations
@@ -108,35 +107,72 @@ export class MarketsService {
         }
     }
 
-    // Get user's token balance
-    static async getUserBalance(
-        marketId: bigint,
-        tokenIdentifier: any,
-        user: Principal
-    ): Promise<bigint> {
-        const actor = await this.ensureActor();
+    // Note: getUserBalance is not implemented in Markets canister
+    // Token balances should be queried directly from the token ledger using icrc1_balance_of
+    // static async getUserBalance(
+    //     marketId: bigint,
+    //     tokenIdentifier: any,
+    //     user: Principal
+    // ): Promise<bigint> {
+    //     const actor = await this.ensureActor();
+    //     try {
+    //         const balance = await actor.getUserBalance(marketId, tokenIdentifier, user);
+    //         return balance;
+    //     } catch (error) {
+    //         console.error('Error getting user balance:', error);
+    //         throw error;
+    //     }
+    // }
 
+    // Get market activity
+    static async getMarketActivity(marketId: bigint): Promise<any[]> {
+        const actor = await this.ensureActor();
         try {
-            const balance = await actor.getUserBalance(marketId, tokenIdentifier, user);
-            return balance;
+            const result = await actor.getMarketActivity(marketId);
+
+            if ('err' in result) {
+                console.warn(`Failed to get activity: ${result.err}`);
+                return [];
+            }
+
+            return result.ok;
         } catch (error) {
-            console.error('Error getting user balance:', error);
-            throw error;
+            console.error('Error getting market activity:', error);
+            return [];
         }
     }
 
-    // Get market info
+    // Get market holders
+    static async getMarketHolders(marketId: bigint): Promise<any[]> {
+        const actor = await this.ensureActor();
+        try {
+            const result = await actor.getMarketHolders(marketId);
+
+            if ('err' in result) {
+                console.warn(`Failed to get holders: ${result.err}`);
+                return [];
+            }
+
+            return result.ok;
+        } catch (error) {
+            console.error('Error getting market holders:', error);
+            return [];
+        }
+    }
+
+    // Get market info (uses getMarket from Markets canister)
     static async getMarketInfo(marketId: bigint): Promise<any> {
         const actor = await this.ensureActor();
 
         try {
-            const result = await actor.getMarketInfo(marketId);
+            const result = await actor.getMarket(marketId);
 
-            if (result.length > 0) {
-                return result[0];
+            if ('err' in result) {
+                console.warn(`Failed to get market: ${result.err}`);
+                return null;
             }
 
-            return null;
+            return result.ok;
         } catch (error) {
             console.error('Error getting market info:', error);
             throw error;

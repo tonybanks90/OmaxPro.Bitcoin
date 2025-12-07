@@ -5,7 +5,7 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { SettingsModal } from '../components/modals/SettingsModal';
 import { FilterModal } from '../components/modals/FilterModal';
-import { Plus, Download, Upload, Search, Wallet, Activity, Eye, Trash2, Edit3, AlertCircle, User, Settings, Filter } from 'lucide-react';
+import { Plus, Download, Upload, Search, Wallet, Activity, Eye, Trash2, Edit3, AlertCircle, User, Settings, Filter, Zap } from 'lucide-react';
 import { useOdinUserActivity, getOdinImageUrl } from '../hooks/useOdinAPI';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { useToast } from '../hooks/use-toast';
@@ -39,12 +39,12 @@ export default function WalletPage() {
   const [isUpdatingWallet, setIsUpdatingWallet] = useState(false);
 
   // Authentication hook
-  const { 
-    isReady: authReady, 
-    isAuthenticated, 
-    identity, 
-    principalId, 
-    logout 
+  const {
+    isReady: authReady,
+    isAuthenticated,
+    identity,
+    principalId,
+    logout
   } = useAuth();
 
   // Use the wallet actor hook
@@ -57,7 +57,7 @@ export default function WalletPage() {
     authenticate,
     clearAuth
   } = useWallet();
-  
+
   console.log('WalletPage: Auth State', { authReady, isAuthenticated, principalId });
   console.log('WalletPage: Actor State', { actor: !!actor, isInitializing, actorAuthenticated, actorReady, actorError });
 
@@ -84,13 +84,13 @@ export default function WalletPage() {
       clearAuth();
     }
   }, [isAuthenticated, actorAuthenticated, clearAuth]);
-  
+
   const shouldFetchData = authReady && isAuthenticated && principalId && actorReady && actorAuthenticated;
 
   const fetchWallets = useCallback(async () => {
     console.log('fetchWallets: Checking conditions...', { shouldFetchData, actor: !!actor });
-    if (!shouldFetchData || !actor) return; 
-    
+    if (!shouldFetchData || !actor) return;
+
     console.log(`fetchWallets: Fetching for principal: ${principalId}`);
     setIsLoadingWallets(true);
     setWalletsError(null);
@@ -105,14 +105,14 @@ export default function WalletPage() {
         result = await actor.getUserWallets(principal);
       }
       const count = await actor.getUserWalletCount(principal);
-      
+
       console.log('fetchWallets: Raw result from actor:', result);
       console.log('fetchWallets: Raw count from actor:', count);
 
-      const mappedWallets = result.map(([address, name]) => ({ address, name }));
+      const mappedWallets = result.map(([address, name]: [string, string]) => ({ address, name }));
       setWallets(mappedWallets);
       setWalletCount(Number(count));
-      
+
       console.log('fetchWallets: Successfully fetched and set state.', { wallets: mappedWallets, count: Number(count) });
 
     } catch (error) {
@@ -135,10 +135,10 @@ export default function WalletPage() {
   }, [fetchWallets]);
 
   // Fetch activity for selected wallet (external API)
-  const { 
-    activities, 
-    isLoading: activityLoading, 
-    error: activityError 
+  const {
+    activities,
+    isLoading: activityLoading,
+    error: activityError
   } = useOdinUserActivity(selectedWallet || '', 1, 50);
 
   // Event handlers
@@ -171,7 +171,7 @@ export default function WalletPage() {
       const name = newWalletName.trim() || `Wallet ${wallets.length + 1}`;
       console.log('handleAddWallet: Calling actor.addWalletEntry with:', { principal: principal.toText(), address, name });
       await actor.addWalletEntry(principal, address, name);
-      
+
       console.log('handleAddWallet: Successfully added wallet.');
       setShowAddWalletModal(false);
       setNewWalletAddress('');
@@ -207,7 +207,7 @@ export default function WalletPage() {
         const principal = Principal.fromText(principalId);
         console.log('handleRemoveWallet: Calling actor.removeWalletEntry with:', { principal: principal.toText(), address });
         await actor.removeWalletEntry(principal, address);
-        
+
         console.log('handleRemoveWallet: Successfully removed wallet.');
         if (selectedWallet === address) {
           setSelectedWallet(null);
@@ -246,7 +246,7 @@ export default function WalletPage() {
       const name = newName.trim();
       console.log('handleUpdateWalletName: Calling actor.updateWalletName with:', { principal: principal.toText(), address, newName: name });
       await actor.updateWalletName(principal, address, name);
-      
+
       console.log('handleUpdateWalletName: Successfully updated wallet name.');
       setEditingWallet(null);
       toast({
@@ -312,8 +312,8 @@ export default function WalletPage() {
             Refresh Page
           </Button>
           {identity && (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => authenticate(identity)}
             >
               Retry Connection
@@ -335,16 +335,16 @@ export default function WalletPage() {
             <p className="text-gray-600 mt-1">Track your wallet addresses and monitor trading activity</p>
           </div>
           <div className="flex items-center space-x-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setShowFilterModal(true)}
             >
               <Filter className="w-4 h-4 mr-2" />
               Filter
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setShowSettingsModal(true)}
             >
@@ -365,14 +365,14 @@ export default function WalletPage() {
                 Signed in as: {principalId?.slice(0, 8)}...{principalId?.slice(-6)}
               </p>
               <p className="text-xs text-green-600">
-                {actorReady ? '✅' : '⏳'} Connected to wallet canister • 
+                {actorReady ? '✅' : '⏳'} Connected to wallet canister •
                 Status: {actorAuthenticated ? '✅ Authenticated' : '⏳ Authenticating'}
               </p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={logout}
             className="text-green-700 border-green-300 hover:bg-green-100"
           >
@@ -397,9 +397,9 @@ export default function WalletPage() {
                   <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="button-upload-wallets">
                     <Upload className="w-4 h-4" />
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="h-8 w-8"
                     onClick={() => fetchWallets()}
                     disabled={isLoadingWallets}
@@ -413,8 +413,8 @@ export default function WalletPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <Button 
-                className="w-full mb-4" 
+              <Button
+                className="w-full mb-4"
                 onClick={() => setShowAddWalletModal(true)}
                 data-testid="button-add-wallet"
                 disabled={isAddingWallet || !shouldFetchData}
@@ -448,9 +448,9 @@ export default function WalletPage() {
                   <div className="text-center py-4">
                     <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
                     <p className="text-sm text-red-600">Failed to load wallets</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => fetchWallets()}
                       className="mt-2"
                     >
@@ -461,11 +461,10 @@ export default function WalletPage() {
                   wallets.map((wallet) => (
                     <div
                       key={wallet.address}
-                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${ 
-                        selectedWallet === wallet.address
-                          ? 'bg-blue-50 border-blue-300'
-                          : 'bg-background border-border hover:bg-gray-50'
-                      }`}
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${selectedWallet === wallet.address
+                        ? 'bg-blue-50 border-blue-300'
+                        : 'bg-background border-border hover:bg-gray-50'
+                        }`}
                       onClick={() => setSelectedWallet(wallet.address)}
                     >
                       <div className="flex items-center justify-between">
@@ -473,7 +472,7 @@ export default function WalletPage() {
                           {editingWallet?.address === wallet.address ? (
                             <Input
                               value={editingWallet.name}
-                              onChange={(e) => setEditingWallet({...editingWallet, name: e.target.value})}
+                              onChange={(e) => setEditingWallet({ ...editingWallet, name: e.target.value })}
                               onBlur={() => {
                                 handleUpdateWalletName(wallet.address, editingWallet.name);
                               }}
@@ -526,7 +525,7 @@ export default function WalletPage() {
                         </div>
                       </div>
                     </div>
-                  )) 
+                  ))
                 ) : (
                   <div className="text-center py-8">
                     <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
@@ -534,9 +533,9 @@ export default function WalletPage() {
                       {searchWallet ? 'No wallets found matching your search' : 'You haven\'t added any wallets yet!'}
                     </p>
                     {!searchWallet && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => setShowAddWalletModal(true)}
                         className="mt-2"
                         disabled={!shouldFetchData}
@@ -557,13 +556,13 @@ export default function WalletPage() {
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-foreground" data-testid="text-wallet-title">
-                  {selectedWallet ? 
+                  {selectedWallet ?
                     `Activity for ${wallets.find(w => w.address === selectedWallet)?.name || 'Wallet'}` :
                     'Wallet Activity Tracker'
                   }
                 </h2>
                 <p className="text-muted-foreground text-sm">
-                  {selectedWallet ? 
+                  {selectedWallet ?
                     'Real-time activity from Odin API' :
                     'Select a wallet to view activity'
                   }
@@ -592,6 +591,9 @@ export default function WalletPage() {
                       </th>
                       <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Time
+                      </th>
+                      <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Copy
                       </th>
                     </tr>
                   </thead>
@@ -657,11 +659,10 @@ export default function WalletPage() {
                             </div>
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ 
-                              activity.buy 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-red-100 text-red-800'
-                            }`}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${activity.buy
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                              }`}>
                               {activity.buy ? 'BUY' : 'SELL'}
                             </span>
                           </td>
@@ -677,8 +678,46 @@ export default function WalletPage() {
                           <td className="py-3 px-4 text-right text-xs text-muted-foreground">
                             {formatTime(activity.time)}
                           </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex justify-end space-x-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 text-xs px-2 border-green-200 hover:bg-green-50 text-green-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // TODO: Open Trade Modal with this token and amount
+                                  console.log('Copy Buy:', activity.token, activity.amount_btc);
+                                  toast({
+                                    title: "Copy Buy Initiated",
+                                    description: `Prepared buy for ${activity.token_ticker || 'Token'}`,
+                                  });
+                                }}
+                              >
+                                <Zap className="w-3 h-3 mr-1" />
+                                Buy
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 text-xs px-2 border-red-200 hover:bg-red-50 text-red-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // TODO: Open Trade Modal
+                                  console.log('Copy Sell:', activity.token, activity.amount_btc);
+                                  toast({
+                                    title: "Copy Sell Initiated",
+                                    description: `Prepared sell for ${activity.token_ticker || 'Token'}`,
+                                  });
+                                }}
+                              >
+                                <Zap className="w-3 h-3 mr-1" />
+                                Sell
+                              </Button>
+                            </div>
+                          </td>
                         </tr>
-                      )) 
+                      ))
                     ) : (
                       <tr>
                         <td colSpan={6} className="py-12 text-center">
@@ -709,9 +748,9 @@ export default function WalletPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-foreground">Add Wallet</h3>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => {
                     setShowAddWalletModal(false);
                     setNewWalletAddress('');
@@ -725,16 +764,16 @@ export default function WalletPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <Input 
-                  placeholder="Wallet address or principal" 
+                <Input
+                  placeholder="Wallet address or principal"
                   className="w-full"
                   value={newWalletAddress}
                   onChange={(e) => setNewWalletAddress(e.target.value)}
                   data-testid="input-wallet-address"
                   disabled={isAddingWallet}
                 />
-                <Input 
-                  placeholder="Wallet name (optional)" 
+                <Input
+                  placeholder="Wallet name (optional)"
                   className="w-full"
                   value={newWalletName}
                   onChange={(e) => setNewWalletName(e.target.value)}
@@ -742,8 +781,8 @@ export default function WalletPage() {
                   disabled={isAddingWallet}
                 />
                 <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="flex-1"
                     onClick={() => {
                       setShowAddWalletModal(false);
@@ -755,7 +794,7 @@ export default function WalletPage() {
                   >
                     Cancel
                   </Button>
-                  <Button 
+                  <Button
                     className="flex-1"
                     onClick={handleAddWallet}
                     disabled={!newWalletAddress.trim() || isAddingWallet}

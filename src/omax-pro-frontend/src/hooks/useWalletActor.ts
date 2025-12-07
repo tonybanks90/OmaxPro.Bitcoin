@@ -1,36 +1,15 @@
-// hooks/useWalletActor.ts - FIXED CONNECTION HANDLING
+// hooks/useWalletActor.ts
 import { HttpAgent, Actor, type Identity, AnonymousIdentity } from "@dfinity/agent";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Principal } from "@dfinity/principal";
+import { idlFactory, canisterId } from "../../../declarations/WalletTracker";
+import type { _SERVICE } from "../../../declarations/WalletTracker/WalletTracker.did";
 
-// IDL Factory matching your canister interface
-export const idlFactory = ({ IDL }: { IDL: any }) => {
-  return IDL.Service({
-    'addWalletEntry' : IDL.Func([IDL.Principal, IDL.Text, IDL.Text], [], []),
-    'getUserWalletCount' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
-    'getUserWallets' : IDL.Func([IDL.Principal], [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))], ['query']),
-    'getWalletEntry' : IDL.Func([IDL.Principal, IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
-    'removeWalletEntry' : IDL.Func([IDL.Principal, IDL.Text], [IDL.Bool], []),
-    'searchUserWallets' : IDL.Func([IDL.Principal, IDL.Text], [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))], ['query']),
-    'updateWalletName' : IDL.Func([IDL.Principal, IDL.Text, IDL.Text], [IDL.Bool], []),
-  });
-};
-
-export interface _SERVICE {
-  'addWalletEntry' : (userPrincipal: Principal, address: string, name: string) => Promise<void>,
-  'getUserWalletCount' : (userPrincipal: Principal) => Promise<bigint>,
-  'getUserWallets' : (userPrincipal: Principal) => Promise<Array<[string, string]>>,
-  'getWalletEntry' : (userPrincipal: Principal, address: string) => Promise<[] | [string]>,
-  'removeWalletEntry' : (userPrincipal: Principal, address: string) => Promise<boolean>,
-  'searchUserWallets' : (userPrincipal: Principal, searchTerm: string) => Promise<Array<[string, string]>>,
-  'updateWalletName' : (userPrincipal: Principal, address: string, newName: string) => Promise<boolean>,
-}
-
-const CANISTER_ID = process.env.REACT_APP_WALLET_CANISTER_ID || "uxrrr-q7777-77774-qaaaq-cai";
+// Use environment variable or fallback to generated canister ID
+const CANISTER_ID = import.meta.env.VITE_WALLET_CANISTER_ID || canisterId || "2v4zk-a7777-77774-qabaq-cai";
 
 if (!CANISTER_ID) {
   console.error("⚠️ Canister ID not configured!");
-  throw new Error("Canister ID not found. Please set REACT_APP_WALLET_CANISTER_ID environment variable.");
 }
 
 const getHost = () => {
@@ -77,7 +56,7 @@ export function useWalletActor() {
   const [isInitializing, setIsInitializing] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Use refs to track what we've already initialized
   const initializationState = useRef<{
     lastIdentity: Identity | null;
@@ -106,7 +85,7 @@ export function useWalletActor() {
 
     try {
       const newAgent = await createAgent(userIdentity);
-      
+
       const newActor = Actor.createActor<_SERVICE>(idlFactory, {
         agent: newAgent,
         canisterId: CANISTER_ID,
@@ -118,7 +97,7 @@ export function useWalletActor() {
       // This way even if the test fails, the actor is available
       setActor(newActor);
       setIsAuthenticated(!!userIdentity);
-      
+
       // Update ref to track successful initialization
       initializationState.current = {
         lastIdentity: userIdentity || null,
@@ -135,7 +114,7 @@ export function useWalletActor() {
         } catch (testError: unknown) {
           const errorMsg = testError instanceof Error ? testError.message : String(testError);
           console.warn("⚠️ Actor connection test failed:", errorMsg);
-          
+
           // DON'T throw here - the actor might still work for updates
           // Query calls might fail in local dev but update calls work
           if (errorMsg.includes("Canister not found")) {
@@ -146,14 +125,14 @@ export function useWalletActor() {
           }
         }
       }
-      
+
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error("❌ Failed to initialize actor:", errorMessage);
       setError(errorMessage);
       setActor(null);
       setIsAuthenticated(false);
-      
+
       // Reset initialization state on error to allow retry
       initializationState.current = {
         lastIdentity: null,

@@ -251,7 +251,7 @@ persistent actor TokenFactory {
   // ===== CONSTANTS =====
   
   private let DEFAULT_DECIMALS : Nat8 = 8;
-  private let DEFAULT_FEE : Nat = 10_000;
+  private let DEFAULT_FEE : Nat = 0; // Zero fee for testing
   private let DEFAULT_SUPPLY : Nat = 1_000_000_000;
   private let MAX_OUTCOMES : Nat = 20;
   private let MAX_SUBJECTS : Nat = 10;
@@ -628,9 +628,14 @@ persistent actor TokenFactory {
         true
       };
       case (#err(error)) {
-        Debug.print("Warning: Failed to register market in Markets canister: " # error);
-        false
+        return #err("Failed to register market in Markets canister: " # error);
       };
+    };
+
+    // Get the REAL market ID from Markets canister
+    let realMarketId = switch (registrationResult) {
+      case (#ok(result)) { result.marketId };
+      case (#err(_)) { marketId }; // Fallback (shouldn't happen as we return above)
     };
 
     // Create market metadata
@@ -648,9 +653,9 @@ persistent actor TokenFactory {
       created_at = Time.now();
     };
 
-    // Store market info
+    // Store market info - use realMarketId for consistency
     let info : MarketInfo = {
-      id = marketId;
+      id = realMarketId;
       metadata = metadata;
       marketType = #Binary;
       tokens = #Binary({
@@ -659,18 +664,18 @@ persistent actor TokenFactory {
       });
       registeredInMarkets = registeredInMarkets;
     };
-    marketInfo.put(marketId, info);
+    marketInfo.put(realMarketId, info);
 
     nextMarketId += 1;
     
-    Debug.print("Binary Market #" # Nat.toText(marketId) # " created:");
+    Debug.print("Binary Market #" # Nat.toText(realMarketId) # " created:");
     Debug.print("Title: " # args.title);
     Debug.print("YES: " # Principal.toText(yesLedger));
     Debug.print("NO: " # Principal.toText(noLedger));
     Debug.print("Registered in Markets: " # (if (registeredInMarkets) "Yes" else "No"));
     Debug.print("Remaining cycles: " # Nat.toText(Cycles.balance()));
     
-    #ok(marketId)
+    #ok(realMarketId)
   };
 
   public shared({ caller }) func createMultipleChoiceMarket(args : CreateMultipleChoiceMarketArgs) : async Result.Result<MarketId, Text> {

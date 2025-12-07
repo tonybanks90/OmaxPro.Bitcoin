@@ -1,114 +1,106 @@
-import { useState } from 'react';
+import { useState } from "react";
 import { useLanguage } from '../contexts/LanguageContext';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Badge } from '../components/ui/badge';
-import { 
-  Plus, 
-  Target, 
-  Zap, 
-  Settings, 
-  X,
-  ArrowUpDown,
-  DollarSign,
-  CheckCircle,
+import {
+  Target,
+  Plus,
+  Trash2,
+  Wallet as WalletIcon,
   AlertCircle,
   LogIn,
-  User
-} from 'lucide-react';
-import { useAuth } from '../auth/AuthProvider';
-import { useToast } from '../hooks/use-toast';
+  User,
+  RefreshCcw,
+  X
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { useAuth } from "../auth/AuthProvider";
+import { useSniper } from "../hooks/useSniper";
+import { useToast } from "../hooks/use-toast";
 
-interface SniperTask {
-  id: string;
-  status: 'migrating' | 'completed';
-  token: string;
-  snipe: string;
-  sol: string;
-  progress: number;
-  presets: string;
+// --- Types mirroring the Backend ---
+interface SnipeConfig {
+  id: bigint;
+  owner: unknown; // Principal
+  tokenId: string;
+  targetMarketCapUSD: number;
+  amountBTC: bigint;
+  status: { active?: null; completed?: null; failed?: string; cancelled?: null };
+  createdAt: bigint;
 }
 
 export default function SniperPage() {
   useLanguage();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('migrating');
-  const [showMigrationModal, setShowMigrationModal] = useState(false);
-  const [migrationForm, setMigrationForm] = useState({
-    type: 'buy',
-    wallet: 'W1',
-    contractAddress: '',
-    tokenName: '',
-    amounts: { '0.1': false, '0.25': false, '0.5': false, '1': false, '2': false, '5': false },
-    customAmount: '',
-    minTokens: '0',
-    slippage: '25',
-    mode: 'fast',
-    priorityFee: '0.001',
-    minTipAmount: '0.005',
-    maxTipAmount: '0.005'
+  const { isAuthenticated, principalId, login, logout, isReady: authReady } = useAuth();
+  const { addSnipe, cancelSnipe, deposit } = useSniper();
+
+  // State
+  const balance = 0.0; // TODO: Fetch from canister
+  const [snipes, setSnipes] = useState<SnipeConfig[]>([]);
+  const [activeTab, setActiveTab] = useState('active');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [newSnipe, setNewSnipe] = useState({
+    tokenId: '',
+    targetMarketCapUSD: '',
+    amountBTC: '',
   });
 
-  const [tasks, setTasks] = useState<SniperTask[]>([]);
+  const refreshData = () => {
+    // TODO: Fetch snipes from canister
+    console.log('Refreshing data...');
+  };
 
-  // Authentication hook
-  const { 
-    isReady: authReady, 
-    isAuthenticated, 
-    identity, 
-    principalId, 
-    login, 
-    logout 
-  } = useAuth();
-
-  const handleAddTask = () => {
-    if (!isAuthenticated) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to create sniper tasks",
-        variant: "destructive"
-      });
+  const handleDeposit = async () => {
+    if (!depositAmount || isNaN(Number(depositAmount))) {
+      toast({ title: "Invalid Input", description: "Please enter a valid amount to deposit.", variant: "destructive" });
       return;
     }
-    setShowMigrationModal(true);
+    try {
+      const sats = BigInt(Math.floor(Number(depositAmount) * 100_000_000));
+      await deposit(sats);
+      toast({ title: "Deposit Successful", description: `Deposited ${depositAmount} BTC` });
+      setDepositAmount('');
+      refreshData();
+    } catch (e) {
+      toast({ title: "Deposit Failed", description: String(e), variant: "destructive" });
+    }
   };
 
-  const handleSubmitMigration = () => {
-    const newTask: SniperTask = {
-      id: Date.now().toString(),
-      status: 'migrating',
-      token: migrationForm.tokenName || 'Unknown Token',
-      snipe: migrationForm.contractAddress.slice(0, 8) + '...',
-      sol: migrationForm.customAmount || '0',
-      progress: 0,
-      presets: Object.keys(migrationForm.amounts).filter(k => migrationForm.amounts[k as keyof typeof migrationForm.amounts]).join(', ') || 'Custom'
-    };
-    
-    setTasks(prev => [...prev, newTask]);
-    setShowMigrationModal(false);
-    
-    // Reset form
-    setMigrationForm({
-      type: 'buy',
-      wallet: 'W1',
-      contractAddress: '',
-      tokenName: '',
-      amounts: { '0.1': false, '0.25': false, '0.5': false, '1': false, '2': false, '5': false },
-      customAmount: '',
-      minTokens: '0',
-      slippage: '25',
-      mode: 'fast',
-      priorityFee: '0.001',
-      minTipAmount: '0.005',
-      maxTipAmount: '0.005'
-    });
+  const handleAddSnipe = async () => {
+    if (!newSnipe.tokenId || !newSnipe.targetMarketCapUSD || !newSnipe.amountBTC) {
+      toast({ title: "Invalid Input", description: "Please fill all fields", variant: "destructive" });
+      return;
+    }
+    try {
+      const sats = BigInt(Math.floor(Number(newSnipe.amountBTC) * 100_000_000));
+      const mc = Number(newSnipe.targetMarketCapUSD);
+      await addSnipe(newSnipe.tokenId, mc, sats);
+      toast({ title: "Snipe Added", description: `Watching ${newSnipe.tokenId}` });
+      setNewSnipe({ tokenId: '', targetMarketCapUSD: '', amountBTC: '' });
+      setShowAddModal(false);
+      refreshData();
+    } catch (e) {
+      toast({ title: "Failed to add snipe", description: String(e), variant: "destructive" });
+    }
   };
 
-  const migratingTasks = tasks.filter(t => t.status === 'migrating');
-  const completedTasks = tasks.filter(t => t.status === 'completed');
+  const handleCancelSnipe = async (id: bigint) => {
+    try {
+      await cancelSnipe(id);
+      toast({ title: "Snipe Cancelled" });
+      refreshData();
+    } catch (e) {
+      toast({ title: "Failed to cancel", description: String(e), variant: "destructive" });
+    }
+  };
+
+  const activeSnipes = snipes.filter(s => 'active' in s.status);
+  const historySnipes = snipes.filter(s => !('active' in s.status));
 
   // Show authentication required screen
   if (authReady && !isAuthenticated) {
@@ -119,28 +111,15 @@ export default function SniperPage() {
             <CardContent className="p-8 text-center">
               <div className="mb-6">
                 <div className="text-4xl mb-4">🎯</div>
-                <h2 className="text-2xl font-bold text-foreground mb-2">
-                  Sniper
-                </h2>
+                <h2 className="text-2xl font-bold text-foreground mb-2">Sniper</h2>
                 <p className="text-muted-foreground">
-                  Sign in with Internet Identity to access automated trading, create sniper tasks, and manage your trades securely.
+                  Sign in with Internet Identity to create automated snipes.
                 </p>
               </div>
-              
-              <Button 
-                onClick={login}
-                className="w-full"
-                size="lg"
-              >
+              <Button onClick={login} className="w-full" size="lg">
                 <LogIn className="w-5 h-5 mr-2" />
                 Sign in with Internet Identity
               </Button>
-              
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Secure Trading:</strong> Your sniper tasks and trading data are securely stored on the Internet Computer blockchain.
-                </p>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -164,27 +143,36 @@ export default function SniperPage() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-sniper">
-      {/* User Info Banner */}
-      <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-        <div className="flex items-center justify-between">
+      {/* User Info Banner & Balance */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Identity */}
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <User className="w-5 h-5 text-green-600" />
             <div>
               <p className="text-sm font-medium text-green-800">
-                Signed in as: {principalId?.slice(0, 8)}...{principalId?.slice(-6)}
+                {principalId?.slice(0, 8)}...{principalId?.slice(-6)}
               </p>
-              <p className="text-xs text-green-600">
-                ✅ Ready to create sniper tasks
-              </p>
+              <p className="text-xs text-green-600">Connected</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={logout}
-            className="text-green-700 border-green-300 hover:bg-green-100"
-          >
+          <Button variant="outline" size="sm" onClick={logout} className="text-green-700 border-green-300">
             Sign Out
+          </Button>
+        </div>
+
+        {/* Canister Balance */}
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <WalletIcon className="w-5 h-5 text-blue-600" />
+            <div>
+              <p className="text-sm font-medium text-blue-800">Canister Balance</p>
+              <p className="text-lg font-bold text-blue-900">{balance.toFixed(8)} BTC</p>
+            </div>
+          </div>
+          <Button size="sm" onClick={handleDeposit} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Plus className="w-4 h-4 mr-1" />
+            Deposit
           </Button>
         </div>
       </div>
@@ -192,18 +180,16 @@ export default function SniperPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground mb-2" data-testid="text-page-title">
-            Sniper
-          </h1>
+          <h1 className="text-2xl font-bold text-foreground mb-2" data-testid="text-page-title">Sniper</h1>
         </div>
         <div className="flex items-center space-x-3">
-          <Button 
-            onClick={handleAddTask}
+          <Button
+            onClick={() => setShowAddModal(true)}
             className="bg-accent hover:bg-accent/90 text-accent-foreground"
             data-testid="button-add-task"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Add Task
+            Add Snipe
           </Button>
         </div>
       </div>
@@ -214,82 +200,69 @@ export default function SniperPage() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="border-b border-border px-6 pt-6">
               <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="migrating" data-testid="tab-migrating">
-                  Snipping ({migratingTasks.length})
+                <TabsTrigger value="active" data-testid="tab-active">
+                  Active Snipes ({activeSnipes.length})
                 </TabsTrigger>
-                <TabsTrigger value="completed" data-testid="tab-completed">
-                  Completed ({completedTasks.length})
+                <TabsTrigger value="history" data-testid="tab-history">
+                  History ({historySnipes.length})
                 </TabsTrigger>
               </TabsList>
             </div>
 
             <div className="p-6">
-              <TabsContent value="migrating" className="mt-0">
-                {migratingTasks.length === 0 ? (
+              <TabsContent value="active" className="mt-0">
+                {activeSnipes.length === 0 ? (
                   <div className="text-center py-16">
                     <div className="w-24 h-24 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-6">
                       <Target className="w-12 h-12 text-accent" />
                     </div>
-                    <h3 className="text-lg font-medium text-foreground mb-2">No active sniper tasks</h3>
+                    <h3 className="text-lg font-medium text-foreground mb-2">No active snipes</h3>
                     <p className="text-sm text-muted-foreground mb-6">
-                      Create your first sniper task to start automated trading
+                      Set up a new snipe to catch market moves automatically.
                     </p>
-                    <Button 
-                      onClick={handleAddTask}
+                    <Button
+                      onClick={() => setShowAddModal(true)}
                       className="bg-accent hover:bg-accent/90 text-accent-foreground"
-                      data-testid="button-create-first-task"
                     >
                       <Plus className="w-4 h-4 mr-2" />
-                      Create Sniper Task
+                      Create Snipe
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {/* Table Header */}
-                    <div className="grid grid-cols-6 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                      <div>Task Status</div>
-                      <div>Token</div>
-                      <div>Snipe</div>
-                      <div>BTC</div>
-                      <div>Progress</div>
-                      <div>Presets</div>
-                    </div>
-                    
-                    {migratingTasks.map(task => (
-                      <div key={task.id} className="grid grid-cols-6 gap-4 px-4 py-3 bg-background border border-border rounded-lg">
-                        <div>
-                          <Badge variant="outline" className="text-warning border-warning">
-                            <AlertCircle className="w-3 h-3 mr-1" />
-                            Snipping
-                          </Badge>
-                        </div>
-                        <div className="font-medium text-foreground">{task.token}</div>
-                        <div className="text-muted-foreground">{task.snipe}</div>
-                        <div className="text-foreground">{task.sol}</div>
-                        <div>
-                          <div className="w-full bg-border rounded-full h-2">
-                            <div 
-                              className="bg-accent h-2 rounded-full transition-all duration-300" 
-                              style={{ width: `${task.progress}%` }}
-                            />
-                          </div>
-                        </div>
-                        <div className="text-muted-foreground">{task.presets}</div>
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {activeSnipes.map(snipe => (
+                      <SnipeCard key={snipe.id.toString()} snipe={snipe} onCancel={handleCancelSnipe} />
                     ))}
                   </div>
                 )}
               </TabsContent>
 
-              <TabsContent value="completed" className="mt-0">
+              <TabsContent value="history" className="mt-0">
                 <div className="text-center py-16">
-                  <div className="w-24 h-24 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle className="w-12 h-12 text-success" />
-                  </div>
-                  <h3 className="text-lg font-medium text-foreground mb-2">No completed tasks</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Completed sniper tasks will appear here
-                  </p>
+                  {historySnipes.length === 0 ? (
+                    <>
+                      <div className="w-24 h-24 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <RefreshCcw className="w-12 h-12 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium text-foreground mb-2">No history</h3>
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      {historySnipes.map(snipe => (
+                        <div key={snipe.id.toString()} className="grid grid-cols-6 gap-4 px-4 py-3 bg-muted/20 border border-border rounded-lg items-center opacity-70">
+                          <div className="col-span-1">
+                            <Badge variant="secondary">
+                              {'completed' in snipe.status ? 'Completed' : 'cancelled' in snipe.status ? 'Cancelled' : 'Failed'}
+                            </Badge>
+                          </div>
+                          <div className="col-span-2 font-medium truncate">{snipe.tokenId}</div>
+                          <div className="text-right">${snipe.targetMarketCapUSD}</div>
+                          <div className="text-right">{(Number(snipe.amountBTC) / 100000000).toFixed(6)}</div>
+                          <div className="text-right">-</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </div>
@@ -297,203 +270,134 @@ export default function SniperPage() {
         </CardContent>
       </Card>
 
-      {/* Migration Modal */}
-      {showMigrationModal && (
+      {/* Add Snipe Modal */}
+      {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <Card className="w-full max-w-md">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Snipe Migration</CardTitle>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setShowMigrationModal(false)}
-                  data-testid="button-close-migration"
-                >
+                <CardTitle>Create New Snipe</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setShowAddModal(false)}>
                   <X className="w-4 h-4" />
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Buy/Sell Toggle */}
-              <Tabs value={migrationForm.type} onValueChange={(value) => setMigrationForm(prev => ({ ...prev, type: value }))}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="buy" data-testid="tab-buy">
-                    <Zap className="w-4 h-4 mr-2" />
-                    Buy
-                  </TabsTrigger>
-                  <TabsTrigger value="sell" data-testid="tab-sell">
-                    <ArrowUpDown className="w-4 h-4 mr-2" />
-                    Sell
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-
-              {/* Wallet Selection */}
-              <div className="flex items-center space-x-2">
-                <Select value={migrationForm.wallet} onValueChange={(value) => setMigrationForm(prev => ({ ...prev, wallet: value }))}>
-                  <SelectTrigger className="w-24" data-testid="select-migration-wallet">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="W1">W1</SelectItem>
-                    <SelectItem value="N1">N1</SelectItem>
-                    <SelectItem value="N2">N2</SelectItem>
-                    <SelectItem value="N3">N3</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="ghost" size="icon" data-testid="button-settings-migration">
-                  <Settings className="w-4 h-4" />
-                </Button>
-              </div>
-
-              {/* Contract Address */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Enter CA</label>
+                <label className="text-sm font-medium">Token ID (Canister ID or Odin ID)</label>
                 <Input
-                  placeholder="Enter CA"
-                  value={migrationForm.contractAddress}
-                  onChange={(e) => setMigrationForm(prev => ({ ...prev, contractAddress: e.target.value }))}
-                  data-testid="input-contract-address"
+                  placeholder="e.g. ryjl3-tyaaa-aaaaa-aaaba-cai"
+                  value={newSnipe.tokenId}
+                  onChange={(e) => setNewSnipe(prev => ({ ...prev, tokenId: e.target.value }))}
                 />
               </div>
 
-              {/* Token Name */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Token Name</label>
+                <label className="text-sm font-medium">Target Market Cap ($)</label>
                 <Input
-                  placeholder="Enter token address"
-                  value={migrationForm.tokenName}
-                  onChange={(e) => setMigrationForm(prev => ({ ...prev, tokenName: e.target.value }))}
-                  data-testid="input-token-name"
+                  type="number"
+                  placeholder="e.g. 50000"
+                  value={newSnipe.targetMarketCapUSD}
+                  onChange={(e) => setNewSnipe(prev => ({ ...prev, targetMarketCapUSD: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">Snipe triggers when MC is at or below this value.</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Amount to Buy (BTC)</label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 0.001"
+                  value={newSnipe.amountBTC}
+                  onChange={(e) => setNewSnipe(prev => ({ ...prev, amountBTC: e.target.value }))}
                 />
               </div>
 
-              {/* Amount Presets */}
-              <div className="space-y-2">
-                <div className="grid grid-cols-3 gap-2">
-                  {Object.keys(migrationForm.amounts).map(amount => (
-                    <Button
-                      key={amount}
-                      variant={migrationForm.amounts[amount as keyof typeof migrationForm.amounts] ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setMigrationForm(prev => ({ 
-                        ...prev, 
-                        amounts: { ...prev.amounts, [amount]: !prev.amounts[amount as keyof typeof prev.amounts] }
-                      }))}
-                      data-testid={`button-amount-${amount}`}
-                    >
-                      <DollarSign className="w-3 h-3 mr-1" />
-                      {amount}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Custom Amount */}
-              <Input
-                placeholder="Enter Amount"
-                value={migrationForm.customAmount}
-                onChange={(e) => setMigrationForm(prev => ({ ...prev, customAmount: e.target.value }))}
-                data-testid="input-custom-amount"
-              />
-
-              {/* Advanced Settings */}
-              <div className="space-y-3 bg-background border border-border rounded-lg p-3">
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm text-muted-foreground flex-1">Min amount of token you want to snipe</label>
-                  <Input
-                    type="number"
-                    value={migrationForm.minTokens}
-                    onChange={(e) => setMigrationForm(prev => ({ ...prev, minTokens: e.target.value }))}
-                    className="w-20"
-                    data-testid="input-min-tokens"
-                  />
-                  <span className="text-xs text-muted-foreground">optional</span>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm text-muted-foreground">Slippage</label>
-                  <Input
-                    type="number"
-                    value={migrationForm.slippage}
-                    onChange={(e) => setMigrationForm(prev => ({ ...prev, slippage: e.target.value }))}
-                    className="w-16"
-                    data-testid="input-slippage"
-                  />
-                  <span className="text-xs text-muted-foreground">%</span>
-                  
-                  <div className="flex items-center space-x-1 ml-4">
-                    <Button
-                      size="sm"
-                      variant={migrationForm.mode === 'fast' ? 'default' : 'outline'}
-                      onClick={() => setMigrationForm(prev => ({ ...prev, mode: 'fast' }))}
-                      data-testid="button-fast-mode"
-                    >
-                      Fast
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={migrationForm.mode === 'secure' ? 'default' : 'outline'}
-                      onClick={() => setMigrationForm(prev => ({ ...prev, mode: 'secure' }))}
-                      data-testid="button-secure-mode"
-                    >
-                      Secure
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="text-xs text-muted-foreground">Priority Fee</label>
-                    <Input
-                      type="number"
-                      value={migrationForm.priorityFee}
-                      onChange={(e) => setMigrationForm(prev => ({ ...prev, priorityFee: e.target.value }))}
-                      className="mt-1"
-                      data-testid="input-priority-fee"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Min Tip Amount</label>
-                    <Input
-                      type="number"
-                      value={migrationForm.minTipAmount}
-                      onChange={(e) => setMigrationForm(prev => ({ ...prev, minTipAmount: e.target.value }))}
-                      className="mt-1"
-                      data-testid="input-min-tip"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Max Tip Amount</label>
-                    <Input
-                      type="number"
-                      value={migrationForm.maxTipAmount}
-                      onChange={(e) => setMigrationForm(prev => ({ ...prev, maxTipAmount: e.target.value }))}
-                      className="mt-1"
-                      data-testid="input-max-tip"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <Button 
-                onClick={handleSubmitMigration}
-                className="w-full bg-accent hover:bg-accent/90 text-accent-foreground py-3"
-                data-testid="button-submit-migration"
+              <Button
+                onClick={handleAddSnipe}
+                className="w-full bg-accent hover:bg-accent/90 text-accent-foreground mt-4"
               >
                 <Target className="w-4 h-4 mr-2" />
-                Snipe 0 BTC
+                Activate Snipe
               </Button>
-              
-              <p className="text-xs text-center text-muted-foreground">
-                Once you click on Snipe, your transaction is sent immediately
-              </p>
             </CardContent>
           </Card>
         </div>
       )}
     </main>
+  );
+}
+
+function SnipeCard({ snipe, onCancel }: { snipe: SnipeConfig, onCancel: (id: bigint) => void }) {
+  const statusColor = 'active' in snipe.status ? 'bg-green-500/10 text-green-500' :
+    'completed' in snipe.status ? 'bg-blue-500/10 text-blue-500' :
+      'cancelled' in snipe.status ? 'bg-yellow-500/10 text-yellow-500' :
+        'bg-red-500/10 text-red-500';
+
+  const statusText = 'active' in snipe.status ? 'Active' :
+    'completed' in snipe.status ? 'Completed' :
+      'cancelled' in snipe.status ? 'Cancelled' :
+        'Failed';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="group relative"
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+      <Card className="relative border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden transition-all hover:border-primary/20">
+        <div className={`absolute top-0 left-0 w-1 h-full ${'active' in snipe.status ? 'bg-green-500' :
+            'completed' in snipe.status ? 'bg-blue-500' :
+              'cancelled' in snipe.status ? 'bg-yellow-500' : 'bg-red-500'
+          }`} />
+
+        <CardHeader className="pb-3 pl-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                {snipe.tokenId}
+              </CardTitle>
+              <CardDescription className="font-mono text-xs mt-1 opacity-70">
+                ID: #{snipe.id.toString()}
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className={`${statusColor} border-0 capitalize`}>
+              {statusText}
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="pl-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">Target MC</span>
+              <div className="font-mono font-medium flex items-center text-green-500">
+                ${snipe.targetMarketCapUSD.toLocaleString()}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">Amount</span>
+              <div className="font-mono font-medium">
+                {(Number(snipe.amountBTC) / 100_000_000).toFixed(6)} BTC
+              </div>
+            </div>
+          </div>
+
+          {'active' in snipe.status && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="w-full mt-2 h-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => onCancel(snipe.id)}
+            >
+              <Trash2 className="w-3 h-3 mr-2" />
+              Cancel Snipe
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
