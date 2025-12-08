@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { AuthClient } from "@dfinity/auth-client";
 import type { Identity } from "@dfinity/agent";
+import { registerPlatformUser } from '../services/platformUserRegistry';
 
 type AuthContextValue = {
   authClient: AuthClient | null;
@@ -32,9 +33,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (await client.isAuthenticated()) {
         const id = client.getIdentity();
+        const principal = id.getPrincipal().toString();
         setIdentity(id);
         setIsAuthenticated(true);
-        setPrincipalId(id.getPrincipal().toString());
+        setPrincipalId(principal);
+        // Register user as platform user
+        registerPlatformUser(principal);
       }
       setIsReady(true);
     })();
@@ -46,9 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       identityProvider: II_URL,
       onSuccess: () => {
         const id = authClient.getIdentity();
+        const principal = id.getPrincipal().toString();
         setIdentity(id);
         setIsAuthenticated(true);
-        setPrincipalId(id.getPrincipal().toString());
+        setPrincipalId(principal);
+        // Register user as platform user
+        registerPlatformUser(principal);
       },
     });
   };

@@ -1,223 +1,186 @@
 import { useTheme } from '../../contexts/ThemeContext';
-import React, { useState, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { useAuth } from '../../auth/AuthProvider';
+import { useCkBoost, BoostStatus } from '../../hooks/useCkBoost';
 import {
-  ckTESTBTCClient,
-  BoostStatus,
-  CKBoostErrorType,
-  type BoostRequest,
-  type DepositAddress,
-  type TokenConfig
-} from '@ckboost/client';
-import { 
-  Wallet, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
-  Copy, 
+  getStatusLabel,
+  getStatusColor,
+  calculateProgress,
+  getEstimatedTimeRemaining
+} from '../../hooks/useBoostHistory';
+import {
+  Wallet,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Copy,
   ExternalLink,
   Sun,
-  Moon
+  Moon,
+  RefreshCw,
+  Loader2,
+  Trash2,
+  Zap
 } from 'lucide-react';
 
-const CKBoostWallet = () => {
-  const { identity, isAuthenticated, principalId, login } = useAuth();
-  const { theme, toggleTheme } = useTheme(); // Use the theme context
+// =====================
+// Progress Bar Component
+// =====================
 
-  // Client instance
-  const [client] = useState(() => new ckTESTBTCClient({
-    host: 'https://icp-api.io',
-    timeout: 30000
-  }));
+interface ProgressBarProps {
+  progress: number;
+  status: BoostStatus;
+}
 
-  // State management
-  const [activeTab, setActiveTab] = useState('deposit');
-  const [depositAmount, setDepositAmount] = useState('');
-  const [maxFee, setMaxFee] = useState(1.5);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  // Deposit state
-  const [depositInfo, setDepositInfo] = useState<DepositAddress | null>(null);
-  const [activeRequests, setActiveRequests] = useState<BoostRequest[]>([]);
-  const [monitoringIntervals, setMonitoringIntervals] = useState(new Map<string, NodeJS.Timeout>());
-
-  // Token configuration
-  const [tokenConfig, setTokenConfig] = useState<TokenConfig | null>(null);
-
-  useEffect(() => {
-    // Get token configuration on mount
-    const config = client.getTokenConfig();
-    setTokenConfig(config);
-
-    // Load active requests on mount
-    if (isAuthenticated) {
-      loadActiveRequests();
-    }
-
-    return () => {
-      // Cleanup monitoring intervals
-      monitoringIntervals.forEach(interval => clearInterval(interval));
-    };
-  }, [isAuthenticated, principalId]); // Added principalId to dependency array
-
-  const loadActiveRequests = async () => {
-    try {
-      const result = await client.getPendingBoostRequests();
-      if (result.success && principalId) { // Ensure principalId is available
-        // Filter requests to only show those owned by the current user
-        const userRequests = result.data.filter(req => req.owner === principalId);
-        
-        setActiveRequests(userRequests);
-        
-        // Start monitoring each of the user's pending requests
-        userRequests.forEach(request => {
-          if (request.status === BoostStatus.PENDING || request.status === BoostStatus.ACTIVE) {
-            startMonitoring(request.id);
-          }
-        });
-      }
-    } catch (err) {
-      console.error('Failed to load active requests:', err);
+const ProgressBar: React.FC<ProgressBarProps> = ({ progress, status }) => {
+  const getProgressColor = () => {
+    switch (status) {
+      case BoostStatus.COMPLETED:
+        return 'bg-success';
+      case BoostStatus.CANCELLED:
+        return 'bg-destructive';
+      case BoostStatus.ACTIVE:
+        return 'bg-accent';
+      default:
+        return 'bg-warning';
     }
   };
 
-  const startMonitoring = (requestId: string) => {
-    // Don't start if already monitoring
-    if (monitoringIntervals.has(requestId)) return;
+  return (
+    <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+      <div
+        className={`h-full transition-all duration-500 ease-out ${getProgressColor()}`}
+        style={{ width: `${progress}%` }}
+      />
+    </div>
+  );
+};
 
-    const interval = setInterval(async () => {
-      const result = await client.getBoostRequest(requestId);
-      if (result.success) {
-        const request = result.data;
+// =====================
+// Status Timeline Component
+// =====================
 
-        // Update the request in our list
-        setActiveRequests(prev =>
-          prev.map(r => r.id === requestId ? request : r)
+interface StatusTimelineProps {
+  status: BoostStatus;
+}
+
+const StatusTimeline: React.FC<StatusTimelineProps> = ({ status }) => {
+  const stages = [
+    { key: 'pending', label: 'Pending', icon: Clock },
+    { key: 'accepted', label: 'Boosted', icon: Zap },
+    { key: 'completed', label: 'Complete', icon: CheckCircle }
+  ];
+
+  const getStageStatus = (stageKey: string) => {
+    if (status === BoostStatus.CANCELLED) return 'cancelled';
+
+    switch (stageKey) {
+      case 'pending':
+        return status === BoostStatus.PENDING ? 'active' : 'complete';
+      case 'accepted':
+        return status === BoostStatus.ACTIVE ? 'active' :
+          status === BoostStatus.COMPLETED ? 'complete' : 'pending';
+      case 'completed':
+        return status === BoostStatus.COMPLETED ? 'complete' : 'pending';
+      default:
+        return 'pending';
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between w-full mt-3">
+      {stages.map((stage, index) => {
+        const stageStatus = getStageStatus(stage.key);
+        const Icon = stage.icon;
+
+        return (
+          <React.Fragment key={stage.key}>
+            <div className="flex flex-col items-center">
+              <div className={`
+                w-8 h-8 rounded-full flex items-center justify-center transition-all
+                ${stageStatus === 'complete' ? 'bg-success text-success-foreground' : ''}
+                ${stageStatus === 'active' ? 'bg-accent text-accent-foreground animate-pulse' : ''}
+                ${stageStatus === 'pending' ? 'bg-secondary text-muted-foreground' : ''}
+                ${stageStatus === 'cancelled' ? 'bg-destructive/50 text-destructive-foreground' : ''}
+              `}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <span className={`text-xs mt-1 ${stageStatus === 'active' ? 'text-accent font-medium' : 'text-muted-foreground'}`}>
+                {stage.label}
+              </span>
+            </div>
+            {index < stages.length - 1 && (
+              <div className={`flex-1 h-0.5 mx-2 transition-all ${stageStatus === 'complete' ? 'bg-success' : 'bg-secondary'
+                }`} />
+            )}
+          </React.Fragment>
         );
+      })}
+    </div>
+  );
+};
 
-        // Stop monitoring if completed
-        if (request.status === BoostStatus.COMPLETED || request.status === BoostStatus.CANCELLED) {
-          clearInterval(interval);
-          setMonitoringIntervals(prev => {
-            const newMap = new Map(prev);
-            newMap.delete(requestId);
-            return newMap;
-          });
-        }
-      }
-    }, 10000); // Poll every 10 seconds
+// =====================
+// Main Component
+// =====================
 
-    setMonitoringIntervals(prev => new Map(prev.set(requestId, interval)));
-  };
+const CKBoostWallet = () => {
+  const { isAuthenticated, login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
-  const handleDeposit = async () => {
-    if (!depositAmount || parseFloat(depositAmount) <= 0) {
-      setError('Please enter a valid amount');
-      return;
-    }
+  // Use the new ckBoost hook
+  const {
+    tokenConfig,
+    isLoading,
+    error,
+    depositInfo,
+    activeRequests,
+    generateDepositAddress,
+    refreshActiveRequests,
+    clearError,
+    clearHistory
+  } = useCkBoost();
 
-    if (!tokenConfig) {
-      setError('Token configuration not loaded');
-      return;
-    }
+  // Local state for form
+  const [activeTab, setActiveTab] = React.useState('deposit');
+  const [depositAmount, setDepositAmount] = React.useState('');
+  const [maxFee, setMaxFee] = React.useState(1.5);
+  const [success, setSuccess] = React.useState('');
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
 
-    const amount = parseFloat(depositAmount);
-    const minAmount = parseFloat(tokenConfig.minimumAmount);
-    const maxAmount = parseFloat(tokenConfig.maximumAmount);
-
-    if (amount < minAmount || amount > maxAmount) {
-      setError(`Amount must be between ${minAmount} and ${maxAmount} ckTESTBTC`);
-      return;
-    }
-
-    setLoading(true);
-    setError('');
+  const handleDeposit = useCallback(async () => {
+    clearError();
     setSuccess('');
 
-    try {
-      const result = await client.generateDepositAddress({
-        amount: depositAmount,
-        maxFeePercentage: maxFee
-      });
+    const result = await generateDepositAddress(depositAmount, maxFee);
 
-      if (result.success) {
-        setDepositInfo(result.data);
-        setSuccess('Deposit address generated successfully!');
-
-        // Add to active requests and start monitoring
-        const newRequest: BoostRequest = {
-          id: result.data.requestId,
-          status: BoostStatus.PENDING,
-          amount: result.data.amount,
-          receivedAmount: '0',
-          maxFeePercentage: maxFee,
-          confirmationsRequired: result.data.confirmationsRequired || 2,
-          depositAddress: result.data.address,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          amountRaw: result.data.amountRaw,
-          owner: principalId ?? '',
-          explorerUrl: result.data.explorerUrl
-        };
-
-        setActiveRequests(prev => [newRequest, ...prev]);
-        startMonitoring(result.data.requestId);
-
-        // Clear form
-        setDepositAmount('');
-      } else {
-        setError(getErrorMessage(result.error));
-      }
-    } catch (err) {
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
+    if (result) {
+      setSuccess('Deposit address generated successfully!');
+      setDepositAmount('');
+      setTimeout(() => setSuccess(''), 5000);
     }
-  };
+  }, [depositAmount, maxFee, generateDepositAddress, clearError]);
 
-  const getErrorMessage = (error: { type: CKBoostErrorType; message: string }) => {
-    switch (error.type) {
-      case CKBoostErrorType.INVALID_AMOUNT:
-        return 'Invalid amount. Please check the minimum and maximum limits.';
-      case CKBoostErrorType.NETWORK_ERROR:
-        return 'Network error. Please check your connection and try again.';
-      case CKBoostErrorType.CANISTER_ERROR:
-        return 'Service temporarily unavailable. Please try again later.';
-      default:
-        return error.message || 'An unexpected error occurred.';
-    }
-  };
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await refreshActiveRequests();
+    setIsRefreshing(false);
+  }, [refreshActiveRequests]);
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
     setSuccess('Copied to clipboard!');
     setTimeout(() => setSuccess(''), 3000);
-  };
-  
-  const getStatusColor = (status: BoostStatus) => {
-    switch (status) {
-      case BoostStatus.PENDING:
-        return 'text-warning bg-warning/10';
-      case BoostStatus.ACTIVE:
-        return 'text-accent bg-accent/10';
-      case BoostStatus.COMPLETED:
-        return 'text-success bg-success/10';
-      case BoostStatus.CANCELLED:
-        return 'text-destructive bg-destructive/10';
-      default:
-        return 'text-muted-foreground bg-muted/10';
-    }
-  };
+  }, []);
 
   const getStatusIcon = (status: BoostStatus) => {
     switch (status) {
       case BoostStatus.PENDING:
-      case BoostStatus.ACTIVE:
         return <Clock className="w-4 h-4" />;
+      case BoostStatus.ACTIVE:
+        return <Zap className="w-4 h-4" />;
       case BoostStatus.COMPLETED:
         return <CheckCircle className="w-4 h-4" />;
       case BoostStatus.CANCELLED:
@@ -227,6 +190,7 @@ const CKBoostWallet = () => {
     }
   };
 
+  // Unauthenticated state
   if (!isAuthenticated) {
     return (
       <div className="max-w-md mx-auto mt-10 p-6 bg-card rounded-lg shadow-lg animate-fade-in">
@@ -251,20 +215,32 @@ const CKBoostWallet = () => {
     <div className="max-w-4xl mx-auto p-6 space-y-6 animate-fade-in">
       {/* Header */}
       <div className="bg-card rounded-lg shadow-lg p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center space-x-3">
-            <Wallet className="w-8 h-8 text-accent" />
+            <div className="relative">
+              <Wallet className="w-8 h-8 text-accent" />
+              <Zap className="w-4 h-4 text-warning absolute -bottom-1 -right-1" />
+            </div>
             <div>
               <h1 className="text-2xl font-bold text-card-foreground">CKTESTBTC-Deposit</h1>
-              <p className="text-muted-foreground">Fast ckTESTBTC conversions under 10mins</p>
+              <p className="text-muted-foreground">Fast ckTESTBTC conversions under 10 mins</p>
+              {isAuthenticated && (
+                <p className="text-xs text-muted-foreground mt-1 font-mono bg-secondary/50 px-2 py-0.5 rounded inline-block">
+                  User ID: {useAuth().principalId}
+                </p>
+              )}
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Connected as</p>
-              <p className="font-mono text-sm text-foreground truncate max-w-[200px]">{principalId}</p>
-            </div>
-             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-secondary">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="p-2 rounded-full hover:bg-secondary transition-colors disabled:opacity-50"
+              title="Refresh requests"
+            >
+              <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-secondary">
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
           </div>
@@ -273,8 +249,9 @@ const CKBoostWallet = () => {
 
       {/* Alerts */}
       {error && (
-        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg animate-slide-up">
-          {error}
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg animate-slide-up flex justify-between items-center">
+          <span>{error}</span>
+          <button onClick={clearError} className="text-destructive hover:text-destructive/80">×</button>
         </div>
       )}
       {success && (
@@ -291,25 +268,23 @@ const CKBoostWallet = () => {
           <div className="flex space-x-1 mb-6">
             <button
               onClick={() => setActiveTab('deposit')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === 'deposit'
-                  ? 'bg-accent text-accent-foreground'
-                  : 'bg-secondary text-muted-foreground hover:bg-surface-light'
-              }`}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'deposit'
+                ? 'bg-accent text-accent-foreground'
+                : 'bg-secondary text-muted-foreground hover:bg-surface-light'
+                }`}
             >
               <ArrowDownLeft className="w-4 h-4" />
               <span>Deposit</span>
             </button>
             <button
-              onClick={() => setActiveTab('withdraw')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === 'withdraw'
-                  ? 'bg-accent text-accent-foreground'
-                  : 'bg-secondary text-muted-foreground hover:bg-surface-light'
-              }`}
+              onClick={() => setActiveTab('history')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'history'
+                ? 'bg-accent text-accent-foreground'
+                : 'bg-secondary text-muted-foreground hover:bg-surface-light'
+                }`}
             >
-              <ArrowUpRight className="w-4 h-4" />
-              <span>Withdraw</span>
+              <Clock className="w-4 h-4" />
+              <span>History</span>
             </button>
           </div>
 
@@ -320,7 +295,7 @@ const CKBoostWallet = () => {
                 <h3 className="text-lg font-semibold text-card-foreground mb-4">
                   Create Deposit Request
                 </h3>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-muted-foreground mb-2">
@@ -364,43 +339,57 @@ const CKBoostWallet = () => {
 
                   <button
                     onClick={handleDeposit}
-                    disabled={loading || !depositAmount}
-                    className="w-full bg-accent text-accent-foreground py-3 px-4 rounded-lg hover:bg-accent/90 disabled:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                    disabled={isLoading || !depositAmount}
+                    className="w-full bg-accent text-accent-foreground py-3 px-4 rounded-lg hover:bg-accent/90 disabled:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center space-x-2"
                   >
-                    {loading ? 'Creating Request...' : 'Generate Deposit Address'}
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Creating Request...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-5 h-5" />
+                        <span>Generate Deposit Address</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
 
               {/* Deposit Info */}
               {depositInfo && (
-                <div className="border border-border rounded-lg p-4 space-y-3 animate-slide-up">
-                  <h4 className="font-semibold text-card-foreground">Deposit Information</h4>
-                  
-                  <div className="space-y-2">
+                <div className="border border-border rounded-lg p-4 space-y-3 animate-slide-up bg-secondary/30">
+                  <h4 className="font-semibold text-card-foreground flex items-center space-x-2">
+                    <CheckCircle className="w-5 h-5 text-success" />
+                    <span>Deposit Information</span>
+                  </h4>
+
+                  <div className="space-y-3">
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Bitcoin Address:</label>
                       <div className="flex items-center space-x-2 mt-1">
-                        <code className="bg-muted px-2 py-1 rounded text-sm font-mono break-all">
+                        <code className="bg-muted px-2 py-1 rounded text-sm font-mono break-all flex-1">
                           {depositInfo.address}
                         </code>
                         <button
                           onClick={() => copyToClipboard(depositInfo.address)}
-                          className="text-accent hover:text-accent/90"
+                          className="text-accent hover:text-accent/90 p-2"
                         >
                           <Copy className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
 
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Amount (Satoshis):</label>
-                      <p className="font-mono text-sm">{depositInfo.amountRaw}</p>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Request ID:</label>
-                      <p className="font-mono text-sm">{depositInfo.requestId}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Amount (Satoshis):</label>
+                        <p className="font-mono text-sm">{depositInfo.amountRaw}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Request ID:</label>
+                        <p className="font-mono text-sm truncate">{depositInfo.requestId}</p>
+                      </div>
                     </div>
 
                     <a
@@ -418,79 +407,157 @@ const CKBoostWallet = () => {
             </div>
           )}
 
-          {/* Withdraw Tab */}
-          {activeTab === 'withdraw' && (
-            <div className="space-y-6">
-              <div className="text-center py-12 text-muted-foreground">
-                <ArrowUpRight className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2 text-foreground">Withdrawal Feature</h3>
-                <p>Standard ckTESTBTC withdrawals can be done through your wallet interface.</p>
-                <p className="text-sm mt-2">CKBTC-Deposit focuses on accelerating deposits (Bitcoin → ckTESTBTC).</p>
+          {/* History Tab */}
+          {activeTab === 'history' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-card-foreground">
+                  Transaction History
+                </h3>
+                {activeRequests.length > 0 && (
+                  <button
+                    onClick={clearHistory}
+                    className="text-sm text-muted-foreground hover:text-destructive flex items-center space-x-1"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Clear</span>
+                  </button>
+                )}
               </div>
+
+              {activeRequests.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No transaction history</p>
+                  <p className="text-sm mt-1">Your deposit requests will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {activeRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="border border-border rounded-lg p-4 bg-secondary/20"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                          {getStatusIcon(request.status)}
+                          <span>{getStatusLabel(request.status)}</span>
+                        </span>
+                        <span className="text-xs text-muted-foreground flex flex-col items-end">
+                          <span>{new Date(request.createdAt).toLocaleString()}</span>
+                          <span className="font-mono text-[10px] opacity-70">ID: {request.id}</span>
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <ProgressBar progress={calculateProgress(request.status)} status={request.status} />
+
+                      {/* Status Timeline */}
+                      <StatusTimeline status={request.status} />
+
+                      <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Amount:</span>
+                          <span className="font-mono ml-2">{request.amount} ckTESTBTC</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Max Fee:</span>
+                          <span className="ml-2">{request.maxFeePercentage}%</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Est. Time:</span>
+                          <span className="ml-2 text-accent">{getEstimatedTimeRemaining(request.status)}</span>
+                        </div>
+                      </div>
+
+                      {request.depositAddress && (
+                        <div className="mt-3 pt-3 border-t border-border/50">
+                          <div className="flex items-center justify-between">
+                            <code className="text-xs font-mono text-muted-foreground truncate max-w-[200px]">
+                              {request.depositAddress}
+                            </code>
+                            <button
+                              onClick={() => request.depositAddress && copyToClipboard(request.depositAddress)}
+                              className="text-accent hover:text-accent/90"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Right Panel - Active Requests */}
+        {/* Right Panel - Active Requests Summary */}
         <div className="bg-card rounded-lg shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-card-foreground mb-4">Active Requests</h3>
-          
-          {activeRequests.length === 0 ? (
+          <h3 className="text-lg font-semibold text-card-foreground mb-4 flex items-center space-x-2">
+            <Zap className="w-5 h-5 text-accent" />
+            <span>Active Requests</span>
+          </h3>
+
+          {activeRequests.filter(r => r.status === BoostStatus.PENDING || r.status === BoostStatus.ACTIVE).length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Clock className="w-8 h-8 mx-auto mb-3 opacity-50" />
               <p className="text-sm">No active requests</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {activeRequests.map((request) => (
-                <div key={request.id} className="border border-border rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
-                      {getStatusIcon(request.status)}
-                      <span>{request.status}</span>
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(request.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Amount:</span>
-                      <span className="font-mono">{request.amount} ckTESTBTC</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Received:</span>
-                      <span className="font-mono">{request.receivedAmount} ckTESTBTC</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Progress:</span>
-                      <span className="text-xs">
-                        {((parseFloat(request.receivedAmount) / parseFloat(request.amount)) * 100).toFixed(1)}%
+              {activeRequests
+                .filter(r => r.status === BoostStatus.PENDING || r.status === BoostStatus.ACTIVE)
+                .map((request) => (
+                  <div key={request.id} className="border border-border rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                        {getStatusIcon(request.status)}
+                        <span>{getStatusLabel(request.status)}</span>
                       </span>
+                      <span className="text-[10px] font-mono text-muted-foreground mr-1">#{request.id}</span>
                     </div>
-                  </div>
 
-                  {request.depositAddress && (
-                    <div className="mt-2 pt-2 border-t border-border/50">
-                      <p className="text-xs text-muted-foreground mb-1">Deposit Address:</p>
-                      <div className="flex items-center space-x-1">
-                        <code className="text-xs font-mono bg-secondary px-1 rounded flex-1 truncate">
-                          {request.depositAddress}
-                        </code>
-                        <button
-                          onClick={() => request.depositAddress && copyToClipboard(request.depositAddress)}
-                          className="text-accent hover:text-accent/90"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </button>
+                    <ProgressBar progress={calculateProgress(request.status)} status={request.status} />
+
+                    <div className="mt-2 space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Amount:</span>
+                        <span className="font-mono">{request.amount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">ETA:</span>
+                        <span className="text-accent text-xs">{getEstimatedTimeRemaining(request.status)}</span>
                       </div>
                     </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                ))}
             </div>
           )}
+
+          {/* Quick Stats */}
+          <div className="mt-6 pt-4 border-t border-border">
+            <h4 className="text-sm font-medium text-muted-foreground mb-3">Summary</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Requests:</span>
+                <span>{activeRequests.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Completed:</span>
+                <span className="text-success">
+                  {activeRequests.filter(r => r.status === BoostStatus.COMPLETED).length}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">In Progress:</span>
+                <span className="text-accent">
+                  {activeRequests.filter(r => r.status === BoostStatus.PENDING || r.status === BoostStatus.ACTIVE).length}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -7,7 +7,7 @@ dotenv.config();
 async function main() {
   // Validate environment variables
   const mnemonics = process.env.BOOSTER_MNEMONIC;
-  
+
   if (!mnemonics) {
     console.error('❌ Error: BOOSTER_MNEMONIC environment variable is required');
     console.error('💡 Create a .env file with: BOOSTER_MNEMONIC="your twelve word phrase here"');
@@ -21,7 +21,11 @@ async function main() {
     maxAmountBTC: parseFloat(process.env.MAX_AMOUNT_BTC || '0.1'),
     minFeePercentage: parseFloat(process.env.MIN_FEE_PERCENTAGE || '0.5'),
     checkIntervalMs: parseInt(process.env.CHECK_INTERVAL_MS || '30000'),
-    initialDepositAmount: process.env.INITIAL_DEPOSIT || '0.05'
+    initialDepositAmount: process.env.INITIAL_DEPOSIT || '0.05',
+    // Platform-specific filtering: set to true to only boost platform requests
+    platformOnly: process.env.PLATFORM_ONLY === 'true',
+    // Optional: comma-separated list of initial platform user principals  
+    platformUsers: process.env.PLATFORM_USERS?.split(',').filter(Boolean) || []
   };
 
   console.log('⚙️  Configuration:');

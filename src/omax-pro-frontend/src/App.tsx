@@ -32,8 +32,9 @@ import DiscoveryCryptoPage from "./pages/DiscoveryCryptoPage";
 import DiscoveryStocksPage from "./pages/DiscoveryStocksPage";
 import DiscoverySportsPage from "./pages/DiscoverySportsPage";
 import DiscoveryWeatherPage from "./pages/DiscoveryWeatherPage";
-import DiscoverySearchPage from "./pages/DiscoverySearchPage";
 
+import DiscoverySearchPage from "./pages/DiscoverySearchPage";
+import BoosterStatsPage from "./pages/BoosterStatsPage";
 
 function Router() {
   return (
@@ -46,6 +47,7 @@ function Router() {
         <Route path="/prediction/:id" component={PredictionMarketDetailPage} />
         <Route path="/trending" component={TrendingPage} />
         <Route path="/ckbtcdeposit" component={CKBoostWallet} />
+        <Route path="/boosterstats" component={BoosterStatsPage} />
         <Route path="/trenches" component={TrenchesPage} />
         <Route path="/token/:id" component={TokenPage} />
         <Route path="/wallet" component={WalletPage} />
