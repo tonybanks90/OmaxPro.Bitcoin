@@ -7,6 +7,7 @@ import { Badge } from '../ui/badge';
 import { DollarSign, TrendingUp, TrendingDown, Users, Target, Loader2 } from 'lucide-react';
 import { MarketsService } from '../../services/markets-service';
 import { useToast } from '../ui/use-toast';
+import { useAuth } from '../../auth/AuthProvider';
 
 interface BettingInterfaceProps {
   market: PredictionMarket;
@@ -16,6 +17,7 @@ interface BettingInterfaceProps {
 
 export function BettingInterface({ market, selectedOption, onOptionSelect }: BettingInterfaceProps) {
   const { toast } = useToast();
+  const { identity } = useAuth(); // Get identity from auth context
   const [betAmount, setBetAmount] = useState('');
   const [betType, setBetType] = useState<'buy' | 'sell'>('buy');
   const [isPlacingBet, setIsPlacingBet] = useState(false);
@@ -79,6 +81,16 @@ export function BettingInterface({ market, selectedOption, onOptionSelect }: Bet
         };
       }
 
+      if (!tokenIdentifier) {
+        console.error('Failed to construct tokenIdentifier for market type:', market.marketType);
+        toast({
+          title: "Setup Error",
+          description: `Market type '${market.marketType}' is not supported`,
+          variant: "destructive"
+        });
+        return;
+      }
+
       console.log('Placing bet:', {
         marketId: marketId.toString(),
         tokenIdentifier,
@@ -86,17 +98,25 @@ export function BettingInterface({ market, selectedOption, onOptionSelect }: Bet
         betType
       });
 
-      // Call the Markets canister with user-defined slippage
+      // Show processing toast
+      toast({
+        title: "Processing Transaction",
+        description: "Please wait while we approve and place your bet...",
+      });
+
+      // Call the Markets canister with user-defined slippage AND identity
       await MarketsService.buyTokens(
         marketId,
         tokenIdentifier,
         amountInSatoshis,
-        slippageTolerance / 100 // Convert percentage to decimal (5% -> 0.05)
+        slippageTolerance / 100, // Convert percentage to decimal (5% -> 0.05)
+        identity // Pass identity explicitly
       );
 
       toast({
         title: "Bet Placed Successfully!",
-        description: `You ${betType === 'buy' ? 'bought' : 'sold'} tokens for ${selectedOption.label}`,
+        description: `You bought ${amount} USD worth of tokens`,
+        variant: "success"
       });
 
       // Reset form

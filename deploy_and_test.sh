@@ -163,7 +163,7 @@ MARKET_RESULT=$(dfx canister call TFactory createMarket \
     question = "Will Bitcoin reach $100k by end of 2024?"; 
     expiry = 1735689600:nat64; 
     resolver = principal "'$(dfx identity get-principal --identity $IDENTITY)'"; 
-    b = 100.0:float64 
+    b = 5000.0:float64 
   })' \
   --network $NETWORK --identity $IDENTITY)
 

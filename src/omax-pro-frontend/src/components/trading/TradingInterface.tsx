@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -6,6 +7,7 @@ import { ArrowUp, ArrowDown, ArrowRightLeft, Settings, Zap, DollarSign, Loader2,
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../auth/AuthProvider';
 import { useOdinTrading } from '../../hooks/useOdinTrading';
+import { useToast } from '../../hooks/use-toast';
 
 interface TradingInterfaceProps {
   tokenSymbol: string;
@@ -18,9 +20,9 @@ interface TradingInterfaceProps {
 const SATOSHI_TO_BTC = 0.00000001;
 
 function formatNumber(num: number, decimals: number = 4): string {
-  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
-  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
-  if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
+  if (num >= 1e9) return `${(num / 1e9).toFixed(2)} B`;
+  if (num >= 1e6) return `${(num / 1e6).toFixed(2)} M`;
+  if (num >= 1e3) return `${(num / 1e3).toFixed(2)} K`;
   return num.toLocaleString(undefined, { maximumFractionDigits: decimals });
 }
 
@@ -28,6 +30,7 @@ export function TradingInterface({ tokenSymbol, tokenId, tokenPrice, btcPriceUSD
   const { t } = useLanguage();
   const { identity, isAuthenticated, login } = useAuth();
   const { buyToken, sellToken, initialize, isLoading, error } = useOdinTrading();
+  const { toast } = useToast();
 
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState('');
@@ -37,9 +40,10 @@ export function TradingInterface({ tokenSymbol, tokenId, tokenPrice, btcPriceUSD
   // Initialize Odin service when identity is available
   useEffect(() => {
     if (isAuthenticated && identity) {
+      console.log('TradingInterface: Initializing Odin with authenticated identity');
       initialize(identity);
     }
-  }, [isAuthenticated, identity]);
+  }, [isAuthenticated, identity, initialize]); // Added initialize to dependency array
 
   const quickAmounts = tradeType === 'buy'
     ? [0.001, 0.005, 0.01, 0.05, 0.1, 0.5]
@@ -91,7 +95,11 @@ export function TradingInterface({ tokenSymbol, tokenId, tokenPrice, btcPriceUSD
     }
 
     if (!amount || parseFloat(amount) <= 0) {
-      console.error('Invalid amount');
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid trade amount greater than 0.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -100,7 +108,7 @@ export function TradingInterface({ tokenSymbol, tokenId, tokenPrice, btcPriceUSD
 
     console.log(`Starting ${tradeType} trade...`, { tokenId, amount: numAmount, slippage: numSlippage });
 
-    const slippageSettings = undefined;
+    const slippageSettings = undefined; // Placeholder for future slippage implementation
 
     try {
       let result;
@@ -112,15 +120,38 @@ export function TradingInterface({ tokenSymbol, tokenId, tokenPrice, btcPriceUSD
 
       if (result && 'ok' in result) {
         console.log('Trade successful!', result);
-        alert(`${tradeType === 'buy' ? 'Buy' : 'Sell'} successful!`);
+        toast({
+          title: "Trade Successful",
+          description: `Successfully ${tradeType === 'buy' ? 'bought' : 'sold'} tokens.`,
+          variant: "default", // or success if available, default usually maps to a standard look
+        });
         setAmount('');
       } else if (result && 'err' in result) {
         console.error('Trade failed:', result.err);
-        alert(`Trade failed: ${result.err}`);
+
+        let errorTitle = "Trade Failed";
+        let errorDesc = result.err;
+
+        if (result.err.includes('No token exists')) {
+          errorDesc = `Token '${tokenId}' does not exist on the Odin Development Canister.It may only be available on Mainnet.`;
+        } else if (result.err.includes('Insufficient funds')) {
+          errorTitle = "Insufficient Funds";
+          errorDesc = "You do not have enough deposited funds in the Odin Canister to complete this trade. Please deposit BTC first.";
+        }
+
+        toast({
+          title: errorTitle,
+          description: errorDesc,
+          variant: "destructive",
+        });
       }
     } catch (e) {
       console.error('Trade execution error:', e);
-      alert('Trade execution failed. Check console for details.');
+      toast({
+        title: "Trade Execution Error",
+        description: "An unexpected error occurred while executing the trade. Check console for details.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -239,11 +270,13 @@ export function TradingInterface({ tokenSymbol, tokenId, tokenPrice, btcPriceUSD
       </div>
 
       {/* Error Message */}
-      {error && (
-        <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded-lg">
-          {error}
-        </div>
-      )}
+      {
+        error && (
+          <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded-lg">
+            {error}
+          </div>
+        )
+      }
 
       {/* Trade Button */}
       <Button
@@ -254,7 +287,7 @@ export function TradingInterface({ tokenSymbol, tokenId, tokenPrice, btcPriceUSD
           : tradeType === 'buy'
             ? 'bg-accent hover:bg-accent/90 text-accent-foreground'
             : 'bg-destructive hover:bg-destructive/90 text-destructive-foreground'
-          }`}
+          } `}
         data-testid="button-execute-trade"
       >
         {isLoading ? (

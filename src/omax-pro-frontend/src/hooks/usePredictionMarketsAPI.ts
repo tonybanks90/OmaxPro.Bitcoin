@@ -74,7 +74,13 @@ const mapMarketInfoToFrontend = (market: MarketInfo): PredictionMarketFrontend =
 
   // Safely extract market types
   const keys = Object.keys(market.marketType);
-  const marketTypeString = keys.length > 0 ? keys[0].toLowerCase() : 'unknown'; // Normalize to lowercase
+  const key = keys.length > 0 ? keys[0] : 'unknown';
+  let marketTypeString = key.toLowerCase();
+
+  // Fix specific mapping for MultipleChoice -> multiple_choice
+  if (key === 'MultipleChoice') {
+    marketTypeString = 'multiple_choice';
+  }
 
   // Placeholder values
   const totalVolumeUSD = '$0';

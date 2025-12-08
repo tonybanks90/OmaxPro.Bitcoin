@@ -8,8 +8,8 @@ export const ODIN_CANISTER_IDS = {
     production: 'z2vm5-gaaaa-aaaaj-azw6q-cai',
 } as const;
 
-// Use PRODUCTION canister ID for real tokens
-export const ODIN_CANISTER_ID = process.env.VITE_ODIN_CANISTER_ID || ODIN_CANISTER_IDS.production;
+// Use DEVELOPMENT canister ID for testing
+export const ODIN_CANISTER_ID = process.env.VITE_ODIN_CANISTER_ID || ODIN_CANISTER_IDS.development;
 
 // Host configuration - FORCE Mainnet to access live Odin canister
 const DEFAULT_IC_HOST = 'https://ic0.app';
@@ -88,6 +88,11 @@ class OdinService {
             console.log('[OdinService] Initializing...');
             console.log('[OdinService] Canister ID:', ODIN_CANISTER_ID);
             console.log('[OdinService] Host:', DEFAULT_IC_HOST);
+            if (identity) {
+                console.log('[OdinService] Identity Principal:', identity.getPrincipal().toString());
+            } else {
+                console.log('[OdinService] No identity provided (anonymous)');
+            }
 
             this.agent = new HttpAgent({
                 host: DEFAULT_IC_HOST,
@@ -203,6 +208,9 @@ class OdinService {
 
             if ('err' in result) {
                 console.error('Trade returned error:', result.err);
+                if (result.err.includes('No token exists')) {
+                    console.warn('[OdinService] TIP: The token ID might differ between the API/UI and the Canister in Development environment. Ensure you are using a token ID that has been created on the dev canister.');
+                }
             } else {
                 console.log('Trade Successful!');
             }
@@ -269,6 +277,9 @@ class OdinService {
 
             if ('err' in result) {
                 console.error('Trade returned error:', result.err);
+                if (result.err.includes('No token exists')) {
+                    console.warn('[OdinService] TIP: The token ID might differ between the API/UI and the Canister in Development environment. Ensure you are using a token ID that has been created on the dev canister.');
+                }
             } else {
                 console.log('Trade Successful!');
             }

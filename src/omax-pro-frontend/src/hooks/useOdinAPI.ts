@@ -187,7 +187,7 @@ export interface CombinedHistoricalTrade extends OdinHistoricalTrade {
 }
 
 // API Base URL
-const ODIN_API_BASE = "https://api.odin.fun/v1";
+const ODIN_API_BASE = "https://api.odin.fun/dev";
 
 // Main tokens fetch function
 async function fetchOdinTokens(filters: {

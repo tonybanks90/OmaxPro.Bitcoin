@@ -3,7 +3,11 @@ import { MarketsActorService } from '../hooks/useMarketsActor';
 
 export class MarketsService {
     // Ensure actor is ready before operations
-    private static async ensureActor() {
+    private static async ensureActor(identity?: any) {
+        if (identity) {
+            MarketsActorService.authenticate(identity);
+        }
+
         await MarketsActorService.ensureReady();
 
         const actor = MarketsActorService.getActor();
@@ -19,9 +23,10 @@ export class MarketsService {
         marketId: bigint,
         tokenIdentifier: any, // TokenIdentifier from declarations
         amountSatoshis: bigint,
-        maxSlippage: number
+        maxSlippage: number,
+        identity?: any // Optional: Pass identity directly to avoid agent extraction issues
     ): Promise<any> {
-        const actor = await this.ensureActor();
+        const actor = await this.ensureActor(identity);
 
         console.log('Buying tokens:', {
             marketId: marketId.toString(),
@@ -29,6 +34,14 @@ export class MarketsService {
             amountSatoshis: amountSatoshis.toString(),
             maxSlippage
         });
+
+        // Just-in-Time Approval: Check allowance and approve if needed
+        try {
+            await this.ensureVaultApproved(amountSatoshis, identity);
+        } catch (approvalError) {
+            console.error('Failed to ensure Vault approval:', approvalError);
+            throw new Error(`Approval failed: ${approvalError}`);
+        }
 
         try {
             const result = await actor.buyTokens(
@@ -48,6 +61,68 @@ export class MarketsService {
             console.error('Error buying tokens:', error);
             throw error;
         }
+    }
+
+    private static async ensureVaultApproved(amount: bigint, providedIdentity?: any) {
+        const { LedgerActorService } = await import('../hooks/useLedgerActor');
+        const { Principal } = await import('@dfinity/principal');
+        const { Actor } = await import('@dfinity/agent');
+
+        // Ensure Markets actor is ready (which means user is authenticated there)
+        const marketsActor = await this.ensureActor();
+
+        let identity = providedIdentity;
+
+        if (!identity) {
+            // Fallback: Extract identity from Markets actor to use for Ledger
+            const agent = Actor.agentOf(marketsActor);
+            // Cast to any because Agent type definition might not expose getIdentity directly in this version
+            identity = (agent as any)?.getIdentity();
+
+            if (!identity) {
+                throw new Error('Could not derive identity from Markets actor');
+            }
+        }
+
+        // Initialize Ledger Service with this identity
+        // We must authenticate it so it acts as the USER
+        LedgerActorService.authenticate(identity);
+        await LedgerActorService.ensureReady();
+
+        const ledger = LedgerActorService.getActor();
+
+        if (!ledger) {
+            console.warn('Ledger actor not available for approval check');
+            return;
+        }
+
+        const VAULT_CANISTER_ID = 'umunu-kh777-77774-qaaca-cai';
+        const vaultPrincipal = Principal.fromText(VAULT_CANISTER_ID);
+
+        console.log(`Approving Vault (${VAULT_CANISTER_ID}) to spend ${amount} ckBTC...`);
+
+        // Approve slightly more than needed to cover ICRC transfer fees (typically 10 sats)
+        const approvalAmount = amount + BigInt(100); // Add 100 sat buffer for fees
+
+        const result = await ledger.icrc2_approve({
+            amount: approvalAmount,
+            spender: { owner: vaultPrincipal, subaccount: [] },
+            fee: [],
+            memo: [],
+            from_subaccount: [],
+            created_at_time: [],
+            expected_allowance: [],
+            expires_at: []
+        });
+
+        if ('Err' in result) {
+            const errorString = JSON.stringify(result.Err, (_, v) =>
+                typeof v === 'bigint' ? v.toString() : v
+            );
+            throw new Error(`Ledger approval failed: ${errorString}`);
+        }
+
+        console.log('Approval successful:', result.Ok);
     }
 
     // Sell tokens in a market

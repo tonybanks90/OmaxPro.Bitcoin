@@ -13,7 +13,8 @@ import { Separator } from '../components/ui/separator';
 import { ArrowLeft, Share, Clock, Users, DollarSign, Bitcoin, TrendingUp, Calendar, Info } from 'lucide-react';
 import { Link } from 'wouter';
 import { MarketActivity } from '../components/prediction/MarketActivity';
-import { MarketDebugPanel } from '../components/prediction/MarketDebugPanel';
+import { useMarketStats } from '../hooks/useMarketStats';
+
 
 
 export default function PredictionMarketDetailPage() {
@@ -22,6 +23,9 @@ export default function PredictionMarketDetailPage() {
   const [selectedOption, setSelectedOption] = useState<PredictionOption | undefined>();
 
   const marketId = params?.id || '1';
+
+  // Fetch market stats
+  const { stats, isLoading: statsLoading } = useMarketStats(marketId);
 
   // Fetch market data from API
   const { data: market, isLoading, error } = usePredictionMarket(marketId);
@@ -157,7 +161,13 @@ export default function PredictionMarketDetailPage() {
                   <DollarSign className="w-3 h-3 text-success" />
                   <span className="text-xs text-muted-foreground">Volume</span>
                 </div>
-                <div className="font-bold text-sm">{market.totalVolumeUSD}</div>
+                <div className="font-bold text-sm">
+                  {statsLoading ? (
+                    <span className="animate-pulse bg-muted h-4 w-12 block rounded" />
+                  ) : (
+                    stats.volumeUSD
+                  )}
+                </div>
               </div>
 
               <div className="bg-surface border border-border rounded-lg p-2">
@@ -165,7 +175,13 @@ export default function PredictionMarketDetailPage() {
                   <Bitcoin className="w-3 h-3 text-warning" />
                   <span className="text-xs text-muted-foreground">Sats</span>
                 </div>
-                <div className="font-bold text-sm">{market.totalVolumeSats}</div>
+                <div className="font-bold text-sm">
+                  {statsLoading ? (
+                    <span className="animate-pulse bg-muted h-4 w-16 block rounded" />
+                  ) : (
+                    stats.volumeSats
+                  )}
+                </div>
               </div>
 
               <div className="bg-surface border border-border rounded-lg p-2">
@@ -173,7 +189,13 @@ export default function PredictionMarketDetailPage() {
                   <Users className="w-3 h-3 text-accent" />
                   <span className="text-xs text-muted-foreground">Users</span>
                 </div>
-                <div className="font-bold text-sm">{market.participants.toLocaleString()}</div>
+                <div className="font-bold text-sm">
+                  {statsLoading ? (
+                    <span className="animate-pulse bg-muted h-4 w-8 block rounded" />
+                  ) : (
+                    stats.participants.toLocaleString()
+                  )}
+                </div>
               </div>
 
               <div className="bg-surface border border-border rounded-lg p-2">
@@ -330,8 +352,7 @@ export default function PredictionMarketDetailPage() {
             onOptionSelect={setSelectedOption}
           />
 
-          {/* Debug Panel - Development Only */}
-          <MarketDebugPanel marketId={marketId} />
+
 
           {/* Market Chat - Desktop */}
           <div className="hidden lg:block">

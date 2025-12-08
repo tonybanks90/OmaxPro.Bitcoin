@@ -8,6 +8,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { AspectRatio } from '../ui/aspect-ratio';
 import { useLanguage } from '../../contexts/LanguageContext';
 import sportsImage from '../../assets/react.svg';
+import { useMarketStats } from '../../hooks/useMarketStats';
 
 interface PredictionCardProps {
   market: PredictionMarket;
@@ -17,6 +18,7 @@ interface PredictionCardProps {
 
 export function PredictionCard({ market, showFull = false, variant = 'default' }: PredictionCardProps) {
   const { t } = useLanguage();
+  const { stats, isLoading } = useMarketStats(market.id);
 
   const formatTimeRemaining = (endDate: Date | string) => {
     const now = new Date();
@@ -59,7 +61,7 @@ export function PredictionCard({ market, showFull = false, variant = 'default' }
   const mainOptions = market.options.slice(0, 2);
   const additionalOptions = market.options.slice(2);
 
-  const cardClasses = variant === 'hero' 
+  const cardClasses = variant === 'hero'
     ? "bg-gradient-to-br from-surface to-surface/80 border border-accent/50 rounded-xl overflow-hidden hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 group relative"
     : "bg-surface border border-border rounded-xl overflow-hidden hover:border-accent hover:shadow-lg hover:scale-[1.02] transition-all duration-200 group";
 
@@ -71,8 +73,8 @@ export function PredictionCard({ market, showFull = false, variant = 'default' }
           {/* Small Image */}
           <div className="relative flex-shrink-0">
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden">
-              <img 
-                src={market.image || getPlaceholderImage(market.category)} 
+              <img
+                src={market.image || getPlaceholderImage(market.category)}
                 alt={market.title}
                 className={`w-full h-full object-cover ${variant === 'hero' ? 'filter brightness-90' : ''}`}
                 onError={(e) => {
@@ -117,20 +119,20 @@ export function PredictionCard({ market, showFull = false, variant = 'default' }
             <div className="flex items-center space-x-1">
               <Users className="w-3 h-3" />
               <span data-testid={`prediction-participants-${market.id}`}>
-                {market.participants.toLocaleString()} people
+                <StatsDisplay value={stats?.participants.toLocaleString() ?? market.participants.toLocaleString()} label="people" loading={isLoading} />
               </span>
             </div>
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-1">
                 <DollarSign className="w-3 h-3" />
                 <span data-testid={`prediction-volume-usd-${market.id}`}>
-                  {market.totalVolumeUSD}
+                  <StatsDisplay value={stats?.volumeUSD ?? market.totalVolumeUSD} loading={isLoading} />
                 </span>
               </div>
               <div className="flex items-center space-x-1">
                 <Bitcoin className="w-3 h-3" />
                 <span data-testid={`prediction-volume-sats-${market.id}`}>
-                  {market.totalVolumeSats}
+                  <StatsDisplay value={stats?.volumeSats ?? market.totalVolumeSats} loading={isLoading} />
                 </span>
               </div>
             </div>
@@ -145,8 +147,8 @@ export function PredictionCard({ market, showFull = false, variant = 'default' }
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Badge variant="outline" className="text-xs">
-                  {market.marketType === 'binary' ? 'Yes/No' : 
-                   market.marketType === 'multiple_choice' ? 'Multiple Choice' : 'Compound'}
+                  {market.marketType === 'binary' ? 'Yes/No' :
+                    market.marketType === 'multiple_choice' ? 'Multiple Choice' : 'Compound'}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   {market.options.length} options
@@ -157,18 +159,18 @@ export function PredictionCard({ market, showFull = false, variant = 'default' }
             {/* Segmented Progress Bar for Binary Markets */}
             {market.marketType === 'binary' && market.options.length >= 2 && (
               <div className="flex rounded-lg overflow-hidden h-2 bg-muted">
-                <div 
+                <div
                   className="h-full transition-all duration-300"
-                  style={{ 
-                    width: `${market.options[0].percentage}%`, 
-                    backgroundColor: market.options[0].color 
+                  style={{
+                    width: `${market.options[0].percentage}%`,
+                    backgroundColor: market.options[0].color
                   }}
                 />
-                <div 
+                <div
                   className="h-full transition-all duration-300"
-                  style={{ 
-                    width: `${market.options[1].percentage}%`, 
-                    backgroundColor: market.options[1].color 
+                  style={{
+                    width: `${market.options[1].percentage}%`,
+                    backgroundColor: market.options[1].color
                   }}
                 />
               </div>
@@ -187,7 +189,7 @@ export function PredictionCard({ market, showFull = false, variant = 'default' }
                     data-testid={`prediction-option-${option.id}`}
                   >
                     <div className="flex items-center space-x-2 flex-1">
-                      <div 
+                      <div
                         className="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background shadow-sm"
                         style={{ backgroundColor: option.color }}
                       />
@@ -235,4 +237,9 @@ export function PredictionCard({ market, showFull = false, variant = 'default' }
       </div>
     </Link>
   );
+}
+
+function StatsDisplay({ value, label, loading }: { value?: string | number, label?: string, loading: boolean }) {
+  if (loading) return <span className="animate-pulse bg-muted h-3 w-8 inline-block rounded ml-1" />;
+  return <>{value} {label}</>;
 }

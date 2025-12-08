@@ -83,17 +83,16 @@ const predictionTypes = [
 ];
 
 export default function CreatePredictionPage() {
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [imagePreview, setImagePreview] = useState<string>("");
 
-  // Use the actor hook
   const {
     actor,
-    authenticate,
+    // authenticate, // Uncomment when identity is available
     isAuthenticated,
     status,
     isInitializing,
@@ -125,9 +124,9 @@ export default function CreatePredictionPage() {
       },
       onResponseError: (data) => {
         console.error(`❌ Response error in ${data.methodName}:`, data.error);
-        
+
         // Handle specific errors
-        if (data.error.message?.includes('delegation expired')) {
+        if ((data.error as Error)?.message?.includes('delegation expired')) {
           toast({
             title: "Session Expired",
             description: "Please authenticate again",
@@ -135,7 +134,7 @@ export default function CreatePredictionPage() {
           });
           // Handle logout if needed
         }
-        
+
         return data.error;
       },
     });
@@ -176,7 +175,7 @@ export default function CreatePredictionPage() {
   // Update options when prediction type changes
   const handlePredictionTypeChange = (type: "binary" | "multiple" | "compound") => {
     form.setValue("predictionType", type);
-    
+
     if (type === "binary") {
       form.setValue("options", [
         { label: "Yes", subOptions: [] },
@@ -240,12 +239,12 @@ export default function CreatePredictionPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["markets"] });
       queryClient.invalidateQueries({ queryKey: ["active-markets"] });
-      
+
       toast({
         title: "Prediction Market Created! 🎉",
         description: `Your ${data.type} prediction market has been created successfully with ID: ${data.marketId.toString()}`,
       });
-      
+
       navigate("/prediction-markets");
     },
     onError: (error) => {
@@ -361,7 +360,7 @@ export default function CreatePredictionPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
-              
+
               {/* Basic Information */}
               <Card>
                 <CardHeader>
@@ -378,7 +377,7 @@ export default function CreatePredictionPage() {
                       <FormItem>
                         <FormLabel>Title</FormLabel>
                         <FormControl>
-                          <Input 
+                          <Input
                             placeholder="Enter a clear, specific question"
                             {...field}
                             data-testid="input-title"
@@ -447,8 +446,8 @@ export default function CreatePredictionPage() {
                             Creator Name
                           </FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="Your username" 
+                            <Input
+                              placeholder="Your username"
                               {...field}
                               data-testid="input-creator"
                             />
@@ -476,9 +475,9 @@ export default function CreatePredictionPage() {
                   <Tabs value={predictionType} onValueChange={(value) => handlePredictionTypeChange(value as "binary" | "multiple" | "compound")}>
                     <TabsList className="grid w-full grid-cols-3">
                       {predictionTypes.map((type) => (
-                        <TabsTrigger 
-                          key={type.value} 
-                          value={type.value} 
+                        <TabsTrigger
+                          key={type.value}
+                          value={type.value}
                           className="flex items-center gap-2"
                           onClick={() => handlePredictionTypeChange(type.value as "binary" | "multiple" | "compound")}
                         >
@@ -487,7 +486,7 @@ export default function CreatePredictionPage() {
                         </TabsTrigger>
                       ))}
                     </TabsList>
-                    
+
                     {predictionTypes.map((type) => (
                       <TabsContent key={type.value} value={type.value} className="mt-6">
                         <div className="bg-muted/50 rounded-lg p-4 mb-4">
@@ -515,18 +514,18 @@ export default function CreatePredictionPage() {
                                   </Button>
                                 )}
                               </div>
-                              
+
                               <FormField
                                 control={form.control}
                                 name={`options.${index}.label`}
                                 render={({ field }) => (
                                   <FormItem>
                                     <FormControl>
-                                      <Input 
+                                      <Input
                                         placeholder={
                                           predictionType === "binary" ? (index === 0 ? "Yes" : "No") :
-                                          predictionType === "compound" ? "Team/Entity name" : 
-                                          "Option label"
+                                            predictionType === "compound" ? "Team/Entity name" :
+                                              "Option label"
                                         }
                                         {...field}
                                         data-testid={`input-option-${index}`}
@@ -538,14 +537,14 @@ export default function CreatePredictionPage() {
                               />
                             </div>
                           ))}
-                          
+
                           {(predictionType === "multiple" || predictionType === "compound") && (
                             <Button
                               type="button"
                               variant="outline"
-                              onClick={() => addOption({ 
-                                label: predictionType === "compound" ? 
-                                  `Subject ${optionFields.length + 1}` : 
+                              onClick={() => addOption({
+                                label: predictionType === "compound" ?
+                                  `Subject ${optionFields.length + 1}` :
                                   `Option ${optionFields.length + 1}`,
                                 subOptions: predictionType === "compound" ? [{ label: "Yes" }, { label: "No" }] : []
                               })}
@@ -580,8 +579,8 @@ export default function CreatePredictionPage() {
                         <FormItem>
                           <FormLabel>Betting Close Time</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="datetime-local" 
+                            <Input
+                              type="datetime-local"
                               {...field}
                               data-testid="input-end-date"
                             />
@@ -599,8 +598,8 @@ export default function CreatePredictionPage() {
                         <FormItem>
                           <FormLabel>Market Expiration</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="datetime-local" 
+                            <Input
+                              type="datetime-local"
                               {...field}
                               data-testid="input-expiration-time"
                             />
@@ -622,9 +621,9 @@ export default function CreatePredictionPage() {
                           Resolution Source
                         </FormLabel>
                         <FormControl>
-                          <Input 
+                          <Input
                             type="url"
-                            placeholder="https://official-source.com" 
+                            placeholder="https://official-source.com"
                             {...field}
                             data-testid="input-resolution-link"
                           />
@@ -659,7 +658,7 @@ export default function CreatePredictionPage() {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              
+
               {/* Image Upload */}
               <Card>
                 <CardHeader>
@@ -671,9 +670,9 @@ export default function CreatePredictionPage() {
                 <CardContent>
                   {imagePreview ? (
                     <div className="space-y-4">
-                      <img 
-                        src={imagePreview} 
-                        alt="Preview" 
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
                         className="w-full h-48 object-cover rounded-lg"
                       />
                       <Button
@@ -725,8 +724,8 @@ export default function CreatePredictionPage() {
                       onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
                       data-testid="input-tag"
                     />
-                    <Button 
-                      type="button" 
+                    <Button
+                      type="button"
                       onClick={addTag}
                       variant="outline"
                       size="sm"
@@ -735,7 +734,7 @@ export default function CreatePredictionPage() {
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2">
                     {tags.map((tag) => (
                       <Badge key={tag} variant="secondary" className="gap-1">
@@ -751,7 +750,7 @@ export default function CreatePredictionPage() {
                       </Badge>
                     ))}
                   </div>
-                  
+
                   <p className="text-xs text-muted-foreground">
                     Add up to 8 tags to help users discover your market.
                   </p>
@@ -762,8 +761,8 @@ export default function CreatePredictionPage() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="space-y-3">
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={createPredictionMutation.isPending || !isSuccess}
                       className="w-full"
                       size="lg"
@@ -778,9 +777,9 @@ export default function CreatePredictionPage() {
                         "Create Prediction Market"
                       )}
                     </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => navigate("/prediction-markets")}
                       className="w-full"
                       data-testid="button-cancel"
