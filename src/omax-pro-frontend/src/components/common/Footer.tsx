@@ -24,37 +24,24 @@ export function Footer() {
             <div className="flex items-center space-x-6">
               <Link
                 href="/sniper"
-                className={`flex items-center space-x-2 transition-colors ${
-                  isActive('/sniper')
+                className={`flex items-center space-x-2 transition-colors ${isActive('/sniper')
                     ? 'text-accent'
                     : 'text-muted-foreground hover:text-accent'
-                }`}
+                  }`}
                 data-testid="button-sniper"
               >
                 <Crosshair className="w-4 h-4" />
                 <span className="text-sm">Sniper</span>
               </Link>
 
-              <Link
-                href="/wallet-manager"
-                className={`flex items-center space-x-2 transition-colors ${
-                  isActive('/wallet-manager')
-                    ? 'text-accent'
-                    : 'text-muted-foreground hover:text-accent'
-                }`}
-                data-testid="button-wallet-tracker"
-              >
-                <Wallet className="w-4 h-4" />
-                <span className="text-sm">Wallet Manager</span>
-              </Link>
+
 
               <Link
                 href="/coming-soon"
-                className={`flex items-center space-x-2 transition-colors ${
-                  isActive('/coming-soon')
+                className={`flex items-center space-x-2 transition-colors ${isActive('/coming-soon')
                     ? 'text-accent'
                     : 'text-muted-foreground hover:text-accent'
-                }`}
+                  }`}
                 data-testid="button-monitor"
               >
                 <Wallet className="w-4 h-4" />
@@ -63,11 +50,10 @@ export function Footer() {
 
               <Link
                 href="/coming-soon"
-                className={`flex items-center space-x-2 transition-colors ${
-                  isActive('/coming-soon')
+                className={`flex items-center space-x-2 transition-colors ${isActive('/coming-soon')
                     ? 'text-accent'
                     : 'text-muted-foreground hover:text-accent'
-                }`}
+                  }`}
                 data-testid="button-alerts"
               >
                 <Wallet className="w-4 h-4" />
@@ -76,11 +62,10 @@ export function Footer() {
 
               <Link
                 href="/holdings"
-                className={`flex items-center space-x-2 transition-colors ${
-                  isActive('/holdings')
+                className={`flex items-center space-x-2 transition-colors ${isActive('/holdings')
                     ? 'text-accent'
                     : 'text-muted-foreground hover:text-accent'
-                }`}
+                  }`}
                 data-testid="button-pnl"
               >
                 <Wallet className="w-4 h-4" />
@@ -89,11 +74,10 @@ export function Footer() {
 
               <Link
                 href="/ckbtcdeposit"
-                className={`flex items-center space-x-2 rounded-lg px-2 py-1 transition-all duration-300 ${
-                  isActive('/coming-soon')
+                className={`flex items-center space-x-2 rounded-lg px-2 py-1 transition-all duration-300 ${isActive('/coming-soon')
                     ? 'text-accent animate-[glow_1.5s_ease-in-out_infinite_alternate]'
                     : 'text-muted-foreground hover:text-accent hover:animate-[glow_1.5s_ease-in-out_infinite_alternate]'
-                }`}
+                  }`}
                 data-testid="button-alerts"
               >
                 <Wallet className="w-4 h-4" />

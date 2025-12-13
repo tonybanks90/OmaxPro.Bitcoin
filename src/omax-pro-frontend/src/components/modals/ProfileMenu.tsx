@@ -7,10 +7,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { 
-  Wallet, 
-  FileText, 
-  Shield, 
+import {
+  Wallet,
+  FileText,
+  Shield,
   LogOut,
   User
 } from 'lucide-react';
@@ -42,8 +42,8 @@ export function ProfileMenu({ children }: ProfileMenuProps) {
         )}
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent 
-        className="w-56 bg-background border-border" 
+      <DropdownMenuContent
+        className="w-56 bg-background border-border"
         align="end"
         data-testid="profile-menu"
       >
@@ -51,33 +51,26 @@ export function ProfileMenu({ children }: ProfileMenuProps) {
           My Account
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        
-        <DropdownMenuItem asChild>
-          <Link href="/wallet-manager" data-testid="menu-wallet-manager">
-            <div className="flex items-center cursor-pointer w-full">
-              <Wallet className="mr-2 h-4 w-4" />
-              <span>Wallet Manager</span>
-            </div>
-          </Link>
-        </DropdownMenuItem>
-        
-        <DropdownMenuItem asChild>
-  <a
-    href="https://omaxpro.gitbook.io/omaxpro-docs"
-    target="_blank"
-    rel="noopener noreferrer"
-    data-testid="menu-documentation"
-    className="flex items-center cursor-pointer w-full"
-  >
-    <FileText className="mr-2 h-4 w-4" />
-    <span>Documentation</span>
-  </a>
-</DropdownMenuItem>
 
-        
+
+
+        <DropdownMenuItem asChild>
+          <a
+            href="https://omaxpro.gitbook.io/omaxpro-docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="menu-documentation"
+            className="flex items-center cursor-pointer w-full"
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            <span>Documentation</span>
+          </a>
+        </DropdownMenuItem>
+
+
         <DropdownMenuSeparator />
-        
-        <DropdownMenuItem 
+
+        <DropdownMenuItem
           onClick={handle2FA}
           className="cursor-pointer"
           data-testid="menu-2fa"
@@ -85,10 +78,10 @@ export function ProfileMenu({ children }: ProfileMenuProps) {
           <Shield className="mr-2 h-4 w-4" />
           <span>Two-Factor Authentication</span>
         </DropdownMenuItem>
-        
+
         <DropdownMenuSeparator />
-        
-        <DropdownMenuItem 
+
+        <DropdownMenuItem
           onClick={handleLogout}
           className="cursor-pointer text-destructive focus:text-destructive"
           data-testid="menu-logout"

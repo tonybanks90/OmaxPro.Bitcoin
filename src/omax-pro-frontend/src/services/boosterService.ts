@@ -25,9 +25,21 @@ interface BoosterStats {
   requestsAccepted: number;
   requestsRejected: number;
   requestsFilteredNonPlatform: number;
+  requestsFinalized: number;
   totalFeesEarned: bigint;
   startTime: number;
   isRunning: boolean;
+}
+
+// Tracked request for finalization monitoring
+export interface TrackedRequest {
+  id: bigint;
+  amount: bigint;
+  feeAmount: bigint;
+  ownerPrincipal: string;
+  btcAddress?: string;
+  acceptedAt: number;
+  status: 'accepted' | 'finalized' | 'failed';
 }
 
 // Utility functions for BTC formatting (since they don't exist on the class)
@@ -56,10 +68,15 @@ export class AutomatedBooster {
     requestsAccepted: 0,
     requestsRejected: 0,
     requestsFilteredNonPlatform: 0,
+    requestsFinalized: 0,
     totalFeesEarned: BigInt(0),
     startTime: 0,
     isRunning: false
   };
+
+  // Track accepted requests for finalization monitoring
+  private trackedRequests: Map<string, TrackedRequest> = new Map();
+  private finalizationInterval: NodeJS.Timeout | null = null;
 
   constructor(config: BoosterConfig) {
     this.config = {
@@ -268,9 +285,14 @@ export class AutomatedBooster {
       clearInterval(this.loopInterval);
       this.loopInterval = null;
     }
+    if (this.finalizationInterval) {
+      clearInterval(this.finalizationInterval);
+      this.finalizationInterval = null;
+    }
     this.isRunning = false;
     this.stats.isRunning = false;
     console.log('🛑 Booster stopped');
+    this.printStats();
     this.printStats();
   }
 
@@ -391,6 +413,57 @@ export class AutomatedBooster {
         // Continue running despite errors
       }
     }, this.config.checkIntervalMs);
+
+    // Start finalization monitoring loop (every 60 seconds)
+    this.finalizationInterval = setInterval(async () => {
+      try {
+        await this.checkFinalizations();
+      } catch (error) {
+        console.error('❌ Error in finalization loop:', error);
+      }
+    }, 60000);
+  }
+
+  /**
+   * Check if accepted requests have been finalized
+   */
+  private async checkFinalizations(): Promise<void> {
+    if (this.trackedRequests.size === 0) return;
+
+    for (const [requestId, tracked] of this.trackedRequests.entries()) {
+      if (tracked.status !== 'accepted') continue;
+
+      try {
+        // Query the request status
+        const requests = await this.booster.getPendingBoostRequests();
+        const found = requests.find((r: any) => r.id.toString() === requestId);
+
+        // If not in pending anymore, it's either completed or cancelled
+        if (!found) {
+          tracked.status = 'finalized';
+          this.stats.requestsFinalized++;
+
+          const mempoolUrl = tracked.btcAddress
+            ? `https://mempool.space/testnet4/address/${tracked.btcAddress}`
+            : null;
+
+          console.log('\n🏁 REQUEST FINALIZED!');
+          console.log(`   ID: ${requestId}`);
+          console.log(`   Amount: ${formatBTC(tracked.amount)} ckTESTBTC`);
+          console.log(`   Fee Earned: ${formatBTC(tracked.feeAmount)} ckTESTBTC`);
+          console.log(`   User: ${tracked.ownerPrincipal.slice(0, 20)}...`);
+          if (mempoolUrl) {
+            console.log(`   📍 Mempool: ${mempoolUrl}`);
+          }
+          console.log(`   ⏱️  Time to finalize: ${Math.round((Date.now() - tracked.acceptedAt) / 1000)}s\n`);
+
+          // Keep in tracked for history but mark as finalized
+          this.trackedRequests.set(requestId, tracked);
+        }
+      } catch (error) {
+        // Ignore errors, will retry next cycle
+      }
+    }
   }
 
   /**
@@ -494,8 +567,27 @@ export class AutomatedBooster {
       this.stats.totalFeesEarned += feeAmount;
       this.stats.requestsAccepted++;
 
+      const ownerPrincipal = request.owner?.toString() || '';
+      const btcAddress = request.btcAddress || request.depositAddress || '';
+
+      // Track for finalization monitoring
+      this.trackedRequests.set(request.id.toString(), {
+        id: request.id,
+        amount: request.amount,
+        feeAmount,
+        ownerPrincipal,
+        btcAddress,
+        acceptedAt: Date.now(),
+        status: 'accepted'
+      });
+
       console.log('   ✅ Request ACCEPTED!');
       console.log(`   💰 Expected fee: ${formatBTC(feeAmount)} ckTESTBTC`);
+      if (btcAddress) {
+        console.log(`   📍 BTC Address: ${btcAddress}`);
+        console.log(`   🔗 Mempool: https://mempool.space/testnet4/address/${btcAddress}`);
+      }
+      console.log(`   ⏳ Monitoring for finalization...`);
     } catch (error: any) {
       if (error.message?.includes('already accepted')) {
         console.log('   ⚠️ Already accepted by another booster');
@@ -524,13 +616,22 @@ export class AutomatedBooster {
     console.log(`⏱️  Runtime: ${hours}h ${minutes}m`);
     console.log(`📋 Requests Processed: ${this.stats.requestsProcessed}`);
     console.log(`✅ Requests Accepted: ${this.stats.requestsAccepted}`);
+    console.log(`🏁 Requests Finalized: ${this.stats.requestsFinalized}`);
     console.log(`❌ Requests Rejected: ${this.stats.requestsRejected}`);
     if (this.config.platformOnly) {
       console.log(`🚫 Non-Platform Filtered: ${this.stats.requestsFilteredNonPlatform}`);
     }
     console.log(`💰 Total Fees Earned: ${formatBTC(this.stats.totalFeesEarned)} ckTESTBTC`);
     console.log(`👥 Platform Users: ${this.platformUsers.size}`);
+    console.log(`📜 Tracked History: ${this.trackedRequests.size} requests`);
     console.log('================================\n');
+  }
+
+  /**
+   * Get tracked requests history (for UI display)
+   */
+  getTrackedRequests(): TrackedRequest[] {
+    return Array.from(this.trackedRequests.values());
   }
 
   /**

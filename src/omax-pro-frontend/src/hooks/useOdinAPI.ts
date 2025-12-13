@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 
 // Odin API Types based on real API response
 interface OdinTokenData {
@@ -123,23 +123,27 @@ interface OdinPowerHoldersResponse {
 }
 
 interface OdinUserActivityData {
-  id: string;
+  id: number | string;
   user: string;
-  token: string;
+  token: OdinTokenData | string; // Can be object in v1 or string id in dev
   time: string;
-  buy: boolean;
-  amount_btc: number;
-  amount_token: number;
+  action?: 'BUY' | 'SELL' | string; // v1 uses action
+  buy?: boolean; // legacy
+  amount_btc?: number;
+  btc_amount?: number; // v1
+  amount_token?: number;
+  token_amount?: number; // v1
   price: number;
   bonded: boolean;
   user_username: string;
   user_image: string;
-  token_name: string;
-  token_ticker: string;
-  token_image: string;
-  token_marketcap: number;
-  decimals: number;
-  divisibility: number;
+  // These might be nested in token object in v1
+  token_name?: string;
+  token_ticker?: string;
+  token_image?: string;
+  token_marketcap?: number;
+  decimals?: number;
+  divisibility?: number;
 }
 
 interface OdinUserActivityResponse {
@@ -187,7 +191,7 @@ export interface CombinedHistoricalTrade extends OdinHistoricalTrade {
 }
 
 // API Base URL
-const ODIN_API_BASE = "https://api.odin.fun/dev";
+const ODIN_API_BASE = "https://api.odin.fun/v1";
 
 // Main tokens fetch function
 async function fetchOdinTokens(filters: {
@@ -290,12 +294,11 @@ async function fetchOdinTokenPowerHolders(tokenId: string, page: number = 1, lim
   if (!response.ok) {
     throw new Error(`Failed to fetch power holders: ${response.statusText}`);
   }
-
   return response.json();
 }
 
 // User activity fetch function
-async function fetchOdinUserActivity(userPrincipal: string, page: number = 1, limit: number = 50): Promise<OdinUserActivityResponse> {
+export async function fetchOdinUserActivity(userPrincipal: string, page: number = 1, limit: number = 50): Promise<OdinUserActivityResponse> {
   const searchParams = new URLSearchParams({
     page: page.toString(),
     limit: limit.toString(),
@@ -317,7 +320,9 @@ async function fetchOdinUserTokens(userPrincipal: string, page: number = 1, limi
     limit: limit.toString(),
   });
 
-  const response = await fetch(`${ODIN_API_BASE}/user/${userPrincipal}/tokens?${searchParams}`);
+  const url = `${ODIN_API_BASE}/user/${userPrincipal}/tokens?${searchParams}`;
+  console.log('Fetching Odin tokens for:', url);
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch user tokens: ${response.statusText}`);
@@ -490,6 +495,125 @@ export function useOdinUserActivity(userPrincipal: string, page: number = 1, lim
     isLoading,
     error,
     refetch,
+  };
+}
+
+// User activity infinite hook for pagination
+export function useInfiniteOdinUserActivity(userPrincipal: string, limit: number = 50) {
+  return useInfiniteQuery({
+    queryKey: ["odin", "user_activity_infinite", userPrincipal, limit],
+    queryFn: ({ pageParam = 1 }) => fetchOdinUserActivity(userPrincipal, pageParam, limit),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      // If the last page has fewer items than limit, we've reached the end
+      if (!lastPage.data || lastPage.data.length < limit) return undefined;
+      return allPages.length + 1;
+    },
+    enabled: !!userPrincipal,
+    refetchInterval: 60000,
+  });
+}
+
+// Hook to fetch activity for multiple wallets combined (Infinite)
+export function useInfiniteAllWalletsActivity(wallets: { address: string; addedAt?: bigint }[], limit: number = 20) {
+  return useInfiniteQuery({
+    queryKey: ["odin", "all_wallets_activity_infinite", wallets.map(w => w.address).sort().join(',')],
+    queryFn: async ({ pageParam = 1 }) => {
+      if (wallets.length === 0) return { data: [], page: pageParam, limit, count: 0 };
+
+      const promises = wallets.map(async (wallet) => {
+        try {
+          const response = await fetchOdinUserActivity(wallet.address, pageParam as number, limit);
+          const activities = response.data || [];
+
+          // Filter by addedAt if available
+          if (wallet.addedAt) {
+            const addedAtMs = Number(wallet.addedAt) / 1_000_000;
+            return activities.filter(activity => {
+              const activityTime = new Date(activity.time).getTime();
+              return activityTime >= addedAtMs;
+            });
+          }
+          return activities;
+        } catch (e) {
+          console.error(`Failed to fetch activity for ${wallet.address}`, e);
+          return [];
+        }
+      });
+
+      const results = await Promise.all(promises);
+      const allActivities = results.flat();
+
+      // Sort by time descending
+      allActivities.sort((a, b) =>
+        new Date(b.time).getTime() - new Date(a.time).getTime()
+      );
+
+      // We wrap it in a structure similar to generic response for consistency
+      return {
+        data: allActivities,
+        page: pageParam,
+        limit: limit * wallets.length, // approximate limit
+        count: allActivities.length // This page count
+      };
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      // Logic for all wallets is trickier because we filter. 
+      // But generally if we got 0 items, stop.
+      if (!lastPage.data || lastPage.data.length === 0) return undefined;
+      return allPages.length + 1;
+    },
+    enabled: wallets.length > 0,
+    refetchInterval: 60000,
+  });
+}
+
+// Keeping the simple implementation for backward compatibility or small lists
+// Hook to fetch activity for multiple wallets combined
+export function useAllWalletsActivity(wallets: { address: string; addedAt?: bigint }[]) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["odin", "all_wallets_activity", wallets.map(w => w.address).sort().join(',')],
+    queryFn: async () => {
+      if (wallets.length === 0) return [];
+
+      const promises = wallets.map(async (wallet) => {
+        try {
+          const response = await fetchOdinUserActivity(wallet.address, 1, 20); // Limit per wallet to avoid huge payload
+          const activities = response.data || [];
+
+          // Filter by addedAt if available
+          if (wallet.addedAt) {
+            const addedAtMs = Number(wallet.addedAt) / 1_000_000;
+            return activities.filter(activity => {
+              const activityTime = new Date(activity.time).getTime();
+              return activityTime >= addedAtMs;
+            });
+          }
+          return activities;
+        } catch (e) {
+          console.error(`Failed to fetch activity for ${wallet.address}`, e);
+          return [];
+        }
+      });
+
+      const results = await Promise.all(promises);
+      const allActivities = results.flat();
+
+      // Sort by time descending
+      return allActivities.sort((a, b) =>
+        new Date(b.time).getTime() - new Date(a.time).getTime()
+      );
+    },
+    refetchInterval: 60000, // Refresh every minute
+    enabled: wallets.length > 0,
+  });
+
+  return {
+    activities: data || [],
+    isLoading,
+    error,
+    refetch
   };
 }
 

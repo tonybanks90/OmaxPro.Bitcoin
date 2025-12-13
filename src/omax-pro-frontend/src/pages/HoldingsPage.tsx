@@ -1,5 +1,5 @@
 // pages/HoldingsPage.tsx - Token Holdings with authentication integration
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
@@ -15,30 +15,55 @@ export default function HoldingsPage() {
   const [showFilterModal, setShowFilterModal] = useState(false);
 
   // Authentication hook
-  const { 
-    isReady: authReady, 
-    isAuthenticated, 
-    principalId, 
-    login, 
-    logout 
+  const {
+    isReady: authReady,
+    isAuthenticated,
+    principalId,
+    login,
+    logout
   } = useAuth();
 
   // Only fetch data if user is authenticated
   const shouldFetchData = Boolean(authReady && isAuthenticated && principalId);
 
   // Fetch user token holdings using the query hook
-  const { 
-    userTokens, 
+  // DEBUG CONSTANTS
+  const {
+    userTokens,
     totalCount,
-    isLoading: tokensLoading, 
+    isLoading: tokensLoading,
     error: tokensError,
     refetch: refetchTokens
   } = useOdinUserTokens(
-    principalId || '', 
-    1, 
+    principalId || '',
+    1,
     100,
     { enabled: shouldFetchData }
   );
+
+  // Debug logs
+  useEffect(() => {
+    console.log('HoldingsPage: Auth State:', {
+      authReady,
+      isAuthenticated,
+      principalId,
+      shouldFetchData
+    });
+  }, [authReady, isAuthenticated, principalId, shouldFetchData]);
+
+  useEffect(() => {
+    if (shouldFetchData) {
+      console.log('HoldingsPage: Tokens Fetch State:', {
+        loading: tokensLoading,
+        error: tokensError,
+        count: userTokens?.length,
+        tokens: userTokens
+      });
+      if (tokensError) {
+        console.error('HoldingsPage: Fetch Error:', tokensError);
+      }
+    }
+  }, [shouldFetchData, tokensLoading, tokensError, userTokens]);
 
   // Filter tokens based on search
   const filteredTokens = tokensLoading ? [] : userTokens.filter(holding => {
@@ -105,8 +130,8 @@ export default function HoldingsPage() {
                   Sign in with Internet Identity to view your token holdings and portfolio balance.
                 </p>
               </div>
-              
-              <Button 
+
+              <Button
                 onClick={login}
                 className="w-full"
                 size="lg"
@@ -114,7 +139,7 @@ export default function HoldingsPage() {
                 <LogIn className="w-5 h-5 mr-2" />
                 Sign in with Internet Identity
               </Button>
-              
+
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
                   <strong>Real-time Data:</strong> Your token holdings are fetched directly from the Odin API using your authenticated principal ID.
@@ -130,38 +155,44 @@ export default function HoldingsPage() {
   // Show loading while auth is initializing
   if (!authReady) {
     return (
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading authentication...</p>
-          </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground animate-pulse">Authenticating...</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-holdings">
-      {/* User Info Banner */}
-      <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-        <div className="flex items-center justify-between">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="page-holdings">
+      {/* Header */}
+      <div className="bg-card rounded-lg shadow-lg p-6 border border-border mb-8">
+        <div className="flex justify-between items-center flex-wrap gap-4">
           <div className="flex items-center space-x-3">
-            <User className="w-5 h-5 text-green-600" />
+            <div className="p-2 bg-primary/10 rounded-full">
+              <Wallet className="h-8 w-8 text-primary" />
+            </div>
             <div>
-              <p className="text-sm font-medium text-green-800">
-                Signed in as: {principalId?.slice(0, 8)}...{principalId?.slice(-6)}
-              </p>
-              <p className="text-xs text-green-600">
-                ✅ Fetching holdings from Odin API
-              </p>
+              <h1 className="text-2xl font-bold text-card-foreground">Portfolio Holdings</h1>
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                <span className="flex items-center">
+                  <User className="w-4 h-4 mr-1" />
+                  {principalId ? `${principalId.slice(0, 8)}...${principalId.slice(-6)}` : 'Guest'}
+                </span>
+                <span>•</span>
+                <span className="text-green-600 flex items-center">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse" />
+                  Live Data
+                </span>
+              </div>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={logout}
-            className="text-green-700 border-green-300 hover:bg-green-100"
+            className="border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
             Sign Out
           </Button>
@@ -169,57 +200,64 @@ export default function HoldingsPage() {
       </div>
 
       {/* Portfolio Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card className="shadow-lg border-border bg-gradient-to-br from-card to-card/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Portfolio Value</p>
-                <p className="text-2xl font-bold text-foreground">
-                  ${calculatePortfolioValue().toFixed(2)}
+                <p className="text-3xl font-bold text-foreground mt-1">
+                  ${calculatePortfolioValue().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
-              <DollarSign className="w-8 h-8 text-blue-600" />
+              <div className="p-3 bg-blue-500/10 rounded-xl">
+                <DollarSign className="w-6 h-6 text-blue-500" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-lg border-border bg-gradient-to-br from-card to-card/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Tokens</p>
-                <p className="text-2xl font-bold text-foreground">{totalCount}</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Assets</p>
+                <p className="text-3xl font-bold text-foreground mt-1">{totalCount}</p>
               </div>
-              <Wallet className="w-8 h-8 text-green-600" />
+              <div className="p-3 bg-green-500/10 rounded-xl">
+                <Wallet className="w-6 h-6 text-green-500" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-lg border-border bg-gradient-to-br from-card to-card/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Filtered Results</p>
-                <p className="text-2xl font-bold text-foreground">{filteredTokens.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Filtered Assets</p>
+                <p className="text-3xl font-bold text-foreground mt-1">{filteredTokens.length}</p>
               </div>
-              <Search className="w-8 h-8 text-purple-600" />
+              <div className="p-3 bg-purple-500/10 rounded-xl">
+                <Search className="w-6 h-6 text-purple-500" />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className="shadow-lg border-border">
         <CardContent className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-foreground">Token Holdings</h2>
             <div className="flex items-center space-x-3">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => refetchTokens()}
                 disabled={tokensLoading}
+                className="hover:bg-accent hover:text-accent-foreground"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${tokensLoading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -232,88 +270,94 @@ export default function HoldingsPage() {
             <Search className="absolute left-3 top-3 text-muted-foreground w-4 h-4" />
             <Input
               type="text"
-              placeholder="Search tokens..."
+              placeholder="Search tokens by name or ticker..."
               value={searchToken}
               onChange={(e) => setSearchToken(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-background border-input"
               data-testid="input-search-token"
               disabled={!shouldFetchData}
             />
           </div>
 
           {/* Holdings Table */}
-          <div className="overflow-x-auto">
+          <div className="rounded-md border border-border overflow-hidden">
             <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="text-left py-4 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Token
                   </th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="text-right py-4 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Balance
                   </th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="text-right py-4 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Price
                   </th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="text-right py-4 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     24h Change
                   </th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="text-right py-4 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Value
                   </th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <th className="text-right py-4 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Market Cap
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border">
                 {tokensLoading ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
-                      <div className="flex flex-col items-center">
-                        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mb-4"></div>
-                        <p className="text-sm text-muted-foreground">Loading your token holdings...</p>
+                    <td colSpan={6} className="py-16 text-center">
+                      <div className="flex flex-col items-center animate-pulse">
+                        <div className="w-12 h-12 bg-muted rounded-full mb-4"></div>
+                        <div className="h-4 w-48 bg-muted rounded mb-2"></div>
                       </div>
                     </td>
                   </tr>
                 ) : tokensError ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
+                    <td colSpan={6} className="py-16 text-center">
                       <div className="flex flex-col items-center">
-                        <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+                        <div className="p-4 bg-destructive/10 rounded-full mb-4">
+                          <AlertCircle className="w-8 h-8 text-destructive" />
+                        </div>
                         <h4 className="text-lg font-medium text-foreground mb-2">
-                          Error Loading Holdings
+                          Unable to Fetch Holdings
                         </h4>
-                        <p className="text-sm text-red-600 mb-4">
-                          Failed to fetch your token holdings from Odin API
+                        <p className="text-sm text-muted-foreground mb-4">
+                          There was an error connecting to the Odin API.
                         </p>
                         <Button variant="outline" onClick={() => refetchTokens()}>
-                          Try Again
+                          Retry Connection
                         </Button>
                       </div>
                     </td>
                   </tr>
                 ) : filteredTokens.length > 0 ? (
                   filteredTokens.map((holding) => {
-                    const balance = holding.balance / Math.pow(10, holding.token.decimals);
-                    const value = balance * holding.token.price;
-                    const priceChange = getPriceChangePercentage(holding.token.price, holding.token.price_1d);
-                    const priceChangeColor = getPriceChangeColor(holding.token.price, holding.token.price_1d);
+                    // Safety check for token data
+                    if (!holding.token) return null;
+
+                    const decimals = holding.token.decimals || 8;
+                    const balance = holding.balance / Math.pow(10, decimals);
+                    const value = balance * (holding.token.price || 0);
+                    const priceChange = getPriceChangePercentage(holding.token.price || 0, holding.token.price_1d || 0);
+                    const priceChangeColor = getPriceChangeColor(holding.token.price || 0, holding.token.price_1d || 0);
 
                     return (
-                      <tr key={holding.token.id} className="border-b border-border hover:bg-gray-50">
-                        <td className="py-3 px-4">
+                      <tr key={holding.token.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
                             <img
                               src={getOdinImageUrl('token', holding.token.id)}
                               alt={holding.token.name}
-                              className="w-10 h-10 rounded-full"
+                              className="w-10 h-10 rounded-full bg-muted object-cover"
                               onError={(e) => {
                                 (e.target as HTMLImageElement).src = '/placeholder-token.png';
                               }}
                             />
                             <div>
-                              <p className="text-sm font-medium text-foreground">
+                              <p className="text-sm font-bold text-foreground">
                                 {holding.token.ticker || holding.token.name}
                               </p>
                               <p className="text-xs text-muted-foreground truncate max-w-32">
@@ -322,13 +366,13 @@ export default function HoldingsPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-right text-sm font-medium text-foreground">
+                        <td className="py-4 px-4 text-right font-medium text-foreground">
                           {balance.toFixed(6)}
                         </td>
-                        <td className="py-3 px-4 text-right text-sm text-foreground">
-                          {formatPrice(holding.token.price)}
+                        <td className="py-4 px-4 text-right text-muted-foreground">
+                          {formatPrice(holding.token.price || 0)}
                         </td>
-                        <td className={`py-3 px-4 text-right text-sm font-medium ${priceChangeColor}`}>
+                        <td className={`py-4 px-4 text-right font-medium ${priceChangeColor}`}>
                           <div className="flex items-center justify-end">
                             {priceChange > 0 ? (
                               <TrendingUp className="w-4 h-4 mr-1" />
@@ -338,28 +382,29 @@ export default function HoldingsPage() {
                             {priceChange !== 0 ? `${priceChange > 0 ? '+' : ''}${priceChange.toFixed(2)}%` : '-'}
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-right text-sm font-medium text-foreground">
-                          ${value.toFixed(2)}
+                        <td className="py-4 px-4 text-right font-bold text-foreground">
+                          ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
-                        <td className="py-3 px-4 text-right text-xs text-muted-foreground">
-                          {formatMarketCap(holding.token.marketcap)}
+                        <td className="py-4 px-4 text-right text-xs text-muted-foreground">
+                          {formatMarketCap(holding.token.marketcap || 0)}
                         </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
+                    <td colSpan={6} className="py-16 text-center">
                       <div className="flex flex-col items-center">
-                        <Eye className="w-16 h-16 text-muted-foreground mb-4" />
+                        <div className="p-4 bg-muted/50 rounded-full mb-4">
+                          <Eye className="w-8 h-8 text-muted-foreground" />
+                        </div>
                         <h4 className="text-lg font-medium text-foreground mb-2">
-                          {searchToken ? 'No Matching Tokens' : 'No Token Holdings Found'}
+                          {searchToken ? 'No matching tokens found' : 'No holdings found'}
                         </h4>
-                        <p className="text-sm text-muted-foreground max-w-sm">
-                          {searchToken 
-                            ? 'No tokens found matching your search criteria.'
-                            : 'You don\'t have any token holdings yet. Start trading to see your portfolio here!'
-                          }
+                        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                          {searchToken
+                            ? 'Try adjusting your search terms.'
+                            : 'You don\'t have any token holdings yet. Start trading to see your portfolio grow!'}
                         </p>
                       </div>
                     </td>

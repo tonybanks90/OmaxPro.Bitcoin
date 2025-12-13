@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { 
-  Diamond, 
-  Search, 
-  Compass, 
-  Wallet, 
+import {
+  Diamond,
+  Search,
+  Compass,
+  Wallet,
   UserCircle,
   TrendingUp,
   BarChart3,
@@ -62,7 +62,7 @@ export function MobileNavigation() {
     <>
       {/* Explore Menu Overlay */}
       {isExploreOpen && (
-        <div 
+        <div
           className="md:hidden fixed inset-0 bg-black/50 z-40"
           onClick={closeExplore}
           data-testid="explore-overlay"
@@ -70,14 +70,13 @@ export function MobileNavigation() {
       )}
 
       {/* Sliding Explore Menu */}
-      <div className={`md:hidden fixed bottom-16 left-0 right-0 bg-background border-t border-border z-50 transform transition-transform duration-300 ease-in-out ${
-        isExploreOpen ? 'translate-y-0' : 'translate-y-full'
-      }`} data-testid="explore-menu">
+      <div className={`md:hidden fixed bottom-16 left-0 right-0 bg-background border-t border-border z-50 transform transition-transform duration-300 ease-in-out ${isExploreOpen ? 'translate-y-0' : 'translate-y-full'
+        }`} data-testid="explore-menu">
         <div className="p-4">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-foreground">Explore</h3>
-            <button 
+            <button
               onClick={closeExplore}
               className="p-1 text-muted-foreground hover:text-foreground transition-colors"
               data-testid="button-close-explore"
@@ -160,9 +159,8 @@ export function MobileNavigation() {
         <div className="flex items-center justify-around h-16">
           <Link
             href="/"
-            className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-              isActive('/') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
-            }`}
+            className={`flex flex-col items-center justify-center gap-1 transition-colors ${isActive('/') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+              }`}
             data-testid="nav-home"
           >
             <Diamond className="w-5 h-5" />
@@ -171,9 +169,8 @@ export function MobileNavigation() {
 
           <Link
             href="/prediction-markets"
-            className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-              isActive('/prediction-markets') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
-            }`}
+            className={`flex flex-col items-center justify-center gap-1 transition-colors ${isActive('/prediction-markets') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+              }`}
             data-testid="nav-predict"
           >
             <Diamond className="w-5 h-5" />
@@ -182,9 +179,8 @@ export function MobileNavigation() {
 
           <button
             onClick={toggleExplore}
-            className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-              isExploreOpen ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
-            }`}
+            className={`flex flex-col items-center justify-center gap-1 transition-colors ${isExploreOpen ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+              }`}
             data-testid="nav-explore"
           >
             <Compass className="w-5 h-5" />
@@ -192,10 +188,9 @@ export function MobileNavigation() {
           </button>
 
           <Link
-            href="/wallet-manager"
-            className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-              isActive('/wallet-manager') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
-            }`}
+            href="/wallet"
+            className={`flex flex-col items-center justify-center gap-1 transition-colors ${isActive('/wallet') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+              }`}
             data-testid="nav-wallet"
           >
             <Wallet className="w-5 h-5" />
@@ -204,9 +199,8 @@ export function MobileNavigation() {
 
           <Link
             href="/discovery"
-            className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-              isActive('/discovery') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
-            }`}
+            className={`flex flex-col items-center justify-center gap-1 transition-colors ${isActive('/discovery') ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
+              }`}
             data-testid="nav-discovery"
           >
             <Compass className="w-5 h-5" />

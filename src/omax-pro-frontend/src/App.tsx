@@ -14,7 +14,7 @@ import TokenPage from "./pages/TokenPage";
 import WalletPage from "./pages/WalletPage";
 import EarnPage from "./pages/EarnPage";
 import HoldingsPage from "./pages/HoldingsPage";
-import WalletManagerPage from "./pages/WalletManagerPage";
+
 import SniperPage from "./pages/SniperPage";
 import NotFound from "./pages/not-found";
 import "./index.css";
@@ -58,7 +58,7 @@ function Router() {
 
         <Route path="/earn" component={EarnPage} />
         <Route path="/holdings" component={HoldingsPage} />
-        <Route path="/wallet-manager" component={WalletManagerPage} />
+
         <Route path="/sniper" component={SniperPage} />
         <Route path="/discovery" component={DiscoveryPage} />
         <Route path="/discovery/crypto" component={DiscoveryCryptoPage} />

@@ -1,21 +1,24 @@
 // pages/WalletPage.tsx - Refactored to use actor directly
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { SettingsModal } from '../components/modals/SettingsModal';
 import { FilterModal } from '../components/modals/FilterModal';
-import { Plus, Download, Upload, Search, Wallet, Activity, Eye, Trash2, Edit3, AlertCircle, User, Settings, Filter, Zap } from 'lucide-react';
-import { useOdinUserActivity, getOdinImageUrl } from '../hooks/useOdinAPI';
+import { Plus, Download, Upload, Search, Wallet, Activity, Eye, Trash2, Edit3, AlertCircle, Settings, Zap } from 'lucide-react';
+import { getOdinImageUrl, useInfiniteOdinUserActivity, useInfiniteAllWalletsActivity, formatTradeBTC, formatTradeTokenAmount, type OdinUserActivityData } from '../hooks/useOdinAPI';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { useToast } from '../hooks/use-toast';
 import { useAuth } from '../auth/AuthProvider';
 import { useWallet } from '../auth/WalletActorProvider';
+
 import { Principal } from '@dfinity/principal';
+import { useOdinTrading } from '../hooks/useOdinTrading';
 
 interface WalletEntry {
   address: string;
   name: string;
+  addedAt: bigint;
 }
 
 export default function WalletPage() {
@@ -24,12 +27,12 @@ export default function WalletPage() {
   const [searchWallet, setSearchWallet] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showAddWalletModal, setShowAddWalletModal] = useState(false);
-  const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
+  const [wallets, setWallets] = useState<WalletEntry[]>([]);
+  const [selectedWallet, setSelectedWallet] = useState<string>('ALL');
   const [newWalletAddress, setNewWalletAddress] = useState('');
   const [newWalletName, setNewWalletName] = useState('');
   const [editingWallet, setEditingWallet] = useState<WalletEntry | null>(null);
-
-  const [wallets, setWallets] = useState<WalletEntry[]>([]);
+  const { buyToken, sellToken, initialize: initTrading, isLoading: isTradingLoading } = useOdinTrading();
   const [walletCount, setWalletCount] = useState<number>(0);
   const [isLoadingWallets, setIsLoadingWallets] = useState(false);
   const [walletsError, setWalletsError] = useState<string | null>(null);
@@ -44,6 +47,7 @@ export default function WalletPage() {
     isAuthenticated,
     identity,
     principalId,
+    login,
     logout
   } = useAuth();
 
@@ -58,6 +62,13 @@ export default function WalletPage() {
     clearAuth
   } = useWallet();
 
+  // Initialize trading when authenticated
+  useEffect(() => {
+    if (isAuthenticated && identity) {
+      initTrading(identity);
+    }
+  }, [isAuthenticated, identity]);
+
   console.log('WalletPage: Auth State', { authReady, isAuthenticated, principalId });
   console.log('WalletPage: Actor State', { actor: !!actor, isInitializing, actorAuthenticated, actorReady, actorError });
 
@@ -66,7 +77,7 @@ export default function WalletPage() {
   useEffect(() => {
     if (identity && !actorAuthenticated && !isInitializing) {
       console.log('🔐 Authenticating actor with identity...');
-      authenticate(identity).catch((error) => {
+      authenticate(identity).catch((error: any) => {
         console.error('Failed to authenticate actor:', error);
         toast({
           title: "Authentication Failed",
@@ -109,13 +120,17 @@ export default function WalletPage() {
       console.log('fetchWallets: Raw result from actor:', result);
       console.log('fetchWallets: Raw count from actor:', count);
 
-      const mappedWallets = result.map(([address, name]: [string, string]) => ({ address, name }));
+      console.log('fetchWallets: Raw count from actor:', count);
+
+      const mappedWallets = result.map(([address, name, addedAt]: [string, string, bigint]) => ({ address, name, addedAt }));
       setWallets(mappedWallets);
       setWalletCount(Number(count));
 
       console.log('fetchWallets: Successfully fetched and set state.', { wallets: mappedWallets, count: Number(count) });
 
-    } catch (error) {
+      console.log('fetchWallets: Successfully fetched and set state.', { wallets: mappedWallets, count: Number(count) });
+
+    } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
       setWalletsError(errorMessage);
       console.error('fetchWallets: Error fetching wallets:', error);
@@ -134,12 +149,73 @@ export default function WalletPage() {
     fetchWallets();
   }, [fetchWallets]);
 
-  // Fetch activity for selected wallet (external API)
+  // Fetch activity for selected wallet (Infinite)
   const {
-    activities,
-    isLoading: activityLoading,
+    data: singleWalletData,
+    fetchNextPage: fetchNextSingle,
+    hasNextPage: hasNextSingle,
+    isFetchingNextPage: isFetchingNextSingle,
+    isLoading: singleWalletLoading,
     error: activityError
-  } = useOdinUserActivity(selectedWallet || '', 1, 50);
+  } = useInfiniteOdinUserActivity(selectedWallet === 'ALL' ? '' : (selectedWallet || ''), 50);
+
+  // Fetch activity for ALL wallets (Infinite)
+  const {
+    data: allWalletsData,
+    fetchNextPage: fetchNextAll,
+    hasNextPage: hasNextAll,
+    isFetchingNextPage: isFetchingNextAll,
+    isLoading: allWalletsLoading,
+  } = useInfiniteAllWalletsActivity(selectedWallet === 'ALL' ? wallets : [], 20);
+
+  // Flatten data
+  const singleWalletActivities = useMemo(() => singleWalletData?.pages.flatMap(p => p.data) || [], [singleWalletData]);
+  const allActivities = useMemo(() => allWalletsData?.pages.flatMap(p => p.data) || [], [allWalletsData]);
+
+  const activityLoading = selectedWallet === 'ALL' ? allWalletsLoading : singleWalletLoading;
+  const activities = selectedWallet === 'ALL' ? allActivities : singleWalletActivities;
+  const fetchNextPage = selectedWallet === 'ALL' ? fetchNextAll : fetchNextSingle;
+  const hasNextPage = selectedWallet === 'ALL' ? hasNextAll : hasNextSingle;
+  const isFetchingNextPage = selectedWallet === 'ALL' ? isFetchingNextAll : isFetchingNextSingle;
+
+  // Filter activities based on wallet added time
+  const filteredActivities = useMemo(() => {
+    if (!activities || !selectedWallet) return [];
+    const wallet = wallets.find(w => w.address === selectedWallet);
+
+    console.log('🔍 Activity Debug:', {
+      selectedWallet,
+      rawActivitiesCount: activities.length,
+      walletAddedAt: wallet?.addedAt ? new Date(Number(wallet.addedAt) / 1_000_000).toISOString() : 'N/A',
+      sampleActivity: activities[0]
+    });
+
+    // If we don't know when it was added (legacy), show all
+    if (!wallet || !wallet.addedAt) {
+      console.log('📊 Showing ALL activities (no addedAt filter)');
+      return activities;
+    }
+
+    // Convert nanoseconds to milliseconds
+    const addedAtMs = Number(wallet.addedAt) / 1_000_000;
+
+    const filtered = activities.filter(activity => {
+      const activityTime = new Date(activity.time).getTime();
+      return activityTime >= addedAtMs;
+    });
+
+    console.log('📊 Filtered activities:', {
+      before: activities.length,
+      after: filtered.length,
+      addedAtMs,
+      addedAtDate: new Date(addedAtMs).toISOString()
+    });
+
+    return filtered;
+  }, [activities, selectedWallet, wallets]);
+
+  // Combined display activities
+  const displayActivities: OdinUserActivityData[] = selectedWallet === 'ALL' ? allActivities : filteredActivities;
 
   // Event handlers
   const handleAddWallet = async () => {
@@ -210,7 +286,7 @@ export default function WalletPage() {
 
         console.log('handleRemoveWallet: Successfully removed wallet.');
         if (selectedWallet === address) {
-          setSelectedWallet(null);
+          setSelectedWallet('ALL'); // Changed to 'ALL' instead of null
         }
         toast({
           title: "Wallet Removed",
@@ -272,10 +348,6 @@ export default function WalletPage() {
     return new Date(timestamp).toLocaleString();
   };
 
-  const formatAmount = (amount: number, decimals: number = 8) => {
-    return (amount / Math.pow(10, decimals)).toFixed(6);
-  };
-
   // Show loading while auth or actor is initializing
   if (!authReady || isInitializing) {
     return (
@@ -327,64 +399,35 @@ export default function WalletPage() {
   // Main component render
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="page-wallet">
-      {/* Page Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Wallet Tracker</h1>
-            <p className="text-gray-600 mt-1">Track your wallet addresses and monitor trading activity</p>
-          </div>
+      {/* Header */}
+      <div className="bg-card rounded-lg shadow-lg p-6 border border-border">
+        <div className="flex justify-between items-center flex-wrap gap-4">
           <div className="flex items-center space-x-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFilterModal(true)}
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSettingsModal(true)}
-            >
+            <div className="p-2 bg-primary/10 rounded-full">
+              <Wallet className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-card-foreground">Wallet Tracker</h1>
+              <p className="text-muted-foreground">Track your Bitcoin wallets and copying trading activity</p>
+            </div>
+          </div>
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm" onClick={() => setShowSettingsModal(true)}>
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </Button>
+            <Button onClick={() => setShowAddWalletModal(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Wallet
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* User Info Banner */}
-      <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <User className="w-5 h-5 text-green-600" />
-            <div>
-              <p className="text-sm font-medium text-green-800">
-                Signed in as: {principalId?.slice(0, 8)}...{principalId?.slice(-6)}
-              </p>
-              <p className="text-xs text-green-600">
-                {actorReady ? '✅' : '⏳'} Connected to wallet canister •
-                Status: {actorAuthenticated ? '✅ Authenticated' : '⏳ Authenticating'}
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={logout}
-            className="text-green-700 border-green-300 hover:bg-green-100"
-          >
-            Sign Out
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Wallet Sidebar */}
-        <div className="lg:col-span-1">
-          <Card>
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Sidebar - Wallet List */}
+        <div className="md:col-span-1 space-y-6">
+          <Card className="shadow-lg border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-foreground">
@@ -439,6 +482,14 @@ export default function WalletPage() {
 
               {/* Wallets List */}
               <div className="space-y-2 max-h-96 overflow-y-auto">
+                <Button
+                  variant={selectedWallet === 'ALL' ? "secondary" : "ghost"}
+                  className={`w-full justify-start mb-2 ${selectedWallet === 'ALL' ? 'bg-accent text-accent-foreground' : ''}`}
+                  onClick={() => setSelectedWallet('ALL')}
+                >
+                  <Activity className="w-4 h-4 mr-2" />
+                  All Wallets Activity
+                </Button>
                 {isLoadingWallets ? (
                   <div className="text-center py-4">
                     <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
@@ -550,9 +601,9 @@ export default function WalletPage() {
           </Card>
         </div>
 
-        {/* Main Wallet Content - Activity section */}
-        <div className="lg:col-span-3">
-          <Card>
+        {/* Main Content - Activity */}
+        <div className="lg:col-span-2">
+          <Card className="h-full shadow-lg border-border">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-foreground" data-testid="text-wallet-title">
@@ -597,7 +648,7 @@ export default function WalletPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-gray-100">
                     {!selectedWallet ? (
                       <tr>
                         <td colSpan={6} className="py-12 text-center">
@@ -635,186 +686,259 @@ export default function WalletPage() {
                           </div>
                         </td>
                       </tr>
-                    ) : activities && activities.length > 0 ? (
-                      activities.map((activity) => (
-                        <tr key={activity.id} className="border-b border-border hover:bg-gray-50 transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center space-x-3">
-                              <img
-                                src={getOdinImageUrl('token', activity.token)}
-                                alt={activity.token_name}
-                                className="w-8 h-8 rounded-full"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = '/placeholder-token.png';
-                                }}
-                              />
-                              <div>
-                                <p className="text-sm font-medium text-foreground">
-                                  {activity.token_ticker || activity.token_name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  MC: ${(activity.token_marketcap / 1000000).toFixed(2)}M
+                    ) : (
+                      <>
+                        {displayActivities.length > 0 ? (
+                          displayActivities.map((activity, index) => (
+                            <tr key={`${activity.id || index}-${activity.time}`} className="hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0">
+                              <td className="py-4 px-4">
+                                <div className="flex items-center space-x-3">
+                                  <img
+                                    src={getOdinImageUrl('token', typeof activity.token === 'object' ? (activity.token as any)?.id : activity.token)}
+                                    alt={activity.token_name || (typeof activity.token === 'object' ? (activity.token as any)?.name : 'Token')}
+                                    className="w-8 h-8 rounded-full"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = '/placeholder-token.png';
+                                    }}
+                                  />
+                                  <div>
+                                    <p className="text-sm font-medium text-foreground">
+                                      {activity.token_ticker || activity.token_name || (typeof activity.token === 'object' ? (activity.token as any)?.ticker || (activity.token as any)?.name : 'Unknown')}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      MC: ${((activity.token_marketcap || (typeof activity.token === 'object' ? (activity.token as any)?.marketcap : 0) || 0) / 1000000).toFixed(2)}M
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(activity.buy === true || (activity as any).action === 'BUY')
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-red-100 text-red-800'
+                                  }`}>
+                                  {(activity.buy === true || (activity as any).action === 'BUY') ? 'BUY' : 'SELL'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right text-sm font-medium text-foreground">
+                                {formatTradeTokenAmount(activity.amount_token || (activity as any).token_amount || 0, activity.decimals || 3).toFixed(6)}
+                              </td>
+                              <td className="py-3 px-4 text-right text-sm font-medium text-foreground">
+                                {formatTradeBTC(activity.amount_btc || (activity as any).btc_amount || 0).formatted}
+                              </td>
+                              <td className="py-3 px-4 text-right text-sm text-foreground">
+                                ${(activity.price || (typeof activity.token === 'object' ? (activity.token as any)?.price : 0) || 0).toExponential(2)}
+                              </td>
+                              <td className="py-3 px-4 text-right text-xs text-muted-foreground">
+                                {formatTime(activity.time)}
+                              </td>
+                              <td className="py-4 px-4 text-right">
+                                <div className="flex justify-end">
+                                  {(activity.action === 'BUY' || (!activity.action && activity.buy === true)) && (
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      className="h-7 text-xs px-3 bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (!isAuthenticated) {
+                                          await login(); // Prompt login instead of just error
+                                          return;
+                                        }
+
+                                        const tokenId = typeof activity.token === 'object' ? activity.token?.id : activity.token;
+                                        // Convert API millisatoshis to BTC for buyToken
+                                        const btcAmount = formatTradeBTC(activity.amount_btc || activity.btc_amount || 0).btc;
+
+                                        // TODO: Add slippage settings from user preferences
+                                        const result = await buyToken(tokenId, btcAmount);
+
+                                        if (result && 'ok' in result) {
+                                          toast({
+                                            title: "Copy Buy Successful",
+                                            description: `Bought ${activity.token_ticker || (typeof activity.token === 'object' ? (activity.token as any)?.ticker : 'tokens')} successfully`,
+                                            className: "bg-green-50 border-green-200 text-green-800"
+                                          });
+                                        } else {
+                                          toast({
+                                            title: "Buy Failed",
+                                            description: (result && 'err' in result) ? result.err : "Unknown error",
+                                            variant: "destructive"
+                                          });
+                                        }
+                                      }}
+                                      disabled={isTradingLoading}
+                                    >
+                                      {isTradingLoading ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" /> : <Zap className="w-3 h-3 mr-1" />}
+                                      Copy Buy
+                                    </Button>
+                                  )}
+
+                                  {(activity.action === 'SELL' || (!activity.action && activity.buy === false)) && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs px-3 border-red-200 hover:bg-red-50 text-red-700 shadow-sm"
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (!isAuthenticated) {
+                                          await login();
+                                          return;
+                                        }
+
+                                        const tokenId = typeof activity.token === 'object' ? (activity.token as any)?.id : activity.token;
+                                        // Convert API scaled amount to human-readable for sellToken
+                                        const tokenAmount = formatTradeTokenAmount(activity.amount_token || (activity as any).token_amount || 0, activity.decimals || 3);
+                                        const result = await sellToken(tokenId, tokenAmount);
+
+                                        if (result && 'ok' in result) {
+                                          toast({
+                                            title: "Copy Sell Successful",
+                                            description: `Sold ${activity.token_ticker || (typeof activity.token === 'object' ? (activity.token as any)?.ticker : 'tokens')} successfully`,
+                                            className: "bg-green-50 border-green-200 text-green-800"
+                                          });
+                                        } else {
+                                          toast({
+                                            title: "Sell Failed",
+                                            description: (result && 'err' in result) ? result.err : "Unknown error",
+                                            variant: "destructive"
+                                          });
+                                        }
+                                      }}
+                                      disabled={isTradingLoading}
+                                    >
+                                      {isTradingLoading ? <div className="w-3 h-3 border-2 border-red-700 border-t-transparent rounded-full animate-spin mr-1" /> : <Zap className="w-3 h-3 mr-1" />}
+                                      Copy Sell
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="py-12 text-center">
+                              <div className="flex flex-col items-center">
+                                <Activity className="w-16 h-16 text-muted-foreground mb-4" />
+                                <h4 className="text-lg font-medium text-foreground mb-2">
+                                  No Activity Found
+                                </h4>
+                                <p className="text-sm text-muted-foreground max-w-sm">
+                                  {selectedWallet === 'ALL'
+                                    ? "No trading activity found across all your tracked wallets."
+                                    : "No trading activity found for this wallet address."}
                                 </p>
                               </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${activity.buy
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                              }`}>
-                              {activity.buy ? 'BUY' : 'SELL'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right text-sm font-medium text-foreground">
-                            {formatAmount(activity.amount_token, activity.decimals)}
-                          </td>
-                          <td className="py-3 px-4 text-right text-sm font-medium text-foreground">
-                            {activity.amount_btc.toFixed(8)} BTC
-                          </td>
-                          <td className="py-3 px-4 text-right text-sm text-foreground">
-                            ${activity.price.toExponential(2)}
-                          </td>
-                          <td className="py-3 px-4 text-right text-xs text-muted-foreground">
-                            {formatTime(activity.time)}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex justify-end space-x-1">
+                            </td>
+                          </tr>
+                        )}
+                        {/* Load More Button */}
+                        {hasNextPage && displayActivities.length > 0 && (
+                          <tr>
+                            <td colSpan={6} className="py-4 text-center bg-slate-50/50">
                               <Button
-                                size="sm"
                                 variant="outline"
-                                className="h-6 text-xs px-2 border-green-200 hover:bg-green-50 text-green-700"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // TODO: Open Trade Modal with this token and amount
-                                  console.log('Copy Buy:', activity.token, activity.amount_btc);
-                                  toast({
-                                    title: "Copy Buy Initiated",
-                                    description: `Prepared buy for ${activity.token_ticker || 'Token'}`,
-                                  });
-                                }}
+                                onClick={() => fetchNextPage()}
+                                disabled={isFetchingNextPage}
+                                className="w-full max-w-xs"
                               >
-                                <Zap className="w-3 h-3 mr-1" />
-                                Buy
+                                {isFetchingNextPage ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                                    Loading more...
+                                  </>
+                                ) : (
+                                  "Load More Activity"
+                                )}
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 text-xs px-2 border-red-200 hover:bg-red-50 text-red-700"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // TODO: Open Trade Modal
-                                  console.log('Copy Sell:', activity.token, activity.amount_btc);
-                                  toast({
-                                    title: "Copy Sell Initiated",
-                                    description: `Prepared sell for ${activity.token_ticker || 'Token'}`,
-                                  });
-                                }}
-                              >
-                                <Zap className="w-3 h-3 mr-1" />
-                                Sell
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center">
-                          <div className="flex flex-col items-center">
-                            <Activity className="w-16 h-16 text-muted-foreground mb-4" />
-                            <h4 className="text-lg font-medium text-foreground mb-2">
-                              No Activity Found
-                            </h4>
-                            <p className="text-sm text-muted-foreground max-w-sm">
-                              This wallet doesn't have any recent trading activity in the Odin API.
-                            </p>
-                          </div>
-                        </td>
-                      </tr>
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     )}
                   </tbody>
                 </table>
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </div >
+      </div >
 
       {/* Add Wallet Modal */}
-      {showAddWalletModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-foreground">Add Wallet</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowAddWalletModal(false);
-                    setNewWalletAddress('');
-                    setNewWalletName('');
-                  }}
-                  data-testid="button-close-add-wallet"
-                >
-                  ×
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <Input
-                  placeholder="Wallet address or principal"
-                  className="w-full"
-                  value={newWalletAddress}
-                  onChange={(e) => setNewWalletAddress(e.target.value)}
-                  data-testid="input-wallet-address"
-                  disabled={isAddingWallet}
-                />
-                <Input
-                  placeholder="Wallet name (optional)"
-                  className="w-full"
-                  value={newWalletName}
-                  onChange={(e) => setNewWalletName(e.target.value)}
-                  data-testid="input-wallet-name"
-                  disabled={isAddingWallet}
-                />
-                <div className="flex space-x-2">
+      {
+        showAddWalletModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-foreground">Add Wallet</h3>
                   <Button
-                    variant="outline"
-                    className="flex-1"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       setShowAddWalletModal(false);
                       setNewWalletAddress('');
                       setNewWalletName('');
                     }}
-                    data-testid="button-cancel-add-wallet"
-                    disabled={isAddingWallet}
+                    data-testid="button-close-add-wallet"
                   >
-                    Cancel
-                  </Button>
-                  <Button
-                    className="flex-1"
-                    onClick={handleAddWallet}
-                    disabled={!newWalletAddress.trim() || isAddingWallet}
-                    data-testid="button-confirm-add-wallet"
-                  >
-                    {isAddingWallet ? (
-                      <>
-                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                        Adding...
-                      </>
-                    ) : (
-                      'Add Wallet'
-                    )}
+                    ×
                   </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <Input
+                    placeholder="Wallet address or principal"
+                    className="w-full"
+                    value={newWalletAddress}
+                    onChange={(e) => setNewWalletAddress(e.target.value)}
+                    data-testid="input-wallet-address"
+                    disabled={isAddingWallet}
+                  />
+                  <Input
+                    placeholder="Wallet name (optional)"
+                    className="w-full"
+                    value={newWalletName}
+                    onChange={(e) => setNewWalletName(e.target.value)}
+                    data-testid="input-wallet-name"
+                    disabled={isAddingWallet}
+                  />
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setShowAddWalletModal(false);
+                        setNewWalletAddress('');
+                        setNewWalletName('');
+                      }}
+                      data-testid="button-cancel-add-wallet"
+                      disabled={isAddingWallet}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={handleAddWallet}
+                      disabled={!newWalletAddress.trim() || isAddingWallet}
+                      data-testid="button-confirm-add-wallet"
+                    >
+                      {isAddingWallet ? (
+                        <>
+                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                          Adding...
+                        </>
+                      ) : (
+                        'Add Wallet'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      }
 
       {/* Modals */}
       <FilterModal
@@ -828,6 +952,6 @@ export default function WalletPage() {
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
       />
-    </main>
+    </main >
   );
 }
