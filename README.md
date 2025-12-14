@@ -13,6 +13,19 @@
 > - **Optimized Flow**: Streamlined Factory -> Trade -> Vault architecture.
 >
 > 👉 **[READ THE FULL BREAKTHROUGH DOCUMENTATION HERE](src/multi-trader-backend/NewPredictionMarkets/README.md)** 👈
+>
+> ---
+>
+> [!TIP]
+> # ⚡ ckBOOST: Bitcoin in the Fast Lane
+> **From 60+ Minutes to < 10 Minutes**
+>
+> We've also solved the slow bridging problem. Using our custom **Automated Booster Service**, we provide liquidity to "boost" user deposits, effectively **swapping verification time for liquidity**.
+>
+> - **How?** Optimistic finality & platform-gated risk management.
+> - **Why?** So you can trade the moment you deposit.
+>
+> 👉 **[READ THE FULL ckBOOST DOCS HERE](src/omax-pro-frontend/ckBOOST.md)** 👈
 
 ## 📖 **Important Documentation Links**
 
